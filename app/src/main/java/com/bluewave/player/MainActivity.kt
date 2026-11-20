@@ -740,7 +740,7 @@ fun FullPlayer(t: Track, ui: PlayerUi, tracks: List<Track>, vm: PlayerViewModel,
             }
             Spacer(Modifier.weight(1f))
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                Box(Modifier.shadowGlow()) { Artwork(t, maxWidth, 20) }
+                Artwork(t, maxWidth, 20)
             }
             Spacer(Modifier.weight(1f))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -830,7 +830,6 @@ fun FullPlayer(t: Track, ui: PlayerUi, tracks: List<Track>, vm: PlayerViewModel,
     )
 }
 
-fun Modifier.shadowGlow(): Modifier = this.then(Modifier.background(Color.Transparent))
 
 // ---------------- track menu ----------------
 @OptIn(ExperimentalMaterial3Api::class)
