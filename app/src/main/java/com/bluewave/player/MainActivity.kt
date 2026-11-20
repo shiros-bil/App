@@ -11,11 +11,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,12 +35,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +59,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
+
+@Composable
+fun lc(id: Int): ImageVector = ImageVector.vectorResource(id)
 
 // ---------------- palette: black / white / blue ----------------
 val Bg = Color(0xFF000000)
@@ -138,11 +144,16 @@ fun Onboarding(onDone: () -> Unit) {
             .background(Brush.verticalGradient(listOf(BlueDeep, Bg, Bg)))
             .systemBarsPadding().padding(28.dp)
     ) {
-        Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+        var shown by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { shown = true }
+        val inf = rememberInfiniteTransition(label = "logo")
+        val pulse by inf.animateFloat(1f, 1.08f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "p")
+        AnimatedVisibility(shown, Modifier.align(Alignment.Center), enter = fadeIn(tween(700)) + slideInVertically(tween(700, easing = FastOutSlowInEasing)) { it / 6 }) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
-                Modifier.size(120.dp).clip(RoundedCornerShape(32.dp)).background(Surface2),
+                Modifier.scale(pulse).size(120.dp).clip(RoundedCornerShape(32.dp)).background(Surface2),
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.Default.GraphicEq, null, tint = Blue, modifier = Modifier.size(64.dp)) }
+            ) { Icon(lc(R.drawable.lc_logo), null, tint = Blue, modifier = Modifier.size(64.dp)) }
             Spacer(Modifier.height(28.dp))
             Text("BlueWave", fontSize = 36.sp, fontWeight = FontWeight.Black, color = TextHi)
             Spacer(Modifier.height(12.dp))
@@ -164,6 +175,7 @@ fun Onboarding(onDone: () -> Unit) {
                 colors = ButtonDefaults.buttonColors(containerColor = Blue)
             ) { Text("Разрешить доступ к музыке", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
             TextButton(onClick = onDone) { Text("Позже", color = TextLo) }
+        }
         }
     }
 }
@@ -190,13 +202,21 @@ fun MainScaffold(vm: PlayerViewModel = viewModel()) {
             containerColor = Bg,
             bottomBar = {
                 Column(Modifier.background(Bg)) {
-                    if (current_track != null) MiniPlayer(current_track, ui, vm) { playerOpen = true }
+                    AnimatedVisibility(
+                        current_track != null,
+                        enter = slideInVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)) { it } + fadeIn(),
+                        exit = slideOutVertically { it } + fadeOut()
+                    ) {
+                        var last by remember { mutableStateOf(current_track) }
+                        if (current_track != null) last = current_track
+                        last?.let { MiniPlayer(it, ui, vm) { playerOpen = true } }
+                    }
                     NavigationBar(containerColor = Bg, tonalElevation = 0.dp) {
                         listOf(
-                            Triple(Screen.Home, Icons.Default.Home, "Главная"),
-                            Triple(Screen.Search, Icons.Default.Search, "Поиск"),
-                            Triple(Screen.Library, Icons.Default.LibraryMusic, "Медиатека"),
-                            Triple(Screen.Settings, Icons.Default.Settings, "Настройки"),
+                            Triple(Screen.Home, lc(R.drawable.lc_home), "Главная"),
+                            Triple(Screen.Search, lc(R.drawable.lc_search), "Поиск"),
+                            Triple(Screen.Library, lc(R.drawable.lc_library), "Медиатека"),
+                            Triple(Screen.Settings, lc(R.drawable.lc_settings), "Настройки"),
                         ).forEach { (s, ic, label) ->
                             NavigationBarItem(
                                 selected = tab == s,
@@ -214,7 +234,15 @@ fun MainScaffold(vm: PlayerViewModel = viewModel()) {
         ) { pad ->
             Box(Modifier.padding(pad).fillMaxSize()) {
                 val onMenu: (Track) -> Unit = { menuTrack = it }
-                when (val s = current) {
+                AnimatedContent(
+                    targetState = current,
+                    transitionSpec = {
+                        (fadeIn(tween(260, delayMillis = 60)) + slideInHorizontally(tween(320, easing = FastOutSlowInEasing)) { it / 10 } + scaleIn(tween(320), initialScale = 0.98f))
+                            .togetherWith(fadeOut(tween(160)))
+                    },
+                    label = "screens"
+                ) { s ->
+                when (s) {
                     Screen.Home -> HomeScreen(tracks, vm, nav, onMenu)
                     Screen.Library -> LibraryScreen(tracks, vm, nav, onMenu)
                     Screen.Search -> SearchScreen(tracks, vm, nav, onMenu)
@@ -225,18 +253,49 @@ fun MainScaffold(vm: PlayerViewModel = viewModel()) {
                     Screen.Favorites -> TrackListScreen("Любимые", tracks.filter { it.favorite }, vm, { stack.removeAt(stack.lastIndex) }, onMenu)
                     Screen.Recent -> TrackListScreen("Недавно добавленные", tracks.sortedByDescending { it.addedAt }, vm, { stack.removeAt(stack.lastIndex) }, onMenu)
                 }
+                }
             }
         }
 
         AnimatedVisibility(
             visible = playerOpen && current_track != null,
-            enter = slideInVertically { it }, exit = slideOutVertically { it }
+            enter = slideInVertically(tween(420, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(300)),
+            exit = slideOutVertically(tween(320, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(250))
         ) {
             current_track?.let { FullPlayer(it, ui, tracks, vm, { playerOpen = false }, { menuTrack = it }) }
         }
 
         menuTrack?.let { t -> TrackMenu(t, vm, { menuTrack = null }, { stack.add(it); playerOpen = false }) }
     }
+}
+
+// ---------------- animation helpers ----------------
+@Composable
+fun EqBars(modifier: Modifier = Modifier, color: Color = Blue) {
+    val inf = rememberInfiniteTransition(label = "eq")
+    val hs = listOf(520, 380, 610, 450).mapIndexed { i, d ->
+        inf.animateFloat(0.25f, 1f, infiniteRepeatable(tween(d, easing = FastOutSlowInEasing), RepeatMode.Reverse, StartOffset(i * 90)), label = "b$i")
+    }
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
+        hs.forEach { h -> Box(Modifier.weight(1f).fillMaxHeight(h.value).clip(RoundedCornerShape(2.dp)).background(color)) }
+    }
+}
+
+/** Scales down slightly while pressed, springs back on release. */
+fun Modifier.bounceClick(onClick: () -> Unit): Modifier = composed {
+    val src = remember { MutableInteractionSource() }
+    val pressed by src.collectIsPressedAsState()
+    val sc by animateFloatAsState(if (pressed) 0.88f else 1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium), label = "bounce")
+    this.scale(sc).clickable(interactionSource = src, indication = null, onClick = onClick)
+}
+
+@Composable
+fun PlayPauseIcon(playing: Boolean, tint: Color, size: androidx.compose.ui.unit.Dp) {
+    AnimatedContent(
+        playing,
+        transitionSpec = { (scaleIn(spring(dampingRatio = 0.5f)) + fadeIn()).togetherWith(scaleOut() + fadeOut()) },
+        label = "pp"
+    ) { p -> Icon(if (p) lc(R.drawable.lc_pause) else lc(R.drawable.lc_play), null, tint = tint, modifier = Modifier.size(size)) }
 }
 
 // ---------------- common pieces ----------------
@@ -250,28 +309,37 @@ fun Artwork(track: Track?, size: androidx.compose.ui.unit.Dp, radius: Int = 10) 
         if (track?.artPath != null) {
             AsyncImage(model = track.artUri, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
-            Icon(Icons.Default.MusicNote, null, tint = Blue.copy(alpha = .8f), modifier = Modifier.size(size * 0.45f))
+            Icon(lc(R.drawable.lc_music), null, tint = Blue.copy(alpha = .8f), modifier = Modifier.size(size * 0.45f))
         }
     }
 }
 
 @Composable
 fun TrackRow(t: Track, playing: Boolean, onClick: () -> Unit, onMenu: () -> Unit, trailing: (@Composable () -> Unit)? = null) {
+    val src = remember { MutableInteractionSource() }
+    val pressed by src.collectIsPressedAsState()
+    val sc by animateFloatAsState(if (pressed) 0.97f else 1f, spring(stiffness = Spring.StiffnessMedium), label = "press")
+    val bg by animateColorAsState(if (playing) Blue.copy(alpha = .08f) else Color.Transparent, tween(400), label = "rowbg")
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().scale(sc).background(bg).clickable(interactionSource = src, indication = androidx.compose.material3.ripple(color = Blue), onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Artwork(t, 50.dp, 8)
+        Box(contentAlignment = Alignment.Center) {
+            Artwork(t, 50.dp, 8)
+            androidx.compose.animation.AnimatedVisibility(playing, enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
+                Box(Modifier.size(50.dp).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = .55f)), contentAlignment = Alignment.Center) { EqBars(Modifier.size(22.dp)) }
+            }
+        }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(t.title, color = if (playing) Blue else TextHi, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (t.favorite) { Icon(Icons.Default.Favorite, null, tint = Blue, modifier = Modifier.size(12.dp)); Spacer(Modifier.width(4.dp)) }
+                if (t.favorite) { Icon(lc(R.drawable.lc_heart_fill), null, tint = Blue, modifier = Modifier.size(12.dp)); Spacer(Modifier.width(4.dp)) }
                 Text("${t.artist} • ${fmt(t.durationMs)}", color = TextLo, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         trailing?.invoke()
-        IconButton(onClick = onMenu) { Icon(Icons.Default.MoreVert, null, tint = TextLo) }
+        IconButton(onClick = onMenu) { Icon(lc(R.drawable.lc_more), null, tint = TextLo) }
     }
 }
 
@@ -287,7 +355,7 @@ fun SectionTitle(text: String, action: String? = null, onAction: () -> Unit = {}
 fun EmptyState(text: String) {
     Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.LibraryMusic, null, tint = Surface2, modifier = Modifier.size(72.dp))
+            Icon(lc(R.drawable.lc_library), null, tint = Surface2, modifier = Modifier.size(72.dp))
             Spacer(Modifier.height(12.dp))
             Text(text, color = TextLo, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
@@ -331,11 +399,11 @@ fun HomeScreen(tracks: List<Track>, vm: PlayerViewModel, nav: (Screen) -> Unit, 
                         Button(
                             onClick = { vm.play(tracks, shuffle = true) }, enabled = tracks.isNotEmpty(),
                             colors = ButtonDefaults.buttonColors(containerColor = Blue), shape = RoundedCornerShape(24.dp)
-                        ) { Icon(Icons.Default.Shuffle, null); Spacer(Modifier.width(6.dp)); Text("Перемешать всё") }
+                        ) { Icon(lc(R.drawable.lc_shuffle), null); Spacer(Modifier.width(6.dp)); Text("Перемешать всё") }
                         OutlinedButton(
                             onClick = { picker() }, shape = RoundedCornerShape(24.dp),
                             border = ButtonDefaults.outlinedButtonBorder(true).copy(brush = Brush.linearGradient(listOf(Blue, Blue)))
-                        ) { Icon(Icons.Default.Add, null, tint = Blue); Spacer(Modifier.width(6.dp)); Text("Добавить", color = TextHi) }
+                        ) { Icon(lc(R.drawable.lc_plus), null, tint = Blue); Spacer(Modifier.width(6.dp)); Text("Добавить", color = TextHi) }
                     }
                 }
             }
@@ -343,8 +411,8 @@ fun HomeScreen(tracks: List<Track>, vm: PlayerViewModel, nav: (Screen) -> Unit, 
         item { ScanBanner() }
         item {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuickTile("Любимые", Icons.Default.Favorite, Modifier.weight(1f)) { nav(Screen.Favorites) }
-                QuickTile("Новое", Icons.Default.NewReleases, Modifier.weight(1f)) { nav(Screen.Recent) }
+                QuickTile("Любимые", lc(R.drawable.lc_heart_fill), Modifier.weight(1f)) { nav(Screen.Favorites) }
+                QuickTile("Новое", lc(R.drawable.lc_sparkles), Modifier.weight(1f)) { nav(Screen.Recent) }
             }
         }
         if (tracks.isEmpty()) item { EmptyState("Медиатека пуста.\nДай доступ к файлам в настройках или нажми «Добавить».") }
@@ -422,8 +490,8 @@ fun LibraryScreen(tracks: List<Track>, vm: PlayerViewModel, nav: (Screen) -> Uni
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(16.dp, 12.dp, 8.dp, 0.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Медиатека", fontSize = 28.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-            IconButton(onClick = { scope.launch { Library.scanDevice() } }) { Icon(Icons.Default.Refresh, null, tint = TextHi) }
-            IconButton(onClick = picker) { Icon(Icons.Default.Add, null, tint = TextHi) }
+            IconButton(onClick = { scope.launch { Library.scanDevice() } }) { Icon(lc(R.drawable.lc_refresh), null, tint = TextHi) }
+            IconButton(onClick = picker) { Icon(lc(R.drawable.lc_plus), null, tint = TextHi) }
         }
         ScanBanner()
         val tabs = listOf("Треки", "Альбомы", "Исполнители", "Плейлисты")
@@ -436,12 +504,12 @@ fun LibraryScreen(tracks: List<Track>, vm: PlayerViewModel, nav: (Screen) -> Uni
             0 -> LazyColumn(Modifier.fillMaxSize()) {
                 item {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        FilledIconButton(onClick = { vm.play(sorted) }, colors = IconButtonDefaults.filledIconButtonColors(containerColor = Blue)) { Icon(Icons.Default.PlayArrow, null) }
+                        FilledIconButton(onClick = { vm.play(sorted) }, colors = IconButtonDefaults.filledIconButtonColors(containerColor = Blue)) { Icon(lc(R.drawable.lc_play), null) }
                         Spacer(Modifier.width(8.dp))
-                        FilledIconButton(onClick = { vm.play(sorted, shuffle = true) }, colors = IconButtonDefaults.filledIconButtonColors(containerColor = Surface2)) { Icon(Icons.Default.Shuffle, null, tint = TextHi) }
+                        FilledIconButton(onClick = { vm.play(sorted, shuffle = true) }, colors = IconButtonDefaults.filledIconButtonColors(containerColor = Surface2)) { Icon(lc(R.drawable.lc_shuffle), null, tint = TextHi) }
                         Spacer(Modifier.weight(1f))
                         Box {
-                            TextButton(onClick = { sortMenu = true }) { Icon(Icons.Default.Sort, null, tint = TextLo); Spacer(Modifier.width(4.dp)); Text(sort.label, color = TextLo) }
+                            TextButton(onClick = { sortMenu = true }) { Icon(lc(R.drawable.lc_sort), null, tint = TextLo); Spacer(Modifier.width(4.dp)); Text(sort.label, color = TextLo) }
                             DropdownMenu(sortMenu, { sortMenu = false }, containerColor = Surface2) {
                                 Sort.entries.forEach { s -> DropdownMenuItem(text = { Text(s.label) }, onClick = { sort = s; sortMenu = false }) }
                             }
@@ -466,13 +534,13 @@ fun LibraryScreen(tracks: List<Track>, vm: PlayerViewModel, nav: (Screen) -> Uni
             else -> LazyColumn(Modifier.fillMaxSize()) {
                 item {
                     Row(Modifier.fillMaxWidth().clickable { newPl = true }.padding(16.dp, 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).background(Surface2), contentAlignment = Alignment.Center) { Icon(Icons.Default.Add, null, tint = Blue) }
+                        Box(Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).background(Surface2), contentAlignment = Alignment.Center) { Icon(lc(R.drawable.lc_plus), null, tint = Blue) }
                         Spacer(Modifier.width(14.dp)); Text("Новый плейлист", fontWeight = FontWeight.SemiBold)
                     }
                 }
                 item {
                     Row(Modifier.fillMaxWidth().clickable { nav(Screen.Favorites) }.padding(16.dp, 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(listOf(Blue, BlueDeep))), contentAlignment = Alignment.Center) { Icon(Icons.Default.Favorite, null, tint = Color.White) }
+                        Box(Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(listOf(Blue, BlueDeep))), contentAlignment = Alignment.Center) { Icon(lc(R.drawable.lc_heart_fill), null, tint = Color.White) }
                         Spacer(Modifier.width(14.dp))
                         Column { Text("Любимые", fontWeight = FontWeight.SemiBold); Text("${tracks.count { it.favorite }} треков", color = TextLo, fontSize = 13.sp) }
                     }
@@ -514,7 +582,7 @@ fun DetailHeader(title: String, subtitle: String, cover: Track?, onBack: () -> U
         Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(BlueDeep.copy(alpha = .7f), Bg))).statusBarsPadding().padding(bottom = 8.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = TextHi) }
+            IconButton(onClick = onBack) { Icon(lc(R.drawable.lc_back), null, tint = TextHi) }
             Spacer(Modifier.weight(1f)); actions()
         }
         Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -532,10 +600,10 @@ fun DetailHeader(title: String, subtitle: String, cover: Track?, onBack: () -> U
 fun PlayButtons(list: List<Track>, vm: PlayerViewModel) {
     Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Button(onClick = { vm.play(list) }, enabled = list.isNotEmpty(), colors = ButtonDefaults.buttonColors(containerColor = Blue), shape = RoundedCornerShape(24.dp)) {
-            Icon(Icons.Default.PlayArrow, null); Spacer(Modifier.width(4.dp)); Text("Слушать")
+            Icon(lc(R.drawable.lc_play), null); Spacer(Modifier.width(4.dp)); Text("Слушать")
         }
         Button(onClick = { vm.play(list, shuffle = true) }, enabled = list.isNotEmpty(), colors = ButtonDefaults.buttonColors(containerColor = Surface2), shape = RoundedCornerShape(24.dp)) {
-            Icon(Icons.Default.Shuffle, null, tint = TextHi); Spacer(Modifier.width(4.dp)); Text("Перемешать", color = TextHi)
+            Icon(lc(R.drawable.lc_shuffle), null, tint = TextHi); Spacer(Modifier.width(4.dp)); Text("Перемешать", color = TextHi)
         }
     }
 }
@@ -563,15 +631,15 @@ fun PlaylistScreen(id: String, tracks: List<Track>, vm: PlayerViewModel, onBack:
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             DetailHeader(p.name, "Плейлист • ${list.size} треков", list.firstOrNull(), onBack) {
-                IconButton(onClick = { rename = true }) { Icon(Icons.Default.Edit, null, tint = TextHi) }
-                IconButton(onClick = { confirmDel = true }) { Icon(Icons.Default.Delete, null, tint = TextHi) }
+                IconButton(onClick = { rename = true }) { Icon(lc(R.drawable.lc_edit), null, tint = TextHi) }
+                IconButton(onClick = { confirmDel = true }) { Icon(lc(R.drawable.lc_trash), null, tint = TextHi) }
             }
         }
         item { PlayButtons(list, vm) }
         if (list.isEmpty()) item { EmptyState("Добавляй треки через меню «⋮» → «В плейлист»") }
         itemsIndexed(list, key = { _, t -> t.id }) { i, t ->
             TrackRow(t, t.id == ui.currentId, { vm.play(list, i) }, { onMenu(t) }) {
-                IconButton(onClick = { scope.launch { Library.removeFromPlaylist(p.id, t.id) } }) { Icon(Icons.Default.RemoveCircleOutline, null, tint = TextLo) }
+                IconButton(onClick = { scope.launch { Library.removeFromPlaylist(p.id, t.id) } }) { Icon(lc(R.drawable.lc_minus), null, tint = TextLo) }
             }
         }
     }
@@ -611,8 +679,8 @@ fun SearchScreen(tracks: List<Track>, vm: PlayerViewModel, nav: (Screen) -> Unit
         TextField(
             q, { q = it }, singleLine = true,
             placeholder = { Text("Треки, исполнители, альбомы") },
-            leadingIcon = { Icon(Icons.Default.Search, null) },
-            trailingIcon = { if (q.isNotEmpty()) IconButton(onClick = { q = "" }) { Icon(Icons.Default.Close, null) } },
+            leadingIcon = { Icon(lc(R.drawable.lc_search), null) },
+            trailingIcon = { if (q.isNotEmpty()) IconButton(onClick = { q = "" }) { Icon(lc(R.drawable.lc_close), null) } },
             shape = RoundedCornerShape(14.dp),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Surface2, unfocusedContainerColor = Surface2,
@@ -624,11 +692,11 @@ fun SearchScreen(tracks: List<Track>, vm: PlayerViewModel, nav: (Screen) -> Unit
             if (ql.isNotEmpty() && res.isEmpty()) item { EmptyState("Ничего не найдено") }
             if (artists.isNotEmpty()) {
                 item { SectionTitle("Исполнители") }
-                items(artists) { a -> ListItem(headlineContent = { Text(a) }, leadingContent = { Icon(Icons.Default.Person, null, tint = Blue) }, colors = ListItemDefaults.colors(containerColor = Bg), modifier = Modifier.clickable { nav(Screen.Artist(a)) }) }
+                items(artists) { a -> ListItem(headlineContent = { Text(a) }, leadingContent = { Icon(lc(R.drawable.lc_user), null, tint = Blue) }, colors = ListItemDefaults.colors(containerColor = Bg), modifier = Modifier.clickable { nav(Screen.Artist(a)) }) }
             }
             if (albums.isNotEmpty()) {
                 item { SectionTitle("Альбомы") }
-                items(albums) { a -> ListItem(headlineContent = { Text(a) }, leadingContent = { Icon(Icons.Default.Album, null, tint = Blue) }, colors = ListItemDefaults.colors(containerColor = Bg), modifier = Modifier.clickable { nav(Screen.Album(a)) }) }
+                items(albums) { a -> ListItem(headlineContent = { Text(a) }, leadingContent = { Icon(lc(R.drawable.lc_album), null, tint = Blue) }, colors = ListItemDefaults.colors(containerColor = Bg), modifier = Modifier.clickable { nav(Screen.Album(a)) }) }
             }
             if (res.isNotEmpty()) {
                 item { SectionTitle("Треки") }
@@ -700,14 +768,14 @@ fun SettingCard(content: @Composable ColumnScope.() -> Unit) {
 fun MiniPlayer(t: Track, ui: PlayerUi, vm: PlayerViewModel, onOpen: () -> Unit) {
     Column(Modifier.padding(horizontal = 8.dp).clip(RoundedCornerShape(12.dp)).background(Surface2).clickable(onClick = onOpen)) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Artwork(t, 44.dp, 8)
+            AnimatedContent(t, transitionSpec = { fadeIn(tween(300)).togetherWith(fadeOut(tween(300))) }, contentKey = { it.id }, label = "miniart") { Artwork(it, 44.dp, 8) }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(t.title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
                 Text(t.artist, color = TextLo, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
             }
-            IconButton(onClick = { vm.toggle() }) { Icon(if (ui.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = TextHi) }
-            IconButton(onClick = { vm.next() }) { Icon(Icons.Default.SkipNext, null, tint = TextHi) }
+            IconButton(onClick = { vm.toggle() }) { PlayPauseIcon(ui.isPlaying, TextHi, 24.dp) }
+            IconButton(onClick = { vm.next() }) { Icon(lc(R.drawable.lc_next), null, tint = TextHi) }
         }
         LinearProgressIndicator(
             progress = { if (ui.duration > 0) (ui.position / ui.duration.toFloat()).coerceIn(0f, 1f) else 0f },
@@ -731,25 +799,33 @@ fun FullPlayer(t: Track, ui: PlayerUi, tracks: List<Track>, vm: PlayerViewModel,
     ) {
         Column(Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onClose) { Icon(Icons.Default.KeyboardArrowDown, null, tint = TextHi, modifier = Modifier.size(32.dp)) }
+                IconButton(onClick = onClose) { Icon(lc(R.drawable.lc_down), null, tint = TextHi, modifier = Modifier.size(32.dp)) }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("СЕЙЧАС ИГРАЕТ", color = TextLo, fontSize = 11.sp, letterSpacing = 2.sp)
                     Text(t.album, color = TextHi, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                IconButton(onClick = { onMenu(t) }) { Icon(Icons.Default.MoreVert, null, tint = TextHi) }
+                IconButton(onClick = { onMenu(t) }) { Icon(lc(R.drawable.lc_more), null, tint = TextHi) }
             }
             Spacer(Modifier.weight(1f))
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                Artwork(t, maxWidth, 20)
+                val w = maxWidth
+                val artScale by animateFloatAsState(if (ui.isPlaying) 1f else 0.86f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow), label = "art")
+                AnimatedContent(
+                    t, contentKey = { it.id },
+                    transitionSpec = { (fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.9f)).togetherWith(fadeOut(tween(250))) },
+                    label = "bigart"
+                ) { tr -> Box(Modifier.scale(artScale)) { Artwork(tr, w, 20) } }
             }
             Spacer(Modifier.weight(1f))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(t.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(t.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.basicMarquee())
                     Text(t.artist, color = TextLo, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 IconButton(onClick = { scope.launch { Library.toggleFavorite(t.id) } }) {
-                    Icon(if (t.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null, tint = if (t.favorite) Blue else TextHi, modifier = Modifier.size(28.dp))
+                    val hs by animateFloatAsState(if (t.favorite) 1f else 0.85f, spring(dampingRatio = 0.3f, stiffness = Spring.StiffnessMedium), label = "heart")
+                    val hc by animateColorAsState(if (t.favorite) Blue else TextHi, label = "hc")
+                    Icon(if (t.favorite) lc(R.drawable.lc_heart_fill) else lc(R.drawable.lc_heart), null, tint = hc, modifier = Modifier.size(28.dp).scale(hs * 1.1f))
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -767,26 +843,26 @@ fun FullPlayer(t: Track, ui: PlayerUi, tracks: List<Track>, vm: PlayerViewModel,
             }
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { vm.toggleShuffle() }) { Icon(Icons.Default.Shuffle, null, tint = if (ui.shuffle) Blue else TextHi) }
-                IconButton(onClick = { vm.prev() }, modifier = Modifier.size(56.dp)) { Icon(Icons.Default.SkipPrevious, null, tint = TextHi, modifier = Modifier.size(40.dp)) }
+                IconButton(onClick = { vm.toggleShuffle() }) { Icon(lc(R.drawable.lc_shuffle), null, tint = if (ui.shuffle) Blue else TextHi) }
+                IconButton(onClick = { vm.prev() }, modifier = Modifier.size(56.dp)) { Icon(lc(R.drawable.lc_prev), null, tint = TextHi, modifier = Modifier.size(40.dp)) }
                 Box(
-                    Modifier.size(76.dp).clip(CircleShape).background(Color.White).clickable { vm.toggle() },
+                    Modifier.bounceClick { vm.toggle() }.size(76.dp).clip(CircleShape).background(Color.White),
                     contentAlignment = Alignment.Center
-                ) { Icon(if (ui.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = Bg, modifier = Modifier.size(42.dp)) }
-                IconButton(onClick = { vm.next() }, modifier = Modifier.size(56.dp)) { Icon(Icons.Default.SkipNext, null, tint = TextHi, modifier = Modifier.size(40.dp)) }
+                ) { PlayPauseIcon(ui.isPlaying, Bg, 36.dp) }
+                IconButton(onClick = { vm.next() }, modifier = Modifier.size(56.dp)) { Icon(lc(R.drawable.lc_next), null, tint = TextHi, modifier = Modifier.size(40.dp)) }
                 IconButton(onClick = { vm.cycleRepeat() }) {
-                    Icon(if (ui.repeat == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat, null,
+                    Icon(if (ui.repeat == Player.REPEAT_MODE_ONE) lc(R.drawable.lc_repeat_one) else lc(R.drawable.lc_repeat), null,
                         tint = if (ui.repeat != Player.REPEAT_MODE_OFF) Blue else TextHi)
                 }
             }
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton(onClick = { showSpeed = true }) { Icon(Icons.Default.Speed, null, tint = if (ui.speed != 1f) Blue else TextLo); Spacer(Modifier.width(4.dp)); Text("${ui.speed}x", color = TextLo) }
+                TextButton(onClick = { showSpeed = true }) { Icon(lc(R.drawable.lc_speed), null, tint = if (ui.speed != 1f) Blue else TextLo); Spacer(Modifier.width(4.dp)); Text("${ui.speed}x", color = TextLo) }
                 TextButton(onClick = { showSleep = true }) {
-                    Icon(Icons.Default.Bedtime, null, tint = if (ui.sleepAt > 0) Blue else TextLo); Spacer(Modifier.width(4.dp))
+                    Icon(lc(R.drawable.lc_moon), null, tint = if (ui.sleepAt > 0) Blue else TextLo); Spacer(Modifier.width(4.dp))
                     Text(if (ui.sleepAt > 0) "до ${java.text.SimpleDateFormat("HH:mm").format(ui.sleepAt)}" else "Таймер", color = TextLo)
                 }
-                TextButton(onClick = { showQueue = true }) { Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = TextLo); Spacer(Modifier.width(4.dp)); Text("Очередь", color = TextLo) }
+                TextButton(onClick = { showQueue = true }) { Icon(lc(R.drawable.lc_queue), null, tint = TextLo); Spacer(Modifier.width(4.dp)); Text("Очередь", color = TextLo) }
             }
             Spacer(Modifier.height(12.dp))
         }
@@ -802,8 +878,8 @@ fun FullPlayer(t: Track, ui: PlayerUi, tracks: List<Track>, vm: PlayerViewModel,
                         Text(qt.title, color = if (i == ui.index) Blue else TextHi, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(qt.artist, color = TextLo, fontSize = 12.sp, maxLines = 1)
                     }
-                    if (i > 0) IconButton(onClick = { vm.moveInQueue(i, i - 1) }) { Icon(Icons.Default.KeyboardArrowUp, null, tint = TextLo) }
-                    if (i != ui.index) IconButton(onClick = { vm.removeFromQueue(i) }) { Icon(Icons.Default.Close, null, tint = TextLo) }
+                    if (i > 0) IconButton(onClick = { vm.moveInQueue(i, i - 1) }) { Icon(lc(R.drawable.lc_up), null, tint = TextLo) }
+                    if (i != ui.index) IconButton(onClick = { vm.removeFromQueue(i) }) { Icon(lc(R.drawable.lc_close), null, tint = TextLo) }
                 }
             }
         }
@@ -853,17 +929,17 @@ fun TrackMenu(t: Track, vm: PlayerViewModel, onDismiss: () -> Unit, nav: (Screen
             ListItem(headlineContent = { Text(label) }, leadingContent = { Icon(icon, null, tint = TextHi) },
                 colors = ListItemDefaults.colors(containerColor = Surface1), modifier = Modifier.clickable(onClick = onClick))
         if (!pickPl) {
-            item(Icons.AutoMirrored.Filled.PlaylistPlay, "Играть следующим") { vm.playNext(tr); onDismiss() }
-            item(Icons.AutoMirrored.Filled.QueueMusic, "Добавить в очередь") { vm.addToQueue(tr); onDismiss() }
-            item(if (tr.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, if (tr.favorite) "Убрать из любимых" else "В любимые") { scope.launch { Library.toggleFavorite(tr.id) } }
-            item(Icons.AutoMirrored.Filled.PlaylistAdd, "В плейлист") { pickPl = true }
-            item(Icons.Default.Person, "Исполнитель: ${tr.artist}") { onDismiss(); nav(Screen.Artist(tr.artist)) }
-            item(Icons.Default.Album, "Альбом: ${tr.album}") { onDismiss(); nav(Screen.Album(tr.album)) }
-            item(Icons.Default.Edit, "Изменить информацию") { edit = true }
-            item(Icons.Default.Delete, "Удалить из приложения") { confirmDel = true }
+            item(lc(R.drawable.lc_play_next), "Играть следующим") { vm.playNext(tr); onDismiss() }
+            item(lc(R.drawable.lc_queue), "Добавить в очередь") { vm.addToQueue(tr); onDismiss() }
+            item(if (tr.favorite) lc(R.drawable.lc_heart_fill) else lc(R.drawable.lc_heart), if (tr.favorite) "Убрать из любимых" else "В любимые") { scope.launch { Library.toggleFavorite(tr.id) } }
+            item(lc(R.drawable.lc_list_plus), "В плейлист") { pickPl = true }
+            item(lc(R.drawable.lc_user), "Исполнитель: ${tr.artist}") { onDismiss(); nav(Screen.Artist(tr.artist)) }
+            item(lc(R.drawable.lc_album), "Альбом: ${tr.album}") { onDismiss(); nav(Screen.Album(tr.album)) }
+            item(lc(R.drawable.lc_edit), "Изменить информацию") { edit = true }
+            item(lc(R.drawable.lc_trash), "Удалить из приложения") { confirmDel = true }
         } else {
-            item(Icons.Default.Add, "Новый плейлист") { newPl = true }
-            playlists.forEach { p -> item(Icons.AutoMirrored.Filled.QueueMusic, p.name) { scope.launch { Library.addToPlaylist(p.id, tr.id) }; onDismiss() } }
+            item(lc(R.drawable.lc_plus), "Новый плейлист") { newPl = true }
+            playlists.forEach { p -> item(lc(R.drawable.lc_queue), p.name) { scope.launch { Library.addToPlaylist(p.id, tr.id) }; onDismiss() } }
         }
         Spacer(Modifier.height(24.dp))
     }
