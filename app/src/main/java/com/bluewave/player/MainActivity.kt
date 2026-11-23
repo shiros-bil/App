@@ -17,6 +17,14 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.composed
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -297,6 +305,64 @@ fun PlayPauseIcon(playing: Boolean, tint: Color, size: androidx.compose.ui.unit.
         transitionSpec = { (scaleIn(spring(dampingRatio = 0.5f)) + fadeIn()).togetherWith(scaleOut() + fadeOut()) },
         label = "pp"
     ) { p -> Icon(if (p) lc(R.drawable.lc_pause) else lc(R.drawable.lc_play), null, tint = tint, modifier = Modifier.size(size)) }
+}
+
+/** Interpolates playback position every frame between player updates -> buttery progress. */
+@Composable
+fun rememberSmoothPosition(ui: PlayerUi): Long {
+    var pos by remember { mutableLongStateOf(ui.position) }
+    val base = rememberUpdatedState(ui)
+    LaunchedEffect(ui.position, ui.isPlaying, ui.currentId, ui.speed) {
+        val start = ui.position
+        val t0 = System.nanoTime()
+        pos = start
+        if (!ui.isPlaying) return@LaunchedEffect
+        while (true) {
+            withFrameNanos { now ->
+                val d = base.value.duration.takeIf { it > 0 } ?: Long.MAX_VALUE
+                pos = (start + ((now - t0) / 1_000_000L * base.value.speed).toLong()).coerceIn(0, d)
+            }
+        }
+    }
+    return pos
+}
+
+/** Custom seek bar: rounded track, blue fill, round white thumb that grows while dragging. No tick line. */
+@Composable
+fun SmoothSeekBar(fraction: Float, onSeekChange: (Float) -> Unit, onSeekEnd: () -> Unit) {
+    var dragging by remember { mutableStateOf(false) }
+    val thumb by animateFloatAsState(if (dragging) 9f else 6f, spring(dampingRatio = 0.5f), label = "thumb")
+    val trackH by animateFloatAsState(if (dragging) 6f else 4f, label = "trackH")
+    val glow by animateFloatAsState(if (dragging) 1f else 0f, label = "glow")
+    var width by remember { mutableFloatStateOf(1f) }
+    Box(
+        Modifier.fillMaxWidth().height(32.dp)
+            .onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = { o -> dragging = true; onSeekChange((o.x / width).coerceIn(0f, 1f)); tryAwaitRelease(); dragging = false; onSeekEnd() }
+                )
+            }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragStart = { o -> dragging = true; onSeekChange((o.x / width).coerceIn(0f, 1f)) },
+                    onDragEnd = { dragging = false; onSeekEnd() },
+                    onDragCancel = { dragging = false; onSeekEnd() },
+                    onHorizontalDrag = { ch, _ -> onSeekChange((ch.position.x / width).coerceIn(0f, 1f)) }
+                )
+            }
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val cy = size.height / 2
+            val h = trackH.dp.toPx()
+            val r = CornerRadius(h / 2, h / 2)
+            val x = size.width * fraction.coerceIn(0f, 1f)
+            drawRoundRect(Color.White.copy(alpha = .15f), Offset(0f, cy - h / 2), Size(size.width, h), r)
+            drawRoundRect(Brush.horizontalGradient(listOf(BlueDeep, Blue), endX = x.coerceAtLeast(1f)), Offset(0f, cy - h / 2), Size(x, h), r)
+            if (glow > 0f) drawCircle(Blue.copy(alpha = .25f * glow), (thumb + 8f).dp.toPx(), Offset(x, cy))
+            drawCircle(Color.White, thumb.dp.toPx(), Offset(x, cy))
+        }
+    }
 }
 
 // ---------------- common pieces ----------------
@@ -767,6 +833,7 @@ fun SettingCard(content: @Composable ColumnScope.() -> Unit) {
 // ---------------- mini & full player ----------------
 @Composable
 fun MiniPlayer(t: Track, ui: PlayerUi, vm: PlayerViewModel, onOpen: () -> Unit) {
+    val smoothMini = rememberSmoothPosition(ui)
     Column(Modifier.padding(horizontal = 8.dp).clip(RoundedCornerShape(12.dp)).background(Surface2).clickable(onClick = onOpen)) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             AnimatedContent(t, transitionSpec = { fadeIn(tween(300)).togetherWith(fadeOut(tween(300))) }, contentKey = { it.id }, label = "miniart") { Artwork(it, 44.dp, 8) }
@@ -779,7 +846,7 @@ fun MiniPlayer(t: Track, ui: PlayerUi, vm: PlayerViewModel, onOpen: () -> Unit) 
             IconButton(onClick = { vm.next() }) { Icon(lc(R.drawable.lc_next), null, tint = TextHi) }
         }
         LinearProgressIndicator(
-            progress = { if (ui.duration > 0) (ui.position / ui.duration.toFloat()).coerceIn(0f, 1f) else 0f },
+            progress = { if (ui.duration > 0) (smoothMini / ui.duration.toFloat()).coerceIn(0f, 1f) else 0f },
             modifier = Modifier.fillMaxWidth().height(2.dp), color = Blue, trackColor = Surface1, drawStopIndicator = {}
         )
     }
@@ -831,14 +898,14 @@ fun FullPlayer(t: Track, ui: PlayerUi, tracks: List<Track>, vm: PlayerViewModel,
             }
             Spacer(Modifier.height(12.dp))
             val dur = ui.duration.coerceAtLeast(1)
-            Slider(
-                value = seeking ?: (ui.position / dur.toFloat()).coerceIn(0f, 1f),
-                onValueChange = { seeking = it },
-                onValueChangeFinished = { seeking?.let { vm.seek((it * dur).toLong()) }; seeking = null },
-                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Blue, inactiveTrackColor = Color.White.copy(alpha = .15f))
+            val smooth = rememberSmoothPosition(ui)
+            SmoothSeekBar(
+                fraction = seeking ?: (smooth / dur.toFloat()).coerceIn(0f, 1f),
+                onSeekChange = { seeking = it },
+                onSeekEnd = { seeking?.let { vm.seek((it * dur).toLong()) }; seeking = null }
             )
             Row(Modifier.fillMaxWidth()) {
-                Text(fmt(seeking?.let { (it * dur).toLong() } ?: ui.position), color = TextLo, fontSize = 12.sp)
+                Text(fmt(seeking?.let { (it * dur).toLong() } ?: smooth), color = TextLo, fontSize = 12.sp)
                 Spacer(Modifier.weight(1f))
                 Text(fmt(ui.duration), color = TextLo, fontSize = 12.sp)
             }
