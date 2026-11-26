@@ -79,13 +79,13 @@ const S0=()=>H/MH;
 const COL={aq:'#e6edf3',ru:'#1d3b8f',cn:'#d0201f',us:'#4a7fd4',gb:'#b8324f',fr:'#2c6bd1',de:'#5b5b5b',it:'#2f9a4c',es:'#e2b928',pt:'#1f7a3a',
 jp:'#efe6d8',kr:'#6b8fd6',kp:'#8a2a2a',in:'#f08a2b',pk:'#2a6b3e',bd:'#1e8a5a',ir:'#3d9a5c',iq:'#8c6a3c',sa:'#1b6e3a',tr:'#c84343',
 eg:'#c9a85c',il:'#5b93d6',sy:'#9a6464',af:'#8b7355',kz:'#45b3c9',uz:'#6fb6a8',mn:'#c15050',ua:'#f0cf34',by:'#6fae4e',pl:'#d8476a',
-se:'#4a91c4',no:'#a83838',fi:'#dfe8f5',dk:'#c25a5a',nl:'#e0782f',be:'#e6c34a',ch:'#c94a4a',at:'#e86d6d',cz:'#3c71b0',sk:'#5f86c0',
+se:'#4a91c4',no:'#a83838',fi:'#dfe8f5',dk:'#c25a5a',nl:'#e0782f',be:'#e6c34a',ch:'#c94a4a',at:'#f4f4f4',cz:'#3c71b0',sk:'#5f86c0',
 hu:'#4f9a5a',ro:'#e6c83e',bg:'#3f8f58',rs:'#8f4a4a',hr:'#4f6fb2',gr:'#4fa6e0',ie:'#3ea35a',is:'#7ba7d8',ee:'#4b8fd1',lv:'#9c3a4a',lt:'#c9a43a',
 ca:'#d65252',mx:'#3a8a5a',br:'#2fae4c',ar:'#86bde8',cl:'#c4485c',co:'#e6c13a',pe:'#c84a4a',ve:'#d9a42a',bo:'#4e9a3a',py:'#6a8fc6',uy:'#9ab8e0',ec:'#e3c858',cu:'#3a5fb0',
 au:'#2a9d8f',nz:'#3a4f8f',id:'#c43c3c',my:'#3c4fb0',th:'#5b6fc8',vn:'#d94a3a',ph:'#4a6ed0',mm:'#4ea65a',la:'#a84a5a',kh:'#3a5aa8',
 za:'#e08f36',ng:'#3f9a2e',et:'#6fa83c',cd:'#4fa8d8',dz:'#2e8a4e',ly:'#3a7a3a',ma:'#b54141',sd:'#c49a5a',ao:'#a8323a',ke:'#7a3a3a',tz:'#3aa0a8',
 ge:'#d65a5a',am:'#e08a3a',az:'#3fa8c8',tm:'#3d9a6a',tj:'#c25a4a',kg:'#d84a4a',om:'#a84a4a',ae:'#4a8a4a',ye:'#8a6a5a',jo:'#5a8a5a',
-gl:'#d3e2ee',md:'#a8963a',pmr:'#c8102e',si:'#5f9fd8',ba:'#3a5aa8',me:'#b83a3a',mk:'#e0a83a',al:'#a52a2a',cy:'#d6a855',lu:'#73b8e0',np:'#c0392b',lk:'#e0a030',
+gl:'#d3e2ee',md:'#a8963a',pmr:'#c8102e',art:'#d9822b',si:'#5f9fd8',ba:'#3a5aa8',me:'#b83a3a',mk:'#e0a83a',al:'#a52a2a',cy:'#d6a855',lu:'#73b8e0',np:'#c0392b',lk:'#e0a030',
 dnr:'#4b2d73',lnr:'#3d8fd0',abh:'#2c8c47',sos:'#e3b31f'};
 const CC=[];
 function natColor(o){if(CC[o])return CC[o];const iso=NAT[o].iso;if(COL[iso])return CC[o]=COL[iso];
@@ -174,7 +174,7 @@ function paint(c,K,X,Y,w,h,L,regBorders,ps=1){
       if(G&&ol!==or){if((ol===P)!==(or===P)){pp.moveTo(f[0],f[1]);for(let k=2;k<f.length;k+=2)pp.lineTo(f[k],f[k+1]);hasP=true}
         if(war.length&&(war.includes(ol)!==war.includes(or))&&or!==-1){pw.moveTo(f[0],f[1]);for(let k=2;k<f.length;k+=2)pw.lineTo(f[k],f[k+1]);hasW=true}}}
     c.lineJoin='round';
-    if(regBorders){c.lineWidth=.7/K;c.strokeStyle='rgba(0,0,0,.2)';c.stroke(pr)}
+    if(regBorders){c.lineWidth=.9/K;c.strokeStyle='rgba(0,0,0,.33)';c.stroke(pr)}
     c.lineWidth=1.3/K;c.strokeStyle='rgba(10,15,35,.42)';c.stroke(pn);
     if(hasW){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,70,70,.75)';c.stroke(pw)}
     if(hasP){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,255,255,.85)';c.stroke(pp)}
@@ -239,7 +239,7 @@ function drawLabels(K,ox){const own=G?G.owner:RK,vx0=-ox/K,vx1=(W-ox)/K,vy0=-T.y
 addEventListener('resize',resize);
 
 // ================= GAME (real time, regions) =================
-let G=null;const SAVE='geopolit_rts_v4';
+let G=null;const SAVE='geopolit_rts_v5';
 const MONTHS=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
 const SPEEDS=[0,1,3,8,20];let speed=1;
 const fmt=n=>{n=Math.round(n);const a=Math.abs(n);return a>=1e6?(n/1e6).toFixed(2)+'трлн':a>=1e3?(n/1e3).toFixed(1)+'млрд':n+'млн'};
