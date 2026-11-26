@@ -75,7 +75,7 @@ let NAT=[],RN=[],RK=[],NB=[],ARL,ARR,LOD=[null,null,null],best=null,GRAT;
 let BB,AREA,LP,LW,CEN; // region metadata (from best LOD)
 let T=d3.zoomIdentity,zoomB,sceneT=null,sceneOK=false,bdOK=false,interacting=false;
 const S0=()=>H/MH;
-const BGI=new Image();let BGOK=false;BGI.onload=()=>{BGOK=true;invalidate()};BGI.src='bg.jpg';
+const BGI=new Image();let BGOK=false;BGI.onload=()=>{BGOK=true;invalidate()};BGI.src='bg.jpg';const OCI=new Image();let OCOK=false;OCI.onload=()=>{OCOK=true;invalidate()};OCI.src='ocean.jpg';
 const TIL={};function tile(tx,ty){const k=tx+'_'+ty;let t=TIL[k];if(!t){t=TIL[k]=new Image();t.onload=()=>{t.ok=1;sceneOK=false;draw()};t.src='bg/'+k+'.jpg'}return t.ok?t:null}
 
 const COL={aq:'#e6edf3',ru:'#1d3b8f',cn:'#d0201f',us:'#4a7fd4',gb:'#b8324f',fr:'#2c6bd1',de:'#5b5b5b',it:'#2f9a4c',es:'#e2b928',pt:'#1f7a3a',
@@ -165,8 +165,10 @@ function paint(c,K,X,Y,w,h,L,regBorders,ps=1){
   const ww=MW*K,vy0=-Y/K,vy1=(h-Y)/K,own=G?G.owner:RK,P=G?G.player:-1;
   for(let cpy=0;X+cpy*ww<w;cpy++){const ox=X+cpy*ww;if(ox+ww<0)continue;
     c.setTransform(K*ps,0,0,K*ps,ox*ps,Y*ps);const vx0=-ox/K,vx1=(w-ox)/K;
-    if(BGOK)c.drawImage(BGI,0,0,MW,MH);
-    if(regBorders&&K*MW*(ps||1)>4096*1.1){for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++){const x0=tx*MW/4,y0=ty*MH/2;if(x0+MW/4<vx0||x0>vx1||y0+MH/2<vy0||y0>vy1)continue;const t=tile(tx,ty);if(t)c.drawImage(t,x0,y0,MW/4+.3,MH/2+.3)}}c.globalAlpha=.75;
+    if(OCOK)c.drawImage(OCI,0,0,MW,MH);
+    const land=new Path2D();for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;land.addPath(L.paths[r])}
+    c.save();c.clip(land);if(BGOK)c.drawImage(BGI,0,0,MW,MH);
+    if(regBorders&&K*MW*(ps||1)>4096*1.1){for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++){const x0=tx*MW/4,y0=ty*MH/2;if(x0+MW/4<vx0||x0>vx1||y0+MH/2<vy0||y0>vy1)continue;const t=tile(tx,ty);if(t)c.drawImage(t,x0,y0,MW/4+.3,MH/2+.3)}}c.restore();c.globalAlpha=.75;
     for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;const col=natColor(own[r]);c.fillStyle=col;c.fill(L.paths[r]);}c.globalAlpha=1;
     const pr=new Path2D(),pn=new Path2D(),pp=new Path2D(),pw=new Path2D();let hasP=false,hasW=false;
     const ab=L.abb,war=G?G.war:[];
