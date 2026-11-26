@@ -366,7 +366,7 @@ function glFrame(){const K=S0()*T.k,ww=MW*K;if(GLR.dirty)glUpload();
 
 function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
   for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;
-    if(selSea>=0&&SEA[selSea]){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2/K;ctx.strokeStyle='#7fd0ff';ctx.setLineDash([6/K,4/K]);ctx.stroke(SEA[selSea].p);ctx.restore()}
+    if(selSea>=0&&SEA[selSea]){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.fillStyle='rgba(127,208,255,.22)';const nn=SEA[selSea].n;for(const q of SEA)if(q.n===nn)ctx.fill(q.p);ctx.restore()}
     if(sel>=0){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(lodFor(T.k).paths[sel]);ctx.restore()}
     if(G)drawOffensives(K,ox);
     drawLabels(K,ox)}}
