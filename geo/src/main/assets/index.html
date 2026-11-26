@@ -57,15 +57,15 @@ button small{width:100%;font-weight:500;opacity:.75;font-size:11px}
 .prog{height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin-top:4px}.prog i{display:block;height:100%;background:var(--bad)}
 .off{padding:8px;border:1px solid rgba(255,90,90,.25);border-radius:10px;margin-top:6px;font-size:12px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
 .off .prog{width:100%}
-#seap{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;width:min(560px,92vw);height:110px;display:none;align-items:center;gap:14px;background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.45)}
-#seap img{height:100%;width:170px;object-fit:cover}#seap h2{margin:0 0 6px;font-size:20px}#seap .x{position:absolute;right:6px;top:6px}
+#seap{position:absolute;right:8px;bottom:8px;width:min(230px,40vw);height:52px;display:none;align-items:center;gap:14px;background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+#seap img{height:100%;width:62px;object-fit:cover}#seap h2{margin:0 0 2px;font-size:13px;line-height:1.1}#seap .tag{font-size:10px;padding:1px 6px}#seap .x{position:absolute;right:2px;top:2px;padding:3px}#seap .x .ic{width:14px;height:14px}#seap{gap:8px}#seap .st{padding-right:22px;min-width:0}
 </style></head><body>
 <canvas id="g"></canvas><canvas id="c"></canvas>
 <div class="hud" id="hud" style="display:none">
   <div class="chip me" id="me"></div>
   <div class="chip"><i data-i="coins"></i><b id="money"></b><small id="inc" class="good"></small></div>
   <div class="chip"><i data-i="users"></i><b id="popu"></b></div>
-  <div class="chip"><img src="army.png" style="height:20px;border-radius:4px"><b id="army"></b></div>
+  <div class="chip"><img src="army.png" style="height:22px"><b id="army"></b></div>
   <div class="sp"></div>
   <div class="tbox"><div class="clock"><i data-i="calendar"></i><b id="date"></b><span id="clk"></span></div><div class="spd" id="spd"></div></div>
   <button class="ib" onclick="showRank()"><i data-i="trophy"></i></button>
