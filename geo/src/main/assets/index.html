@@ -9,7 +9,7 @@
 html,body{margin:0;height:100%;background:#0a2a4a;color:var(--txt);font:14px Inter,system-ui,Roboto,sans-serif;overflow:hidden;letter-spacing:.1px}
 canvas{position:absolute;inset:0;touch-action:none}
 .ic{width:18px;height:18px;flex:none;vertical-align:-4px}
-.hud{position:absolute;left:0;right:0;top:0;display:flex;gap:6px;padding:8px;align-items:center;pointer-events:none;flex-wrap:wrap}
+.hud{position:absolute;left:0;right:400px;top:0;display:flex;gap:6px;padding:8px;align-items:center;pointer-events:none;flex-wrap:wrap}
 .hud>*{pointer-events:auto}
 .chip{background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .chip .ic{color:var(--gold)}.chip b{font-weight:700;font-variant-numeric:tabular-nums}
@@ -27,7 +27,7 @@ button.g{background:linear-gradient(180deg,#1f7a46,#165c35);border-color:transpa
 button.on{background:var(--acc);border-color:transparent}
 button:disabled{opacity:.38}
 button small{width:100%;font-weight:500;opacity:.75;font-size:11px}
-.tbox{display:flex;align-items:center;gap:4px;background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:12px;padding:3px 3px 3px 10px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.tbox{position:fixed;top:8px;right:8px;z-index:5;display:flex;align-items:center;gap:4px;background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:12px;padding:3px 3px 3px 10px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .clock{display:flex;align-items:center;gap:6px;white-space:nowrap;padding-right:6px;border-right:1px solid var(--line)}.clock .ic{color:var(--gold)}.clock b{font-variant-numeric:tabular-nums}
 #clk{font-variant-numeric:tabular-nums;color:var(--mut);font-weight:600;min-width:42px}
 .spd{display:flex;gap:2px}
@@ -143,6 +143,15 @@ function useMeta(L){best=L;BB=L.bb;AREA=L.area;LP=L.lp;LW=L.lw;CEN=[];for(let r=
 
 const imgP=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src});
 function hydrateIcons(){document.querySelectorAll('i[data-i]').forEach(e=>{e.outerHTML=I(e.dataset.i)})}
+let CITY=[];const STAR=new Path2D('M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z');
+let CITY_S=[];async function loadCities(){CITY=(await getJ('cities.json')).map(([lon,lat,n,c])=>({x:(lon+180)/360*MW,y:(90-lat)/180*MH,n:n.normalize('NFD').replace(/\u0301/g,'').normalize('NFC'),c}));CITY_S=CITY.slice().sort((a,b)=>b.c-a.c)}
+function drawCities(K,ox){const k=T.k;if(k<2.5)return;const all=k>=5,taken=[],vx0=-ox/K-5,vx1=(W-ox)/K+5,vy0=-T.y/K-5,vy1=(H-T.y)/K+5;
+  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='500 10px system-ui';ctx.lineJoin='round';
+  for(const c of CITY_S){if(!c.c&&!all)continue;if(c.x<vx0||c.x>vx1||c.y<vy0||c.y>vy1)continue;const x=c.x*K+ox,y=c.y*K+T.y;const tw=c.n.length*5.6+10,bx=[x-6,y-7,x+tw,y+7];
+    if(taken.some(b=>bx[0]<b[2]&&bx[2]>b[0]&&bx[1]<b[3]&&bx[3]>b[1]))continue;taken.push(bx);
+    if(c.c){ctx.save();ctx.translate(x-6,y-6);ctx.scale(.5,.5);ctx.fillStyle='#f2c14e';ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=2;ctx.fill(STAR);ctx.stroke(STAR);ctx.restore()}
+    else{ctx.beginPath();ctx.arc(x,y,2.2,0,6.283);ctx.fillStyle='rgba(255,255,255,.85)';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,.6)';ctx.stroke()}
+    ctx.lineWidth=2.5;ctx.strokeStyle='rgba(0,0,0,.45)';ctx.strokeText(c.n,x+6,y);ctx.fillStyle='rgba(255,255,255,.72)';ctx.fillText(c.n,x+6,y)}}
 let SEA=[],selSea=-1,WAT=null,selW=null;
 const wRank=k=>k<1.6?1:k<2.5?3:k<4?5:k<7?7:k<12?8:10;
 async function loadWater(){const t=await getJ('water.json');const pr=d3.geoEquirectangular().fitSize([MW,MH],{type:'Sphere'});
@@ -188,7 +197,7 @@ async function init(){
   lsay('Загрузка карты (1/2)…');LOD[0]=buildLOD(await getJ('world_lo.json'),true);
   lsay('Загрузка карты (2/2)…');LOD[1]=buildLOD(await getJ('world_mid.json'));
   useMeta(LOD[1]);
-  lsay('Загрузка морей…');await loadSeas();lsay('Загрузка озёр и рек…');await loadWater();
+  lsay('Загрузка морей…');await loadSeas();lsay('Загрузка озёр и рек…');await loadWater();await loadCities();
   lsay('Загрузка рельефа…');
   const tl=[];for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++)tl.push(imgP('bg/'+tx+'_'+ty+'.jpg').then(i=>{if(i){i.ok=1;TIL[tx+'_'+ty]=i}}));
   await Promise.all([BGI.decode?BGI.decode().catch(()=>{}):0,...tl]);
@@ -394,14 +403,13 @@ function glFrame(){const K=S0()*T.k,ww=MW*K;if(GLR.dirty)glUpload();
     if(useTiles)for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++){const x0=tx*MW/4,y0=ty*MH/2;if(x0+MW/4<vx0||x0>vx1||y0+MH/2<vy0||y0>vy1)continue;const t=GLR.tiles[tx+'_'+ty];if(!t)continue;
       gl.bindTexture(gl.TEXTURE_2D,t);gl.uniform4f(P.u.uRect,x0,y0,MW/4,MH/2);gl.drawArrays(gl.TRIANGLE_STRIP,0,4)}
     // fills
-    P=GLR.fill;gl.useProgram(P.p);gl.uniform2fv(P.u.uRes,res);gl.uniform1f(P.u.uK,kd);gl.uniform2fv(P.u.uOff,off);gl.uniform1f(P.u.uA,.75);
+    P=GLR.fill;gl.useProgram(P.p);gl.uniform2fv(P.u.uRes,res);gl.uniform1f(P.u.uK,kd);gl.uniform2fv(P.u.uOff,off);gl.uniform1f(P.u.uA,.88);
     gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,GLR.colT);gl.uniform1i(P.u.uCol,0);
     drawFill(L.fill,vx0,vx1,vy0,vy1);
-    if(GLR.lakes){const mr=wRank(T.k);let P2=GLR.wfill;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);gl.uniform4f(P2.u.uC,.11,.33,.58,1.);
-      drawFill(GLR.lakes,vx0,vx1,vy0,vy1);
-      P2=GLR.wline;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);
+    if(GLR.lakes){const mr=wRank(T.k);let P2=GLR.wline;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);
       gl.uniform1f(P2.u.uW,Math.min(2.2,.7+T.k*.05)*DPR*.5);gl.uniform4f(P2.u.uC,.16,.42,.7,1.);drawLine(GLR.rivers,vx0,vx1,vy0,vy1,4/K);
-      gl.uniform1f(P2.u.uW,.5*DPR);gl.uniform4f(P2.u.uC,0.,0.,0.,.55);drawLine(GLR.lakeOl,vx0,vx1,vy0,vy1,4/K)}
+      P2=GLR.wfill;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);gl.uniform4f(P2.u.uC,.11,.33,.58,1.);drawFill(GLR.lakes,vx0,vx1,vy0,vy1);
+      P2=GLR.wline;gl.useProgram(P2.p);gl.uniform1f(P2.u.uW,.5*DPR);gl.uniform4f(P2.u.uC,0.,0.,0.,.55);drawLine(GLR.lakeOl,vx0,vx1,vy0,vy1,4/K)}
     // borders
     P=GLR.line;gl.useProgram(P.p);gl.uniform2fv(P.u.uRes,res);gl.uniform1f(P.u.uK,kd);gl.uniform2fv(P.u.uOff,off);
     gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,GLR.ownT);gl.uniform1i(P.u.uOwn,1);
@@ -413,9 +421,10 @@ function glFrame(){const K=S0()*T.k,ww=MW*K;if(GLR.dirty)glUpload();
 function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
   for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;
     if(selW){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.strokeStyle='#7fd0ff';ctx.lineWidth=2.5/K;ctx.setLineDash([6/K,4/K]);
-      if(selW.o.p)ctx.stroke(selW.o.p);else{ctx.setLineDash([]);ctx.lineWidth=4/K;ctx.strokeStyle='rgba(127,208,255,.9)';ctx.beginPath();for(const l of selW.o.ls){l.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]))}ctx.stroke()}ctx.restore()}
+      if(selW.o.p){for(const l of WAT.lakes)if(l.n===selW.n)ctx.stroke(l.p)}else{ctx.setLineDash([]);ctx.lineWidth=4/K;ctx.strokeStyle='rgba(127,208,255,.9)';ctx.beginPath();for(const v of WAT.rivers)if(v.n===selW.n)for(const l of v.ls){l.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]))}ctx.stroke()}ctx.restore()}
     if(selSea>=0&&SEA[selSea]){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2/K;ctx.strokeStyle='#7fd0ff';ctx.setLineDash([6/K,4/K]);ctx.stroke(SEA[selSea].ol);ctx.restore()}
     if(sel>=0){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(regOutline(lodFor(T.k),sel));ctx.restore()}
+    drawCities(K,ox);
     if(G)drawOffensives(K,ox);
     drawLabels(K,ox)}}
 function drawOffensives(K,ox){
@@ -504,7 +513,7 @@ function save(){try{localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}}
 function dateStr(){const d=new Date(Date.UTC(2026,0,1)+G.day*864e5);return d.getUTCDate()+' '+MONTHS[d.getUTCMonth()]+' '+d.getUTCFullYear()}
 let logDirty=true;function addLog(t){G.log.unshift(`<b>${dateStr()}</b> ${t}`);G.log=G.log.slice(0,50);logDirty=true}
 function startGame(){ownVer++;recalc();hud.style.display='flex';log.style.display='block';
-  spd.innerHTML=[I('pause'),I('play'),I('chevrons-right'),I('fast-forward'),I('rocket')].map((s,i)=>`<button id="sp${i}" onclick="setSpeed(${i})">${s}</button>`).join('');setSpeed(1);updHud();invalidate()}
+  spd.innerHTML=[I('pause'),I('play'),I('chevrons-right'),I('fast-forward'),I('rocket')].map((s,i)=>`<button id="sp${i}" onclick="setSpeed(${i})">${s}</button>`).join('');setSpeed(0);updHud();invalidate()}
 function setSpeed(i){speed=i;for(let j=0;j<5;j++)document.getElementById('sp'+j).classList.toggle('on',j===i)}
 function updHud(){const p=G.player,n=G.nat[p];
   if(me.dataset.p!=String(p)){me.dataset.p=p;me.innerHTML=flagImg(p)+'<b>'+nm(p)+'</b>'}money.textContent='$'+fmt(n.money);inc.textContent=' +'+fmt(dailyInc(p)*30)+'/мес';
