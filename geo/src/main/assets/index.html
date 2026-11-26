@@ -86,10 +86,10 @@ au:'#2a9d8f',nz:'#3a4f8f',id:'#c43c3c',my:'#3c4fb0',th:'#5b6fc8',vn:'#d94a3a',ph
 za:'#e08f36',ng:'#3f9a2e',et:'#6fa83c',cd:'#4fa8d8',dz:'#2e8a4e',ly:'#3a7a3a',ma:'#b54141',sd:'#c49a5a',ao:'#a8323a',ke:'#7a3a3a',tz:'#3aa0a8',
 ge:'#d65a5a',am:'#e08a3a',az:'#3fa8c8',tm:'#3d9a6a',tj:'#c25a4a',kg:'#d84a4a',om:'#a84a4a',ae:'#4a8a4a',ye:'#8a6a5a',jo:'#5a8a5a',
 gl:'#d3e2ee',md:'#a8963a',pmr:'#c8102e',art:'#d9822b',hou:'#2f7a3a',stc:'#5aa0d0',rsf:'#8a6a2a',shb:'#222222',pnt:'#7fb3e0',aza:'#c9a227',jnm:'#3a3a3a',isw:'#111111',arA:'#2a4fa0',kia:'#8a2c2c',nug:'#c0392b',knu:'#2a6a9a',lna:'#5a6a3a',sdf:'#d8c53a',m23:'#4a7a9a',si:'#5f9fd8',ba:'#3a5aa8',me:'#b83a3a',mk:'#e0a83a',al:'#a52a2a',cy:'#d6a855',lu:'#73b8e0',np:'#c0392b',lk:'#e0a030',
-dnr:'#4b2d73',lnr:'#3d8fd0',abh:'#2c8c47',sos:'#e3b31f'};
+dnr:'#4b2d73',lnr:'#3d8fd0',abh:'#2c8c47',sos:'#e3b31f',et:'#2e9e3e',ss:'#c0562e',so:'#3a8fe0',ke:'#b8282e',mw:'#e0562a',tz:'#1fa8a0',ma:'#c22d3a',eh:'#d9a066',cg:'#6abf3a',cd:'#2a7fd4',na:'#3a5fc8',za:'#f0902a',ly:'#2f8a3a',tn:'#d83a4a',zm:'#2fae5a',sl:'#3a9ad8',gn:'#e0b52a',lr:'#a8302e',cf:'#d4c22a',sd:'#c99a3a',dj:'#5ab8e8',er:'#3faf6a',ci:'#f08a1e',ml:'#e3c21f',sn:'#2a9a4a',ng:'#20a24a',bj:'#e04a3a',ao:'#c4202a',bw:'#5aa8e0',zw:'#d8b81f',td:'#2a4fa8',dz:'#1f8f4e',mz:'#e8a02a',sz:'#7a5ac8',bi:'#c83a6a',rw:'#3ab0d8',ug:'#e8c41f',ls:'#2a6ad0',cm:'#2a9a5a',ga:'#3aa83a',ne:'#f07a1e',bf:'#c8342e',tg:'#3a8a3a',gh:'#e8b81f',gw:'#b8302e',eg:'#d8b25a',mr:'#1e8a5a',gq:'#3a7ad0',gm:'#c83a3a',mg:'#d8482e',km:'#2a9a5a',st:'#3ab05a',cv:'#2a5ab0',xsl:'#2a8a8a'};
 const CC=[];
-function natColor(o){if(CC[o])return CC[o];const iso=NAT[o].iso;if(COL[iso])return CC[o]=COL[iso];
-  return CC[o]=`hsl(${(o*137.508)%360|0},42%,${44+(o*7)%16}%)`}
+function natColor(o){if(CC[o])return CC[o];const iso=NAT[o].iso||(NAT[o].e==='Somaliland'?'xsl':'');if(COL[iso])return CC[o]=COL[iso];
+  return CC[o]=`hsl(${(o*137.508)%360|0},62%,${42+(o*7)%14}%)`}
 
 const getJ=async u=>(await fetch(u)).json();
 function buildLOD(topo,first){
