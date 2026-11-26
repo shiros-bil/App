@@ -4,57 +4,67 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Мировая Держава</title>
 <style>
-:root{--bg:#0b1220;--panel:rgba(14,22,40,.94);--line:#24324f;--txt:#e8eefc;--mut:#8ea0c4;--acc:#3b82f6;--good:#22c55e;--bad:#ef4444}
+:root{--bg:#0a0f1a;--panel:rgba(12,18,32,.86);--panel2:rgba(20,30,52,.9);--line:rgba(140,170,220,.16);--txt:#eef3ff;--mut:#93a3c4;--acc:#4c8dff;--good:#3fd07a;--bad:#ff5a5a;--gold:#f2c14e}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
-html,body{margin:0;height:100%;background:#0a2a4a;color:var(--txt);font:14px system-ui,Roboto,sans-serif;overflow:hidden}
+html,body{margin:0;height:100%;background:#0a2a4a;color:var(--txt);font:14px Inter,system-ui,Roboto,sans-serif;overflow:hidden;letter-spacing:.1px}
 canvas{position:absolute;inset:0;touch-action:none}
-.hud{position:absolute;left:0;right:0;top:0;display:flex;gap:6px;padding:6px;align-items:center;pointer-events:none;flex-wrap:wrap}
+.ic{width:18px;height:18px;flex:none;vertical-align:-4px}
+.hud{position:absolute;left:0;right:0;top:0;display:flex;gap:6px;padding:8px;align-items:center;pointer-events:none;flex-wrap:wrap}
 .hud>*{pointer-events:auto}
-.chip{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px 9px;display:flex;align-items:center;gap:6px;white-space:nowrap}
-.flag{width:28px;height:21px;border-radius:3px;object-fit:cover;background:#fff;flex:none}
-.flag.big{width:64px;height:48px}
+.chip{background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.chip .ic{color:var(--gold)}.chip b{font-weight:700;font-variant-numeric:tabular-nums}
+.chip.me{font-weight:700}
+.good{color:var(--good)}
+.flag{width:28px;height:20px;border-radius:4px;object-fit:cover;background:#fff;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.15)}
+.flag.big{width:66px;height:46px;border-radius:6px}
 .sp{flex:1}
-button{background:#1b2a48;color:var(--txt);border:1px solid #2f4470;border-radius:10px;padding:8px 11px;font:inherit;font-weight:600}
+button{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font:inherit;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;transition:background .15s}
 button:active{transform:scale(.96)}
-button.p{background:var(--acc);border-color:var(--acc)}
-button.r{background:#7f1d1d;border-color:var(--bad)}
-button.g{background:#14532d;border-color:var(--good)}
-button.on{background:var(--acc);border-color:var(--acc)}
-button:disabled{opacity:.4}
-.spd{display:flex;gap:3px}.spd button{padding:8px 9px}
-#panel{position:absolute;right:6px;bottom:6px;top:52px;width:min(340px,46vw);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;overflow:auto;display:none}
-#panel h2{margin:0;font-size:17px}
-.row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a2540;color:var(--mut)}
+button.ib{padding:8px 10px}
+button.p{background:var(--acc);border-color:transparent}
+button.r{background:linear-gradient(180deg,#a3262b,#7d1c21);border-color:transparent}
+button.g{background:linear-gradient(180deg,#1f7a46,#165c35);border-color:transparent}
+button.on{background:var(--acc);border-color:transparent}
+button:disabled{opacity:.38}
+button small{width:100%;font-weight:500;opacity:.75;font-size:11px}
+.spd{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px}
+.spd button{padding:6px 8px;border:0;background:transparent;border-radius:9px}.spd button.on{background:var(--acc)}
+#panel{position:absolute;right:8px;bottom:8px;top:58px;width:min(340px,46vw);background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:16px;padding:14px;overflow:auto;display:none;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+#panel h2{margin:0;font-size:18px}
+.row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);color:var(--mut)}
 .row span:last-child{color:var(--txt);font-weight:600}
 .acts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
-.x{position:absolute;right:8px;top:6px;background:none;border:0;font-size:20px;padding:4px 8px}
-#log{position:absolute;left:6px;bottom:6px;width:min(330px,44vw);max-height:26vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 8px;font-size:12px}
-#log div{padding:2px 0;border-bottom:1px solid #18233c}
-.modal{position:absolute;inset:0;background:rgba(3,6,14,.8);display:flex;align-items:center;justify-content:center;z-index:9}
-.card{background:#0f1a30;border:1px solid var(--line);border-radius:16px;padding:18px;max-width:92vw;max-height:90vh;overflow:auto;text-align:center}
-.card h1{margin:0 0 6px}
+.x{position:absolute;right:8px;top:8px;background:none;border:0;padding:6px}
+#log{position:absolute;left:8px;bottom:8px;width:min(330px,44vw);max-height:26vh;overflow:auto;background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:14px;padding:6px 10px;font-size:12px}
+#log div{padding:4px 0;border-bottom:1px solid var(--line)}
+#log .ic{width:14px;height:14px;vertical-align:-2px;color:var(--gold)}
+.modal{position:absolute;inset:0;background:rgba(3,6,14,.72);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:18px;padding:20px;max-width:92vw;max-height:90vh;overflow:auto;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.card h1{margin:0 0 8px;font-size:22px;display:flex;gap:8px;align-items:center;justify-content:center}
 .list{text-align:left;max-height:55vh;overflow:auto}
-.list .it{display:flex;gap:8px;align-items:center;padding:5px;border-bottom:1px solid #1a2540}
-.sw{width:12px;height:12px;border-radius:3px;flex:none}
-#search{width:100%;padding:8px;border-radius:8px;border:1px solid var(--line);background:#0b1220;color:var(--txt);font:inherit;margin-bottom:6px}
-#load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:20;background:var(--bg)}
+.list .it{display:flex;gap:10px;align-items:center;padding:7px 6px;border-bottom:1px solid var(--line);border-radius:8px}
+.list .it:active{background:rgba(255,255,255,.05)}
+.sw{width:12px;height:12px;border-radius:4px;flex:none}
+#search{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--txt);font:inherit;margin-bottom:8px}
+#load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:20;background:radial-gradient(circle at 50% 40%,#13254a,#060a14)}
 .bar{width:220px;height:6px;background:#1a2540;border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;width:30%;background:var(--acc);animation:l 1s infinite alternate}
 @keyframes l{to{margin-left:70%}}
-.tag{font-size:11px;padding:2px 6px;border-radius:6px;background:#1a2540;color:var(--mut)}
-.prog{height:6px;background:#1a2540;border-radius:3px;overflow:hidden;margin-top:3px}.prog i{display:block;height:100%;background:var(--bad)}
-.off{padding:6px;border:1px solid #3a2030;border-radius:8px;margin-top:6px;font-size:12px}
+.tag{font-size:11px;padding:3px 7px;border-radius:7px;background:rgba(255,255,255,.07);color:var(--mut);display:inline-flex;gap:4px;align-items:center}
+.tag .ic{width:12px;height:12px}
+.prog{height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin-top:4px}.prog i{display:block;height:100%;background:var(--bad)}
+.off{padding:8px;border:1px solid rgba(255,90,90,.25);border-radius:10px;margin-top:6px;font-size:12px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.off .prog{width:100%}
 </style></head><body>
 <canvas id="c"></canvas>
 <div class="hud" id="hud" style="display:none">
-  <div class="chip" id="me"></div>
-  <div class="chip">💰 <b id="money"></b><small id="inc" style="color:var(--good)"></small></div>
-  <div class="chip">🪖 <b id="army"></b></div>
-  <div class="chip">🙂 <b id="stab"></b></div>
-  <div class="chip">📅 <b id="date"></b></div>
+  <div class="chip me" id="me"></div>
+  <div class="chip"><i data-i="coins"></i><b id="money"></b><small id="inc" class="good"></small></div>
+  <div class="chip"><i data-i="users"></i><b id="army"></b></div>
+  <div class="chip"><i data-i="calendar"></i><b id="date"></b></div>
   <div class="sp"></div>
   <div class="spd" id="spd"></div>
-  <button onclick="showRank()">🏆</button>
-  <button onclick="menu()">☰</button>
+  <button class="ib" onclick="showRank()"><i data-i="trophy"></i></button>
+  <button class="ib" onclick="menu()"><i data-i="menu"></i></button>
 </div>
 <div id="panel"></div>
 <div id="log" style="display:none"></div>
@@ -63,6 +73,9 @@ button:disabled{opacity:.4}
 <script src="topojson-client.min.js"></script>
 <script>
 "use strict";
+const ICO={"coins": "<circle cx=\"8\" cy=\"8\" r=\"6\" /> <path d=\"M18.09 10.37A6 6 0 1 1 10.34 18\" /> <path d=\"M7 6h1v4\" /> <path d=\"m16.71 13.88.7.71-2.82 2.82\" />", "shield": "<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\" />", "calendar": "<path d=\"M8 2v4\" /> <path d=\"M16 2v4\" /> <rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\" /> <path d=\"M3 10h18\" />", "trophy": "<path d=\"M6 9H4.5a2.5 2.5 0 0 1 0-5H6\" /> <path d=\"M18 9h1.5a2.5 2.5 0 0 0 0-5H18\" /> <path d=\"M4 22h16\" /> <path d=\"M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22\" /> <path d=\"M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22\" /> <path d=\"M18 2H6v7a6 6 0 0 0 12 0V2Z\" />", "menu": "<line x1=\"4\" x2=\"20\" y1=\"12\" y2=\"12\" /> <line x1=\"4\" x2=\"20\" y1=\"6\" y2=\"6\" /> <line x1=\"4\" x2=\"20\" y1=\"18\" y2=\"18\" />", "pause": "<rect x=\"14\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\" /> <rect x=\"6\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\" />", "play": "<polygon points=\"6 3 20 12 6 21 6 3\" />", "fast-forward": "<polygon points=\"13 19 22 12 13 5 13 19\" /> <polygon points=\"2 19 11 12 2 5 2 19\" />", "chevrons-right": "<path d=\"m6 17 5-5-5-5\" /> <path d=\"m13 17 5-5-5-5\" />", "factory": "<path d=\"M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z\" /> <path d=\"M17 18h1\" /> <path d=\"M12 18h1\" /> <path d=\"M7 18h1\" />", "flask-conical": "<path d=\"M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2\" /> <path d=\"M8.5 2h7\" /> <path d=\"M7 16h10\" />", "swords": "<polyline points=\"14.5 17.5 3 6 3 3 6 3 17.5 14.5\" /> <line x1=\"13\" x2=\"19\" y1=\"19\" y2=\"13\" /> <line x1=\"16\" x2=\"20\" y1=\"16\" y2=\"20\" /> <line x1=\"19\" x2=\"21\" y1=\"21\" y2=\"19\" /> <polyline points=\"14.5 6.5 18 3 21 3 21 6 17.5 9.5\" /> <line x1=\"5\" x2=\"9\" y1=\"14\" y2=\"18\" /> <line x1=\"7\" x2=\"4\" y1=\"17\" y2=\"20\" /> <line x1=\"3\" x2=\"5\" y1=\"19\" y2=\"21\" />", "handshake": "<path d=\"m11 17 2 2a1 1 0 1 0 3-3\" /> <path d=\"m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4\" /> <path d=\"m21 3 1 11h-2\" /> <path d=\"M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3\" /> <path d=\"M3 4h8\" />", "package": "<path d=\"M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z\" /> <path d=\"M12 22V12\" /> <path d=\"m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7\" /> <path d=\"m7.5 4.27 9 5.15\" />", "ban": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"m4.9 4.9 14.2 14.2\" />", "venetian-mask": "<path d=\"M2 12a5 5 0 0 0 5 5 8 8 0 0 1 5 2 8 8 0 0 1 5-2 5 5 0 0 0 5-5V7h-5a8 8 0 0 0-5 2 8 8 0 0 0-5-2H2Z\" /> <path d=\"M6 11c1.5 0 3 .5 3 2-2 0-3 0-3-2Z\" /> <path d=\"M18 11c-1.5 0-3 .5-3 2 2 0 3 0 3-2Z\" />", "flame": "<path d=\"M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z\" />", "bird": "<path d=\"M16 7h.01\" /> <path d=\"M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20\" /> <path d=\"m20 7 2 .5-2 .5\" /> <path d=\"M10 18v3\" /> <path d=\"M14 17.75V21\" /> <path d=\"M7 18a6 6 0 0 0 3.84-10.61\" />", "zoom-in": "<circle cx=\"11\" cy=\"11\" r=\"8\" /> <line x1=\"21\" x2=\"16.65\" y1=\"21\" y2=\"16.65\" /> <line x1=\"11\" x2=\"11\" y1=\"8\" y2=\"14\" /> <line x1=\"8\" x2=\"14\" y1=\"11\" y2=\"11\" />", "map": "<path d=\"M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z\" /> <path d=\"M15 5.764v15\" /> <path d=\"M9 3.236v15\" />", "map-pin": "<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\" /> <circle cx=\"12\" cy=\"10\" r=\"3\" />", "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\" /> <path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\" /> <path d=\"M7 3v4a1 1 0 0 0 1 1h7\" />", "globe": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20\" /> <path d=\"M2 12h20\" />", "skull": "<path d=\"m12.5 17-.5-1-.5 1h1z\" /> <path d=\"M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z\" /> <circle cx=\"15\" cy=\"12\" r=\"1\" /> <circle cx=\"9\" cy=\"12\" r=\"1\" />", "crown": "<path d=\"M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z\" /> <path d=\"M5 21h14\" />", "siren": "<path d=\"M7 18v-6a5 5 0 1 1 10 0v6\" /> <path d=\"M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z\" /> <path d=\"M21 12h1\" /> <path d=\"M18.5 4.5 18 5\" /> <path d=\"M2 12h1\" /> <path d=\"M12 2v1\" /> <path d=\"m4.929 4.929.707.707\" /> <path d=\"M12 12v6\" />", "newspaper": "<path d=\"M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2\" /> <path d=\"M18 14h-8\" /> <path d=\"M15 18h-5\" /> <path d=\"M10 6h8v4h-8V6Z\" />", "lightbulb": "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\" /> <path d=\"M9 18h6\" /> <path d=\"M10 22h4\" />", "droplet": "<path d=\"M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z\" />", "megaphone": "<path d=\"m3 11 18-5v12L3 14v-3z\" /> <path d=\"M11.6 16.8a3 3 0 1 1-5.8-1.6\" />", "tornado": "<path d=\"M21 4H3\" /> <path d=\"M18 8H6\" /> <path d=\"M19 12H9\" /> <path d=\"M16 16h-6\" /> <path d=\"M11 20H9\" />", "arrow-right": "<path d=\"M5 12h14\" /> <path d=\"m12 5 7 7-7 7\" />", "arrow-left": "<path d=\"m12 19-7-7 7-7\" /> <path d=\"M19 12H5\" />", "x": "<path d=\"M18 6 6 18\" /> <path d=\"m6 6 12 12\" />", "search": "<circle cx=\"11\" cy=\"11\" r=\"8\" /> <path d=\"m21 21-4.3-4.3\" />", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\" /> <circle cx=\"9\" cy=\"7\" r=\"4\" /> <path d=\"M22 21v-2a4 4 0 0 0-3-3.87\" /> <path d=\"M16 3.13a4 4 0 0 1 0 7.75\" />", "trending-down": "<polyline points=\"22 17 13.5 8.5 8.5 13.5 2 7\" /> <polyline points=\"16 17 22 17 22 11\" />", "medal": "<path d=\"M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15\" /> <path d=\"M11 12 5.12 2.2\" /> <path d=\"m13 12 5.88-9.8\" /> <path d=\"M8 7h8\" /> <circle cx=\"12\" cy=\"17\" r=\"5\" /> <path d=\"M12 18v-2h-.5\" />", "rocket": "<path d=\"M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z\" /> <path d=\"m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z\" /> <path d=\"M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0\" /> <path d=\"M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5\" />", "target": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <circle cx=\"12\" cy=\"12\" r=\"6\" /> <circle cx=\"12\" cy=\"12\" r=\"2\" />"};
+const I=(n,c='')=>`<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[n]||''}</svg>`;
+
 // ================= MAP ENGINE =================
 const MW=2000,MH=1000;
 const cv=document.getElementById('c'),ctx=cv.getContext('2d',{alpha:false});
@@ -123,6 +136,7 @@ function buildLOD(topo,first){
 function useMeta(L){best=L;BB=L.bb;AREA=L.area;LP=L.lp;LW=L.lw;CEN=[];for(let r=0;r<RK.length;r++)CEN.push([LP[2*r]/MW*360-180,90-LP[2*r+1]/MH*180]);sceneOK=false;computeLabels()}
 
 const imgP=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src});
+function hydrateIcons(){document.querySelectorAll('i[data-i]').forEach(e=>{e.outerHTML=I(e.dataset.i)})}
 function lsay(t){const e=document.querySelector('#load b');if(e)e.textContent=t}
 async function init(){
   lsay('Загрузка стран…');NAT=await getJ('nations.json');
@@ -133,7 +147,7 @@ async function init(){
   const tl=[];for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++)tl.push(imgP('bg/'+tx+'_'+ty+'.jpg').then(i=>{if(i){i.ok=1;TIL[tx+'_'+ty]=i}}));
   await Promise.all([BGI.decode?BGI.decode().catch(()=>{}):0,...tl]);
   GRAT=new Path2D();
-  setupZoom();resize();document.getElementById('load').remove();
+  hydrateIcons();setupZoom();resize();document.getElementById('load').remove();
   const s=localStorage.getItem(SAVE);let ok=false;
   if(s){try{G=JSON.parse(s);ok=true;startGame()}catch(e){G=null}}
   if(!ok)pickScreen();
@@ -184,7 +198,7 @@ function paint(c,K,X,Y,w,h,L,regBorders,ps=1){
       if(G){if((ol===P)!==(or===P)){add(pp);hasP=true}if(war.length&&or!==-1&&(war.includes(ol)!==war.includes(or))){add(pw);hasW=true}}}
     c.lineJoin='round';
     if(regBorders){c.lineWidth=.9/K;c.strokeStyle=`rgba(0,0,0,${Math.min(.33,(K/S0()/DPR-12)*.03+.1)})`;c.stroke(pr)}
-    c.lineWidth=1.3/K;c.strokeStyle='rgba(10,15,35,.42)';c.stroke(pn);
+    c.lineWidth=1.6/K;c.strokeStyle='rgba(0,0,0,.9)';c.stroke(pn);
     if(hasW){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,70,70,.75)';c.stroke(pw)}
     if(hasP){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,255,255,.85)';c.stroke(pp)}
   }}
@@ -298,7 +312,7 @@ function newGame(p){const R=RK.length;
   for(const n of NAT){const gdp=Math.max(n.gdp,30);G.nat.push({money:gdp*.05,army:n.army||Math.max(500,Math.sqrt(Math.max(n.pop,0))*25+gdp*.004),stab:60+Math.random()*30,tech:1})}
   NAT.forEach((n,i)=>{if(n.par===undefined||n.peace)return;if(i===p)G.war.push(n.par);else if(n.par===p)G.war.push(i);else G.aiWar.push([i,n.par])});
   if(p===NAT.findIndex(n=>n.iso==='hou'))G.war.push(NAT.findIndex(n=>n.iso==='stc'));
-  addLog(`🎖️ Вы возглавили: ${nm(p)}.`);if(G.war.length)addLog(`⚔️ Гражданская война! Противники: ${G.war.map(nm).join(', ')}.`);startGame();zoomToNat(p)}
+  addLog(`${I("medal")} Вы возглавили: ${nm(p)}.`);if(G.war.length)addLog(`${I("swords")} Гражданская война! Противники: ${G.war.map(nm).join(', ')}.`);startGame();zoomToNat(p)}
 let TER={},INC={};
 function recalc(){TER={};INC={};for(let r=0;r<RK.length;r++){const o=G.owner[r];(TER[o]||(TER[o]=[])).push(r);INC[o]=(INC[o]||0)+G.gdp[r]}lblDirty=true}
 let lblDirty=true;
@@ -307,11 +321,11 @@ function save(){try{localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}}
 function dateStr(){const d=new Date(Date.UTC(2026,0,1)+G.day*864e5);return d.getUTCDate()+' '+MONTHS[d.getUTCMonth()]+' '+d.getUTCFullYear()}
 let logDirty=true;function addLog(t){G.log.unshift(`<b>${dateStr()}</b> ${t}`);G.log=G.log.slice(0,50);logDirty=true}
 function startGame(){ownVer++;recalc();hud.style.display='flex';log.style.display='block';
-  spd.innerHTML=['⏸','▶','▶▶','▶▶▶','⏩'].map((s,i)=>`<button id="sp${i}" onclick="setSpeed(${i})">${s}</button>`).join('');setSpeed(1);updHud();invalidate()}
+  spd.innerHTML=[I('pause'),I('play'),I('chevrons-right'),I('fast-forward'),I('rocket')].map((s,i)=>`<button id="sp${i}" onclick="setSpeed(${i})">${s}</button>`).join('');setSpeed(1);updHud();invalidate()}
 function setSpeed(i){speed=i;for(let j=0;j<5;j++)document.getElementById('sp'+j).classList.toggle('on',j===i)}
 function updHud(){const p=G.player,n=G.nat[p];
   me.innerHTML=flagImg(p)+'<b>'+nm(p)+'</b>';money.textContent='$'+fmt(n.money);inc.textContent=' +'+fmt(dailyInc(p)*30)+'/мес';
-  army.textContent=fmtN(n.army);stab.textContent=Math.round(n.stab)+'%';date.textContent=dateStr();
+  army.textContent=fmtN(n.army);date.textContent=dateStr();
   if(logDirty){log.innerHTML=G.log.slice(0,20).map(x=>`<div>${x}</div>`).join('');logDirty=false}}
 function dailyInc(o){const N=G.nat[o];return income(o)*.0009*(N.stab/100+.3)-N.army*.000015}
 function adjMode(o,t){for(const n of NB[t])if(G.owner[n]===o)return{m:'land',from:n};
@@ -331,11 +345,11 @@ function stepOffs(){
     const ch=winChance(o.a,o.t,o.m);const slow=(NAT[o.a].c==='Group'||NAT[def].c==='Group')&&o.a!==G.player&&def!==G.player?.035:1;o.p+=((ch-.38)*30+(Math.random()-.5)*6)*slow;
     const A=G.nat[o.a],D=G.nat[def];A.army=Math.max(100,A.army*(1-.0015*(1.2-ch)));D.army=Math.max(100,D.army*(1-.0012*(.4+ch)));
     if(o.p>=100){o.done=1;conquer(o.a,o.t)}
-    else if(o.p<-40){o.done=1;if(o.a===G.player||def===G.player)addLog(`🛡️ ${nm(def)} отбила наступление: ${RN[o.t]}.`)}}
+    else if(o.p<-40){o.done=1;if(o.a===G.player||def===G.player)addLog(`${I("shield")} ${nm(def)} отбила наступление: ${RN[o.t]}.`)}}
   G.offs=G.offs.filter(o=>!o.done)}
 function conquer(a,t){const o=G.owner[t];G.owner[t]=a;G.gdp[t]*=.92;recalc();markRegion(t);dirty(false);
-  if(a===G.player||o===G.player)addLog(`${a===G.player?'🏆':'💥'} ${nm(a)} занимает: ${RN[t]} (${nm(o)}).`);
-  if(!terr(o).length){G.nat[a].money+=G.nat[o].money*.3;if(NAT[o].pop>1e6||G.war.includes(o))addLog(`☠️ ${nm(o)} прекратила существование.`);
+  if(a===G.player||o===G.player)addLog(`${a===G.player?`${I("trophy")}`:`${I("target")}`} ${nm(a)} занимает: ${RN[t]} (${nm(o)}).`);
+  if(!terr(o).length){G.nat[a].money+=G.nat[o].money*.3;if(NAT[o].pop>1e6||G.war.includes(o))addLog(`${I("skull")} ${nm(o)} прекратила существование.`);
     G.war=G.war.filter(w=>w!==o);G.allies=G.allies.filter(w=>w!==o);G.aiWar=G.aiWar.filter(w=>w[0]!==o&&w[1]!==o);
     G.offs=G.offs.filter(x=>x.a!==o);if(o===G.player)gameOver(false)}
   if(sel>=0&&!modalOpen())showPanel(sel)}
@@ -357,14 +371,14 @@ function aiThink(o){if(o===G.player||!TER[o])return;const N=G.nat[o],inc=income(
   if(enemies.length&&Math.random()<.03){const e=enemies[0];if(e!==G.player)G.aiWar=G.aiWar.filter(w=>!(w.includes(o)&&w.includes(e)))}
   if(Math.random()<.03&&!enemies.length){const rs=terr(o),r=rs[Math.floor(Math.random()*rs.length)];const c=NB[r].map(n=>G.owner[n]).filter(t=>t!==o);
     if(!c.length)return;const t=c[Math.floor(Math.random()*c.length)];
-    if(power(o)>power(t)*1.6){if(t===G.player){if(G.allies.includes(o))return;G.war.push(o);addLog(`🚨 ${nm(o)} объявляет вам войну!`);setSpeed(0);dirty()}
-      else{if(G.allies.includes(t)&&Math.random()<.5)return;G.aiWar.push([o,t]);if(NAT[o].pop>2e7||NAT[t].pop>2e7)addLog(`⚔️ ${nm(o)} объявила войну: ${nm(t)}.`)}}}}
+    if(power(o)>power(t)*1.6){if(t===G.player){if(G.allies.includes(o))return;G.war.push(o);addLog(`${I("siren")} ${nm(o)} объявляет вам войну!`);setSpeed(0);dirty()}
+      else{if(G.allies.includes(t)&&Math.random()<.5)return;G.aiWar.push([o,t]);if(NAT[o].pop>2e7||NAT[t].pop>2e7)addLog(`${I("swords")} ${nm(o)} объявила войну: ${nm(t)}.`)}}}}
 function randomEvent(){const me=G.player,M=G.nat[me],ev=[
-  ()=>{M.money+=income(me)*.02;return'🛢️ Найдено месторождение нефти!'},
-  ()=>{M.stab-=7;return'✊ Массовые протесты в столице.'},
-  ()=>{for(const r of terr(me))G.gdp[r]*=.97;recalc();return'📉 Мировой кризис ударил по экономике.'},
-  ()=>{M.tech+=.1;return'💡 Учёные совершили открытие.'},
-  ()=>{M.army*=.96;return'🌪️ Стихийное бедствие.'}];addLog(ev[Math.floor(Math.random()*ev.length)]())}
+  ()=>{M.money+=income(me)*.02;return`${I("droplet")} Найдено месторождение нефти!`},
+  ()=>{M.stab-=7;return`${I("megaphone")} Массовые протесты в столице.`},
+  ()=>{for(const r of terr(me))G.gdp[r]*=.97;recalc();return`${I("trending-down")} Мировой кризис ударил по экономике.`},
+  ()=>{M.tech+=.1;return`${I("lightbulb")} Учёные совершили открытие.`},
+  ()=>{M.army*=.96;return`${I("tornado")} Стихийное бедствие.`}];addLog(ev[Math.floor(Math.random()*ev.length)]())}
 let last=performance.now(),acc=0;
 function loop(now){const dt=Math.min(.25,(now-last)/1000);last=now;
   if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;
@@ -381,63 +395,61 @@ let panelSig='';
 function refreshPanelLight(){const s=panelState(sel);if(s!==panelSig)showPanel(sel);else{const e=document.getElementById('offs');if(e)e.innerHTML=offsHtml(sel)}}
 function panelState(i){const o=G.owner[i],M=G.nat[G.player];return [o,G.war.includes(o),G.allies.includes(o),M.money>recCost(),M.money>invCost(i),M.money>techCost(),M.money>stabCost(),M.money>spyCost(),G.offs.length].join()}
 function offsHtml(i){const o=G.owner[i],P=G.player;const list=G.offs.filter(x=>(x.a===P&&G.owner[x.t]===o)||(x.a===o&&G.owner[x.t]===P)||(o===P&&(x.a===P||G.owner[x.t]===P))).slice(0,8);
-  return list.map(x=>`<div class="off">${x.a===P?'➡️':'⬅️'} ${nm(x.a)} → ${RN[x.t]} ${x.m==='sea'?'(десант)':''}<div class="prog"><i style="width:${Math.max(0,x.p)}%"></i></div></div>`).join('')}
+  return list.map(x=>`<div class="off">${x.a===P?`${I("arrow-right")}`:`${I("arrow-left")}`} ${nm(x.a)} → ${RN[x.t]} ${x.m==='sea'?'(десант)':''}<div class="prog"><i style="width:${Math.max(0,x.p)}%"></i></div></div>`).join('')}
 function showPanel(i){panelSig=panelState(i);const o=G.owner[i],N=G.nat[o],me=G.player,M=G.nat[me],orig=RK[i];
-  let h=`<button class="x" onclick="closePanel()">✕</button><div style="display:flex;gap:10px;align-items:center">${flagImg(o,'flag big')}<div><h2>${nm(o)}</h2><span class="tag">📍 ${RN[i]}</span></div></div>`;
+  let h=`<button class="x" onclick="closePanel()">${I("x")}</button><div style="display:flex;gap:10px;align-items:center">${flagImg(o,'flag big')}<div><h2>${nm(o)}</h2><span class="tag">${I("map-pin")} ${RN[i]}</span></div></div>`;
   if(o!==orig)h+=`<div style="margin-top:8px" class="chip">${flagImg(orig)} Исторически: <b>${nm(orig)}</b></div>`;
   h+=`<div style="margin-top:8px">
   <div class="row"><span>ВВП региона</span><span>$${fmt(G.gdp[i])}</span></div>
   <div class="row"><span>ВВП державы</span><span>$${fmt(income(o))}</span></div>
   <div class="row"><span>Армия</span><span>${fmtN(N.army)}</span></div>
   <div class="row"><span>Технологии</span><span>ур. ${N.tech.toFixed(1)}</span></div>
-  <div class="row"><span>Стабильность</span><span>${Math.round(N.stab)}%</span></div>
   <div class="row"><span>Регионов</span><span>${terr(o).length}</span></div>
   <div class="row"><span>Отношения</span><span>${o===me?'—':rel(o)}</span></div></div><div class="acts">`;
   if(o===me){
-    h+=`<button class="p" onclick="act('rec')" ${M.money<recCost()?'disabled':''}>🪖 Мобилизация<br><small>$${fmt(recCost())}</small></button>
-    <button onclick="act('inv',${i})" ${M.money<invCost(i)?'disabled':''}>🏭 В регион<br><small>$${fmt(invCost(i))}</small></button>
-    <button onclick="act('tech')" ${M.money<techCost()?'disabled':''}>🔬 Наука<br><small>$${fmt(techCost())}</small></button>
-    <button onclick="act('stab')" ${M.money<stabCost()?'disabled':''}>🎉 Соцпрограммы<br><small>$${fmt(stabCost())}</small></button>`;
+    h+=`<button class="p" onclick="act('rec')" ${M.money<recCost()?'disabled':''}>${I("users")} Мобилизация<br><small>$${fmt(recCost())}</small></button>
+    <button onclick="act('inv',${i})" ${M.money<invCost(i)?'disabled':''}>${I("factory")} В регион<br><small>$${fmt(invCost(i))}</small></button>
+    <button onclick="act('tech')" ${M.money<techCost()?'disabled':''}>${I("flask-conical")} Наука<br><small>$${fmt(techCost())}</small></button>`;
   }else{
     const ad=adjMode(me,i),war=G.war.includes(o),ally=G.allies.includes(o),going=G.offs.some(x=>x.a===me&&x.t===i);
-    if(war)h+=`<button class="r" onclick="act('atk',${i})" ${ad&&!going?'':'disabled'}>⚔️ Наступать<br><small>${going?'идёт':ad?Math.round(winChance(me,i,ad.m)*100)+'% · '+(ad.m==='land'?'суша':'десант'):'нет границы'}</small></button>
-      <button onclick="act('front',${o})">🔥 Весь фронт</button><button onclick="act('peace',${o})">🕊️ Мир</button>`;
-    else h+=`<button class="r" onclick="act('war',${o})" ${ally?'disabled':''}>⚔️ Объявить войну</button>
-      <button class="g" onclick="act('ally',${o})" ${ally?'disabled':''}>🤝 Союз</button>`;
-    h+=`<button onclick="act('trade',${o})" ${war?'disabled':''}>📦 Торговля</button>
-    <button onclick="act('sanc',${o})">🚫 Санкции</button>
-    <button onclick="act('spy',${o})" ${M.money<spyCost()?'disabled':''}>🕵️ Переворот<br><small>$${fmt(spyCost())}</small></button>`;
+    if(war)h+=`<button class="r" onclick="act('atk',${i})" ${ad&&!going?'':'disabled'}>${I("swords")} Наступать<br><small>${going?'идёт':ad?Math.round(winChance(me,i,ad.m)*100)+'% · '+(ad.m==='land'?'суша':'десант'):'нет границы'}</small></button>
+      <button onclick="act('front',${o})">${I("flame")} Весь фронт</button><button onclick="act('peace',${o})">${I("bird")} Мир</button>`;
+    else h+=`<button class="r" onclick="act('war',${o})" ${ally?'disabled':''}>${I("swords")} Объявить войну</button>
+      <button class="g" onclick="act('ally',${o})" ${ally?'disabled':''}>${I("handshake")} Союз</button>`;
+    h+=`<button onclick="act('trade',${o})" ${war?'disabled':''}>${I("package")} Торговля</button>
+    <button onclick="act('sanc',${o})">${I("ban")} Санкции</button>
+    <button onclick="act('spy',${o})" ${M.money<spyCost()?'disabled':''}>${I("venetian-mask")} Переворот<br><small>$${fmt(spyCost())}</small></button>`;
   }
-  h+=`</div><div id="offs">${offsHtml(i)}</div><div class="acts"><button onclick="zoomToReg(${i})">🔍 Регион</button><button onclick="zoomToNat(${o})">🗺️ Страна</button></div>`;
+  h+=`</div><div id="offs">${offsHtml(i)}</div><div class="acts"><button onclick="zoomToReg(${i})">${I("zoom-in")} Регион</button><button onclick="zoomToNat(${o})">${I("map")} Страна</button></div>`;
   panel.innerHTML=h;panel.style.display='block'}
-function rel(o){const r=G.rel[o]??0;return G.allies.includes(o)?'🤝 Союзник':G.war.includes(o)?'⚔️ Война':r>30?'😊 Дружба':r<-30?'😠 Враждебность':'😐 Нейтралитет'}
+function rel(o){const r=G.rel[o]??0;return G.allies.includes(o)?`${I("handshake")} Союзник`:G.war.includes(o)?`${I("swords")} Война`:r>30?`${I("handshake")} Дружба`:r<-30?`${I("ban")} Враждебность`:`${I("users")} Нейтралитет`}
 const recCost=()=>income(G.player)*.03+20,invCost=i=>G.gdp[i]*.08+5,
   techCost=()=>income(G.player)*.06*G.nat[G.player].tech+30,stabCost=()=>income(G.player)*.02+10,spyCost=()=>income(G.player)*.05+40;
 function act(a,x){const me=G.player,M=G.nat[me];
   switch(a){
-  case'rec':{M.money-=recCost();const add=Math.max(2000,M.army*.12);M.army+=add;M.stab-=1.5;addLog(`🪖 Мобилизовано ${fmtN(add)} солдат.`);break}
-  case'inv':{M.money-=invCost(x);G.gdp[x]*=1.08;recalc();addLog(`🏭 Инвестиции: ${RN[x]}, ВВП +8%.`);break}
-  case'tech':{M.money-=techCost();M.tech+=.2;addLog(`🔬 Технологии ур. ${M.tech.toFixed(1)}.`);break}
-  case'stab':{M.money-=stabCost();M.stab=Math.min(100,M.stab+8);addLog('🎉 Стабильность выросла.');break}
-  case'war':{G.war.push(x);G.rel[x]=-100;M.stab-=4;addLog(`⚔️ Вы объявили войну: ${nm(x)}!`);dirty();break}
-  case'peace':{if(G.nat[x].army<M.army*.5||Math.random()<.4){G.war=G.war.filter(w=>w!==x);G.rel[x]=-20;addLog(`🕊️ Мир с ${nm(x)}.`);dirty()}else addLog(`❌ ${nm(x)} отвергает мир.`);break}
-  case'ally':{const r=(G.rel[x]??0)+Math.random()*60-10+(power(me)>power(x)?20:0);if(r>45){G.allies.push(x);G.rel[x]=80;addLog(`🤝 ${nm(x)} — ваш союзник!`)}else{G.rel[x]=(G.rel[x]??0)+5;addLog(`❌ ${nm(x)} отклоняет союз.`)}break}
-  case'trade':{const g=Math.min(income(x),income(me))*.03;M.money+=g;G.nat[x].money+=g*.5;G.rel[x]=(G.rel[x]??0)+10;addLog(`📦 Сделка с ${nm(x)}: +$${fmt(g)}.`);break}
-  case'sanc':{G.nat[x].money*=.85;G.nat[x].stab-=5;G.rel[x]=(G.rel[x]??0)-30;G.allies=G.allies.filter(y=>y!==x);M.money-=income(me)*.01;addLog(`🚫 Санкции против ${nm(x)}.`);break}
-  case'spy':{M.money-=spyCost();const N=G.nat[x];if(Math.random()<(100-N.stab)/130){N.stab-=25;N.army*=.7;addLog(`🕵️ Переворот в ${nm(x)} удался!`)}else{G.rel[x]=-80;addLog(`🚨 Агенты раскрыты: ${nm(x)}!`)}break}
-  case'atk':{if(startOff(me,x))addLog(`➡️ Наступление: ${RN[x]}.`);break}
-  case'front':{let c=0;for(const r of terr(x))for(const n of NB[r])if(G.owner[n]===me){if(startOff(me,r))c++;break}addLog(c?`🔥 Наступление по всему фронту: ${c} направлений.`:'Нет общей границы.');break}
+  case'rec':{M.money-=recCost();const add=Math.max(2000,M.army*.12);M.army+=add;M.stab-=1.5;addLog(`${I("users")} Мобилизовано ${fmtN(add)} солдат.`);break}
+  case'inv':{M.money-=invCost(x);G.gdp[x]*=1.08;recalc();addLog(`${I("factory")} Инвестиции: ${RN[x]}, ВВП +8%.`);break}
+  case'tech':{M.money-=techCost();M.tech+=.2;addLog(`${I("flask-conical")} Технологии ур. ${M.tech.toFixed(1)}.`);break}
+  case'stab':{M.money-=stabCost();M.stab=Math.min(100,M.stab+8);addLog('');break}
+  case'war':{G.war.push(x);G.rel[x]=-100;M.stab-=4;addLog(`${I("swords")} Вы объявили войну: ${nm(x)}!`);dirty();break}
+  case'peace':{if(G.nat[x].army<M.army*.5||Math.random()<.4){G.war=G.war.filter(w=>w!==x);G.rel[x]=-20;addLog(`${I("bird")} Мир с ${nm(x)}.`);dirty()}else addLog(`${I("x")} ${nm(x)} отвергает мир.`);break}
+  case'ally':{const r=(G.rel[x]??0)+Math.random()*60-10+(power(me)>power(x)?20:0);if(r>45){G.allies.push(x);G.rel[x]=80;addLog(`${I("handshake")} ${nm(x)} — ваш союзник!`)}else{G.rel[x]=(G.rel[x]??0)+5;addLog(`${I("x")} ${nm(x)} отклоняет союз.`)}break}
+  case'trade':{const g=Math.min(income(x),income(me))*.03;M.money+=g;G.nat[x].money+=g*.5;G.rel[x]=(G.rel[x]??0)+10;addLog(`${I("package")} Сделка с ${nm(x)}: +$${fmt(g)}.`);break}
+  case'sanc':{G.nat[x].money*=.85;G.nat[x].stab-=5;G.rel[x]=(G.rel[x]??0)-30;G.allies=G.allies.filter(y=>y!==x);M.money-=income(me)*.01;addLog(`${I("ban")} Санкции против ${nm(x)}.`);break}
+  case'spy':{M.money-=spyCost();const N=G.nat[x];if(Math.random()<(100-N.stab)/130){N.stab-=25;N.army*=.7;addLog(`${I("venetian-mask")} Переворот в ${nm(x)} удался!`)}else{G.rel[x]=-80;addLog(`${I("siren")} Агенты раскрыты: ${nm(x)}!`)}break}
+  case'atk':{if(startOff(me,x))addLog(`${I("arrow-right")} Наступление: ${RN[x]}.`);break}
+  case'front':{let c=0;for(const r of terr(x))for(const n of NB[r])if(G.owner[n]===me){if(startOff(me,r))c++;break}addLog(c?`${I("flame")} Наступление по всему фронту: ${c} направлений.`:'Нет общей границы.');break}
   }
   updHud();save();draw();if(sel>=0)showPanel(sel)}
-function gameOver(win){localStorage.removeItem(SAVE);setSpeed(0);modal(`<h1>${win?'🌍 Мировое господство!':'☠️ Поражение'}</h1><p>${win?'Весь мир под вашим флагом.':'Ваше государство пало.'}</p><button class="p" onclick="restart()">Новая игра</button>`)}
+function gameOver(win){localStorage.removeItem(SAVE);setSpeed(0);modal(`<h1>${win?`${I("globe")} Мировое господство!`:`${I("skull")} Поражение`}</h1><p>${win?'Весь мир под вашим флагом.':'Ваше государство пало.'}</p><button class="p" onclick="restart()">Новая игра</button>`)}
 function modal(h){closeModal();const m=document.createElement('div');m.className='modal';m.id='modal';m.innerHTML=`<div class="card">${h}</div>`;document.body.appendChild(m);return m}
 function closeModal(){document.getElementById('modal')?.remove()}
 function restart(){localStorage.removeItem(SAVE);G=null;ownVer++;closeModal();closePanel();hud.style.display='none';log.style.display='none';invalidate();pickScreen()}
-function menu(){modal(`<h1>Меню</h1><p>${dateStr()}</p><div style="display:grid;gap:8px"><button class="p" onclick="closeModal()">Продолжить</button><button onclick="closeModal();zoomToNat(G.player)">К моей стране</button><button onclick="save();closeModal()">💾 Сохранить</button><button class="r" onclick="restart()">Новая игра</button></div>`)}
+function menu(){modal(`<h1>Меню</h1><p>${dateStr()}</p><div style="display:grid;gap:8px"><button class="p" onclick="closeModal()">Продолжить</button><button onclick="closeModal();zoomToNat(G.player)">К моей стране</button><button onclick="save();closeModal()">${I("save")} Сохранить</button><button class="r" onclick="restart()">Новая игра</button></div>`)}
 function showRank(){const r=nations().map(o=>({o,s:income(o)+power(o)*.05,t:terr(o).length})).sort((a,b)=>b.s-a.s).slice(0,40);
-  modal(`<h1>🏆 Рейтинг держав</h1><div class="list">${r.map((x,k)=>`<div class="it" onclick="closeModal();zoomToNat(${x.o})"><b>${k+1}</b><span class="sw" style="background:${natColor(x.o)}"></span>${flagImg(x.o)}<span style="flex:1">${nm(x.o)}${x.o===G.player?' (вы)':''}</span><span class="tag">${x.t} рег.</span><span class="tag">$${fmt(income(x.o))}</span></div>`).join('')}</div><br><button onclick="closeModal()">Закрыть</button>`)}
+  modal(`<h1>${I("trophy")} Рейтинг держав</h1><div class="list">${r.map((x,k)=>`<div class="it" onclick="closeModal();zoomToNat(${x.o})"><b>${k+1}</b><span class="sw" style="background:${natColor(x.o)}"></span>${flagImg(x.o)}<span style="flex:1">${nm(x.o)}${x.o===G.player?' (вы)':''}</span><span class="tag">${x.t} рег.</span><span class="tag">$${fmt(income(x.o))}</span></div>`).join('')}</div><br><button onclick="closeModal()">Закрыть</button>`)}
 function pickScreen(){
-  modal(`<h1>🌍 Мировая Держава</h1><p style="color:var(--mut)">Выберите страну — коснитесь её на карте или найдите в списке</p><input id="search" placeholder="Поиск страны…"><div class="list" id="plist"></div><br><button onclick="closeModal()">Выбрать на карте</button>`);
+  modal(`<h1>${I("globe")} Мировая Держава</h1><p style="color:var(--mut)">Выберите страну — коснитесь её на карте или найдите в списке</p><input id="search" placeholder="Поиск страны…"><div class="list" id="plist"></div><br><button onclick="closeModal()">Выбрать на карте</button>`);
   const order=NAT.map((f,i)=>i).filter(i=>NAT[i].pop>0&&RK.includes(i)).sort((a,b)=>NAT[b].gdp-NAT[a].gdp);
   const fill=q=>{plist.innerHTML=order.filter(i=>!q||nm(i).toLowerCase().includes(q)||NAT[i].e.toLowerCase().includes(q)).map(i=>`<div class="it" onclick="confirmPick(${i})"><span class="sw" style="background:${natColor(i)}"></span>${flagImg(i)}<span style="flex:1">${nm(i)}</span><span class="tag">$${fmt(NAT[i].gdp)}</span></div>`).join('')};
   fill('');search.oninput=e=>fill(e.target.value.toLowerCase().trim())}
