@@ -64,14 +64,17 @@ button:disabled{opacity:.4}
 <script>
 "use strict";
 // ================= MAP ENGINE =================
-const MW=2000,MH=1000;           // map units (equirectangular, 2:1)
+const MW=2000,MH=1000;
 const cv=document.getElementById('c'),ctx=cv.getContext('2d',{alpha:false});
-const hctx=document.createElement('canvas').getContext('2d'); // hit-test ctx (identity)
+const hctx=document.createElement('canvas').getContext('2d');
+const scn=document.createElement('canvas'),sctx=scn.getContext('2d',{alpha:false});
+const bdc=document.createElement('canvas'),bctx=bdc.getContext('2d',{alpha:false});
+bdc.width=4096;bdc.height=2048;
 let W,H,DPR=Math.min(devicePixelRatio||1,2);
-let F=[],NB=[],BB=[],AREA=[],CEN=[],LP=[],LOD=[null,null,null],GRAT,proj,path;
-let T=d3.zoomIdentity,zoomB;
-const S0=()=>H/MH;               // base scale: map height == screen height
-let K=1,X=0,Y=0;                 // screen = map*K + (X,Y)
+let NAT=[],RN=[],RK=[],NB=[],ARL,ARR,LOD=[null,null,null],best=null,GRAT;
+let BB,AREA,LP,LW,CEN; // region metadata (from best LOD)
+let T=d3.zoomIdentity,zoomB,sceneT=null,sceneOK=false,bdOK=false,interacting=false;
+const S0=()=>H/MH;
 
 const COL={aq:'#e6edf3',ru:'#1d3b8f',cn:'#d0201f',us:'#4a7fd4',gb:'#b8324f',fr:'#2c6bd1',de:'#5b5b5b',it:'#2f9a4c',es:'#e2b928',pt:'#1f7a3a',
 jp:'#efe6d8',kr:'#6b8fd6',kp:'#8a2a2a',in:'#f08a2b',pk:'#2a6b3e',bd:'#1e8a5a',ir:'#3d9a5c',iq:'#8c6a3c',sa:'#1b6e3a',tr:'#c84343',
@@ -80,262 +83,319 @@ se:'#4a91c4',no:'#a83838',fi:'#dfe8f5',dk:'#c25a5a',nl:'#e0782f',be:'#e6c34a',ch
 hu:'#4f9a5a',ro:'#e6c83e',bg:'#3f8f58',rs:'#8f4a4a',hr:'#4f6fb2',gr:'#4fa6e0',ie:'#3ea35a',is:'#7ba7d8',ee:'#4b8fd1',lv:'#9c3a4a',lt:'#c9a43a',
 ca:'#d65252',mx:'#3a8a5a',br:'#2fae4c',ar:'#86bde8',cl:'#c4485c',co:'#e6c13a',pe:'#c84a4a',ve:'#d9a42a',bo:'#4e9a3a',py:'#6a8fc6',uy:'#9ab8e0',ec:'#e3c858',cu:'#3a5fb0',
 au:'#2a9d8f',nz:'#3a4f8f',id:'#c43c3c',my:'#3c4fb0',th:'#5b6fc8',vn:'#d94a3a',ph:'#4a6ed0',mm:'#4ea65a',la:'#a84a5a',kh:'#3a5aa8',
-za:'#e08f36',ng:'#3f9a2e',et:'#6fa83c',cd:'#4fa8d8',dz:'#2e8a4e',ly:'#3a7a3a',ma:'#a83a3a',sd:'#c49a5a',ao:'#a8323a',ke:'#7a3a3a',tz:'#3aa0a8',
-ma:'#b54141',ge:'#d65a5a',am:'#e08a3a',az:'#3fa8c8',tm:'#3d9a6a',tj:'#c25a4a',kg:'#d84a4a',om:'#a84a4a',ae:'#4a8a4a',ye:'#8a6a5a',jo:'#5a8a5a',
-gl:'#d3e2ee',md:'#3a6ab0',si:'#5f9fd8',ba:'#3a5aa8',me:'#b83a3a',mk:'#e0a83a',al:'#a52a2a',cy:'#d6a855',lu:'#73b8e0',np:'#c0392b',lk:'#e0a030'};
-function natColor(o){if(G&&G.col[o])return G.col[o];const iso=F[o].properties.iso;if(COL[iso])return COL[iso];
-  const h=(o*137.508)%360;return `hsl(${h|0},42%,${44+(o*7)%16}%)`}
+za:'#e08f36',ng:'#3f9a2e',et:'#6fa83c',cd:'#4fa8d8',dz:'#2e8a4e',ly:'#3a7a3a',ma:'#b54141',sd:'#c49a5a',ao:'#a8323a',ke:'#7a3a3a',tz:'#3aa0a8',
+ge:'#d65a5a',am:'#e08a3a',az:'#3fa8c8',tm:'#3d9a6a',tj:'#c25a4a',kg:'#d84a4a',om:'#a84a4a',ae:'#4a8a4a',ye:'#8a6a5a',jo:'#5a8a5a',
+gl:'#d3e2ee',md:'#3a6ab0',si:'#5f9fd8',ba:'#3a5aa8',me:'#b83a3a',mk:'#e0a83a',al:'#a52a2a',cy:'#d6a855',lu:'#73b8e0',np:'#c0392b',lk:'#e0a030',
+dnr:'#4b2d73',lnr:'#3d8fd0',abh:'#2c8c47',sos:'#e3b31f'};
+const CC=[];
+function natColor(o){if(CC[o])return CC[o];const iso=NAT[o].iso;if(COL[iso])return CC[o]=COL[iso];
+  return CC[o]=`hsl(${(o*137.508)%360|0},42%,${44+(o*7)%16}%)`}
 
-function buildLOD(topo){const fc=topojson.feature(topo,topo.objects.c).features;return fc.map(f=>new Path2D(path(f)||''))}
-async function getJ(u){return (await fetch(u)).json()}
+const getJ=async u=>(await fetch(u)).json();
+function buildLOD(topo,first){
+  const tr=topo.transform,sx=tr.scale[0],sy=tr.scale[1],tx=tr.translate[0],ty=tr.translate[1];
+  const arcs=topo.arcs.map(a=>{const f=new Float32Array(a.length*2);let x=0,y=0;
+    for(let k=0;k<a.length;k++){x+=a[k][0];y+=a[k][1];f[2*k]=(x*sx+tx+180)*MW/360;f[2*k+1]=(90-(y*sy+ty))*MH/180}return f});
+  const n=arcs.length,abb=new Float32Array(n*4);
+  for(let i=0;i<n;i++){const f=arcs[i];let a=1e9,b=1e9,c=-1e9,d=-1e9;for(let k=0;k<f.length;k+=2){const x=f[k],y=f[k+1];if(x<a)a=x;if(x>c)c=x;if(y<b)b=y;if(y>d)d=y}
+    abb[4*i]=a;abb[4*i+1]=b;abb[4*i+2]=c;abb[4*i+3]=d}
+  const G=topo.objects.r.geometries,R=G.length,paths=new Array(R),bb=new Float32Array(R*4),area=new Float32Array(R),lp=new Float32Array(R*2),lw=new Float32Array(R);
+  if(first){ARL=new Int32Array(n).fill(-1);ARR=new Int32Array(n).fill(-1)}
+  for(let r=0;r<R;r++){const g=G[r],p=new Path2D();const polys=g.type==='Polygon'?[g.arcs]:g.type==='MultiPolygon'?g.arcs:[];
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9,tot=0,bigA=-1,bx=0,by=0,bw=0;
+    if(first){RN[r]=g.properties.n;RK[r]=g.properties.k}
+    for(const poly of polys)for(let ri=0;ri<poly.length;ri++){const ring=poly[ri];let st=true,A=0,cx=0,cy=0,px=0,py=0,fx=0,fy=0,rx0=1e9,rx1=-1e9,ry0=1e9,ry1=-1e9;
+      for(const ai of ring){const a=ai<0?~ai:ai,f=arcs[a],m=f.length/2;
+        if(first){if(ARL[a]<0)ARL[a]=r;else if(ARL[a]!==r)ARR[a]=r}
+        for(let k=0;k<m;k++){const j=ai<0?m-1-k:k;if(k===0&&!st)continue;const x=f[2*j],y=f[2*j+1];
+          if(st){p.moveTo(x,y);fx=x;fy=y;st=false}else{p.lineTo(x,y);const cr=px*y-x*py;A+=cr;cx+=(px+x)*cr;cy+=(py+y)*cr}
+          px=x;py=y;if(x<rx0)rx0=x;if(x>rx1)rx1=x;if(y<ry0)ry0=y;if(y>ry1)ry1=y}}
+      p.closePath();{const cr=px*fy-fx*py;A+=cr;cx+=(px+fx)*cr;cy+=(py+fy)*cr}
+      if(rx0<x0)x0=rx0;if(ry0<y0)y0=ry0;if(rx1>x1)x1=rx1;if(ry1>y1)y1=ry1;
+      if(ri===0){const aa=Math.abs(A/2);tot+=aa;if(aa>bigA&&A!==0){bigA=aa;bx=cx/(3*A);by=cy/(3*A);bw=Math.min(rx1-rx0,(ry1-ry0)*2.2)}
+        else if(bigA<0){bx=(rx0+rx1)/2;by=(ry0+ry1)/2}}}
+    paths[r]=p;bb[4*r]=x0;bb[4*r+1]=y0;bb[4*r+2]=x1;bb[4*r+3]=y1;area[r]=tot;lp[2*r]=bx;lp[2*r+1]=by;lw[r]=bw}
+  if(first)NB=topojson.neighbors(G);
+  return{arcs,abb,paths,bb,area,lp,lw}}
+function useMeta(L){best=L;BB=L.bb;AREA=L.area;LP=L.lp;LW=L.lw;CEN=[];for(let r=0;r<RK.length;r++)CEN.push([LP[2*r]/MW*360-180,90-LP[2*r+1]/MH*180]);sceneOK=false}
+
 async function init(){
-  proj=d3.geoEquirectangular().fitSize([MW,MH],{type:'Sphere'});path=d3.geoPath(proj);
-  GRAT=new Path2D(path(d3.geoGraticule().step([20,20])()));
-  const lo=await getJ('world_lo.json');
-  F=topojson.feature(lo,lo.objects.c).features;NB=topojson.neighbors(lo.objects.c.geometries);
-  for(const f of F){BB.push(path.bounds(f));AREA.push(path.area(f));CEN.push(d3.geoCentroid(f));LP.push(lblPt(f));const sh=SHORT[f.properties.iso];if(sh)f.properties.n=sh}
-  LOD[0]=F.map(f=>new Path2D(path(f)||''));
+  NAT=await getJ('nations.json');
+  LOD[0]=buildLOD(await getJ('world_lo.json'),true);useMeta(LOD[0]);
+  GRAT=new Path2D();for(let x=0;x<=MW;x+=MW/18){GRAT.moveTo(x,0);GRAT.lineTo(x,MH)}for(let y=0;y<=MH;y+=MH/9){GRAT.moveTo(0,y);GRAT.lineTo(MW,y)}
   setupZoom();resize();document.getElementById('load').remove();
   const s=localStorage.getItem(SAVE);let ok=false;
   if(s){try{G=JSON.parse(s);ok=true;startGame()}catch(e){G=null}}
   if(!ok)pickScreen();
-  // stream higher detail in background
-  setTimeout(async()=>{LOD[1]=buildLOD(await getJ('world_mid.json'));draw();
-    setTimeout(async()=>{LOD[2]=buildLOD(await getJ('world.json'));draw()},300)},200);
+  setTimeout(async()=>{LOD[1]=buildLOD(await getJ('world_mid.json'));useMeta(LOD[1]);invalidate();
+    setTimeout(async()=>{LOD[2]=buildLOD(await getJ('world.json'));useMeta(LOD[2]);invalidate()},400)},300);
 }
-const LW=[],SHORT={cn:'Китай',kr:'Южная Корея',kp:'КНДР',us:'США',gb:'Великобритания',cd:'ДР Конго',cf:'ЦАР',ae:'ОАЭ',do:'Доминикана',ba:'Босния',um:'Малые о-ва США'};
-function lblPt(f){const g=f.geometry;if(!g){LW.push(0);return[0,0]}let b=f;
-  if(g.type==='MultiPolygon'){let ba=-1;for(const c of g.coordinates){const q={type:'Polygon',coordinates:c},a=path.area(q);if(a>ba){ba=a;b=q}}}
-  const bb=path.bounds(b);LW.push(Math.min(bb[1][0]-bb[0][0],(bb[1][1]-bb[0][1])*2.2));return path.centroid(b)}
-function resize(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';
-  if(zoomB)d3.select(cv).call(zoomB.transform,T);draw()}
-function constrain(t){const k=t.k,ww=MW*S0()*k,hh=H*k;let x=t.x%ww;if(x>0)x-=ww;let y=Math.min(0,Math.max(H-hh,t.y));return new d3.ZoomTransform(k,x,y)}
+function resize(){W=innerWidth;H=innerHeight;for(const c of[cv,scn]){c.width=W*DPR;c.height=H*DPR}cv.style.width=W+'px';cv.style.height=H+'px';
+  if(zoomB)d3.select(cv).call(zoomB.transform,T);invalidate()}
+function constrain(t){const k=t.k,ww=MW*S0()*k,hh=H*k;let x=t.x%ww;if(x>0)x-=ww;return new d3.ZoomTransform(k,x,Math.min(0,Math.max(H-hh,t.y)))}
+let idleT=0;
 function setupZoom(){
-  zoomB=d3.zoom().scaleExtent([1,250]).constrain(constrain).on('zoom',e=>{T=e.transform;draw()});
+  zoomB=d3.zoom().scaleExtent([1,400]).constrain(constrain)
+    .on('start',()=>{interacting=true;clearTimeout(idleT)})
+    .on('zoom',e=>{T=constrain(e.transform);cv.__zoom=T;draw()})
+    .on('end',()=>{clearTimeout(idleT);idleT=setTimeout(()=>{interacting=false;sceneOK=false;draw()},120)});
   d3.select(cv).call(zoomB).on('dblclick.zoom',null);
   cv.addEventListener('click',e=>onTap(hit(e.clientX,e.clientY)));
 }
-function zoomTo(i,dur=700){const b=BB[i],s=S0();let w=(b[1][0]-b[0][0]),h=(b[1][1]-b[0][1]);
-  if(w>MW*.6){const p=LP[i];b[0]=[p[0]-150,p[1]-80];b[1]=[p[0]+150,p[1]+80];w=300;h=160}
-  const k=Math.max(1,Math.min(40,.55/Math.max(w*s/W,h*s/H)));
-  const cx=(b[0][0]+b[1][0])/2*s,cy=(b[0][1]+b[1][1])/2*s;
+function invalidate(){sceneOK=false;bdOK=false;draw()}
+let dirtyT=0;function dirty(){if(dirtyT)return;dirtyT=setTimeout(()=>{dirtyT=0;invalidate()},300)}
+function zoomToBox(x0,y0,x1,y1,dur=700){const s=S0();let w=x1-x0,h=y1-y0;
+  const k=Math.max(1,Math.min(60,.6/Math.max(w*s/W,h*s/H))),cx=(x0+x1)/2*s,cy=(y0+y1)/2*s;
   d3.select(cv).transition().duration(dur).call(zoomB.transform,d3.zoomIdentity.translate(W/2-cx*k,H/2-cy*k).scale(k))}
-function toMap(x,y){let mx=(x-X)/K,my=(y-Y)/K;mx=((mx%MW)+MW)%MW;return[mx,my]}
-function curLOD(){const k=T.k;return k>10&&LOD[2]?LOD[2]:k>2.5&&LOD[1]?LOD[1]:LOD[0]}
-function hit(x,y){const[mx,my]=toMap(x,y),L=LOD[1]||LOD[0];let best=-1,ba=1e18;
-  for(let i=0;i<F.length;i++){const b=BB[i];if(mx<b[0][0]||mx>b[1][0]||my<b[0][1]||my>b[1][1])continue;
-    if(hctx.isPointInPath(L[i],mx,my)&&AREA[i]<ba){ba=AREA[i];best=i}}
-  return best}
+function zoomToNat(n){let rs=G?terr(n):RK.map((k,i)=>k===n?i:-1).filter(i=>i>=0);if(!rs.length)return;
+  let big=rs[0];for(const r of rs)if(AREA[r]>AREA[big])big=r;const cx=LP[2*big],cy=LP[2*big+1];
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const r of rs){if(Math.abs(LP[2*r]-cx)>300)continue;x0=Math.min(x0,BB[4*r]);y0=Math.min(y0,BB[4*r+1]);x1=Math.max(x1,BB[4*r+2]);y1=Math.max(y1,BB[4*r+3])}
+  zoomToBox(x0,y0,x1,y1)}
+function zoomToReg(r){zoomToBox(BB[4*r],BB[4*r+1],BB[4*r+2],BB[4*r+3])}
+function toMap(x,y){const K=S0()*T.k;let mx=(x-T.x)/K;mx=((mx%MW)+MW)%MW;return[mx,(y-T.y)/K]}
+function lodFor(k){return k>9&&LOD[2]?LOD[2]:k>2.2&&LOD[1]?LOD[1]:LOD[0]}
+function hit(x,y){const[mx,my]=toMap(x,y),L=lodFor(T.k);let b=-1,ba=1e18;
+  for(let r=0;r<RK.length;r++){if(mx<BB[4*r]||mx>BB[4*r+2]||my<BB[4*r+1]||my>BB[4*r+3])continue;
+    if(AREA[r]<ba&&hctx.isPointInPath(L.paths[r],mx,my)){ba=AREA[r];b=r}}return b}
+
+// generic world painter
+function paint(c,K,X,Y,w,h,L,regBorders){
+  const ww=MW*K,vy0=-Y/K,vy1=(h-Y)/K,own=G?G.owner:RK,P=G?G.player:-1;
+  for(let cpy=0;X+cpy*ww<w;cpy++){const ox=X+cpy*ww;if(ox+ww<0)continue;
+    c.setTransform(K,0,0,K,ox,Y);const vx0=-ox/K,vx1=(w-ox)/K;
+    c.lineWidth=1/K;c.strokeStyle='rgba(150,200,250,.08)';c.stroke(GRAT);
+    for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;c.fillStyle=natColor(own[r]);c.fill(L.paths[r])}
+    const pr=new Path2D(),pn=new Path2D(),pp=new Path2D(),pw=new Path2D();let hasP=false,hasW=false;
+    const ab=L.abb,war=G?G.war:[];
+    for(let a=0;a<L.arcs.length;a++){if(ab[4*a+2]<vx0||ab[4*a]>vx1||ab[4*a+3]<vy0||ab[4*a+1]>vy1)continue;
+      const l=ARL[a],r=ARR[a],ol=own[l],or=r<0?-1:own[r];let tgt;
+      if(ol===or){if(!regBorders)continue;tgt=pr}else tgt=pn;
+      const f=L.arcs[a];tgt.moveTo(f[0],f[1]);for(let k=2;k<f.length;k+=2)tgt.lineTo(f[k],f[k+1]);
+      if(G&&ol!==or){if((ol===P)!==(or===P)){pp.moveTo(f[0],f[1]);for(let k=2;k<f.length;k+=2)pp.lineTo(f[k],f[k+1]);hasP=true}
+        if(war.length&&(war.includes(ol)!==war.includes(or))&&or!==-1){pw.moveTo(f[0],f[1]);for(let k=2;k<f.length;k+=2)pw.lineTo(f[k],f[k+1]);hasW=true}}}
+    c.lineJoin='round';
+    if(regBorders){c.lineWidth=.6/K;c.strokeStyle='rgba(0,0,0,.13)';c.stroke(pr)}
+    c.lineWidth=1.3/K;c.strokeStyle='rgba(10,15,35,.42)';c.stroke(pn);
+    if(hasW){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,70,70,.75)';c.stroke(pw)}
+    if(hasP){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,255,255,.85)';c.stroke(pp)}
+  }}
+function renderBackdrop(){bctx.setTransform(1,0,0,1,0,0);bctx.fillStyle='#0d3358';bctx.fillRect(0,0,4096,2048);paint(bctx,4096/MW,0,0,4096,2048,LOD[0],false);bdOK=true}
+function renderScene(){const K=S0()*T.k;sctx.setTransform(DPR,0,0,DPR,0,0);sctx.fillStyle='#0d3358';sctx.fillRect(0,0,W,H);
+  sctx.save();sctx.scale(DPR,DPR);paint(sctx,K,T.x,T.y,W,H,lodFor(T.k),true);sctx.restore();sceneT=T;sceneOK=true}
 
 let sel=-1,raf=0;
-function draw(){if(!raf)raf=requestAnimationFrame(render)}
-function render(){raf=0;if(!F.length)return;
-  K=S0()*T.k;X=T.x;Y=T.y;const ww=MW*K,L=curLOD();
-  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#0d3358';ctx.fillRect(0,0,W,H);
-  const vy0=(-Y)/K,vy1=(H-Y)/K;
-  for(let c=0;X+c*ww<W;c++){const ox=X+c*ww;
-    ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*Y);
-    const vx0=-ox/K,vx1=(W-ox)/K;
-    ctx.lineWidth=.8/K;ctx.strokeStyle='rgba(140,190,240,.13)';ctx.stroke(GRAT);
-    const vis=[];
-    for(let i=0;i<F.length;i++){const b=BB[i];if(b[1][0]<vx0||b[0][0]>vx1||b[1][1]<vy0||b[0][1]>vy1)continue;vis.push(i);
-      ctx.fillStyle=G?natColor(G.owner[i]):natColor(i);ctx.fill(L[i])}
-    ctx.lineWidth=.6/K;ctx.strokeStyle='rgba(0,0,0,.45)';
-    for(const i of vis)ctx.stroke(L[i]);
-    if(G){ctx.lineWidth=2/K;ctx.strokeStyle='#fff';for(const i of vis)if(G.owner[i]===G.player)ctx.stroke(L[i]);
-      ctx.setLineDash([4/K,3/K]);ctx.strokeStyle='#ff3b3b';for(const i of vis)if(G.war.includes(G.owner[i]))ctx.stroke(L[i]);ctx.setLineDash([])}
-    if(sel>=0){ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(L[sel])}
-    if(G)drawOffensives(ox);
-    drawLabels(ox,vx0,vx1);
-  }
-}
-function scr(p,ox){return[p[0]*K+ox,p[1]*K+Y]}
-function drawOffensives(ox){ctx.setTransform(DPR,0,0,DPR,0,0);
-  for(const o of G.offs){const a=scr(LP[o.from],ox),b=scr(LP[o.t],ox);
-    if(Math.abs(LP[o.from][0]-LP[o.t][0])>MW/2)continue;
-    const mine=o.a===G.player||G.owner[o.t]===G.player;
-    ctx.strokeStyle=o.a===G.player?'#ffe14a':mine?'#ff4040':'rgba(255,90,90,.55)';ctx.lineWidth=mine?3:1.6;
+function draw(){if(!raf)raf=requestAnimationFrame(frame)}
+function frame(){raf=0;if(!RK.length)return;
+  if(!interacting&&!sceneOK)renderScene();
+  const K=S0()*T.k,ww=MW*K;
+  ctx.setTransform(1,0,0,1,0,0);
+  if(sceneOK&&sceneT.k===T.k&&sceneT.x===T.x&&sceneT.y===T.y){ctx.drawImage(scn,0,0)}
+  else{ if(!bdOK)renderBackdrop();
+    ctx.fillStyle='#0d3358';ctx.fillRect(0,0,W*DPR,H*DPR);ctx.imageSmoothingEnabled=true;
+    for(let c=0;T.x+c*ww<W;c++)ctx.drawImage(bdc,(T.x+c*ww)*DPR,T.y*DPR,ww*DPR,MH*K*DPR);
+    if(sceneOK){const s=T.k/sceneT.k;let ox=T.x-sceneT.x*s;const n=Math.round(ox/ww);ox-=n*ww;const oy=T.y-sceneT.y*s;
+      if(s>.4&&s<4)ctx.drawImage(scn,ox*DPR,oy*DPR,W*DPR*s,H*DPR*s)}}
+  overlay(K,ww)}
+function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
+  for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;
+    if(sel>=0){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(lodFor(T.k).paths[sel]);ctx.restore()}
+    if(G)drawOffensives(K,ox);
+    drawLabels(K,ox)}}
+function drawOffensives(K,ox){
+  for(const o of G.offs){const fx=LP[2*o.from],fy=LP[2*o.from+1],tx=LP[2*o.t],ty=LP[2*o.t+1];if(Math.abs(fx-tx)>MW/2)continue;
+    const a=[fx*K+ox,fy*K+T.y],b=[tx*K+ox,ty*K+T.y];if((a[0]<-50&&b[0]<-50)||(a[0]>W+50&&b[0]>W+50))continue;
+    const mine=o.a===G.player||G.owner[o.t]===G.player;if(!mine&&K<S0()*1.5)continue;
+    ctx.strokeStyle=o.a===G.player?'#ffe14a':mine?'#ff4040':'rgba(255,90,90,.6)';ctx.lineWidth=mine?3:1.6;
     const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2-Math.hypot(b[0]-a[0],b[1]-a[1])*.2;
     ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.quadraticCurveTo(mx,my,b[0],b[1]);ctx.stroke();
     const ang=Math.atan2(b[1]-my,b[0]-mx);ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();
     ctx.moveTo(b[0],b[1]);ctx.lineTo(b[0]-10*Math.cos(ang-.4),b[1]-10*Math.sin(ang-.4));ctx.lineTo(b[0]-10*Math.cos(ang+.4),b[1]-10*Math.sin(ang+.4));ctx.fill();
     if(mine){ctx.fillStyle='#000a';ctx.fillRect(b[0]-16,b[1]+6,32,5);ctx.fillStyle='#ffe14a';ctx.fillRect(b[0]-16,b[1]+6,32*Math.max(0,o.p)/100,5)}}}
-let NL=[]; // nation labels [owner, territory]
-function calcLabels(){if(!G){NL=F.map((f,i)=>[i,i]);return}const best={};
-  for(let i=0;i<F.length;i++){const o=G.owner[i];if(best[o]===undefined||AREA[i]>AREA[best[o]])best[o]=i}
-  NL=Object.entries(best).map(([o,i])=>[+o,i])}
-function drawLabels(ox,vx0,vx1){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.textAlign='center';ctx.textBaseline='middle';
-  for(const[o,i]of NL){const w=LW[i]*K;if(w<45)continue;const p=LP[i];if(p[0]<vx0||p[0]>vx1)continue;
-    const[x,y]=scr(p,ox);if(y<0||y>H)continue;const t=F[o].properties.n,fs=Math.min(22,Math.max(9,w/(t.length*.75)));if(fs<9.5&&w<90)continue;
-    ctx.font=`700 ${fs|0}px system-ui`;
-    ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.55)';ctx.strokeText(t,x,y);ctx.fillStyle='#fff';ctx.fillText(t,x,y)}}
+// labels computed from VISIBLE part of each nation -> never disappear on zoom
+const LA={};
+function drawLabels(K,ox){const own=G?G.owner:RK,vx0=-ox/K,vx1=(W-ox)/K,vy0=-T.y/K,vy1=(H-T.y)/K;
+  const acc=new Map(),regL=[],vis=[];
+  for(let r=0;r<RK.length;r++){const x0=BB[4*r],y0=BB[4*r+1],x1=BB[4*r+2],y1=BB[4*r+3];if(x1<vx0||x0>vx1||y1<vy0||y0>vy1)continue;
+    const cx0=Math.max(x0,vx0),cx1=Math.min(x1,vx1),cy0=Math.max(y0,vy0),cy1=Math.min(y1,vy1);
+    const wa=AREA[r]*(cx1-cx0)*(cy1-cy0)/Math.max(1e-9,(x1-x0)*(y1-y0));if(wa<=0)continue;
+    const lx=LP[2*r],ly=LP[2*r+1],inside=lx>=vx0&&lx<=vx1&&ly>=vy0&&ly<=vy1;if(!inside&&x1-x0>MW*.4)continue;
+    const hw=LW[r]/2;let X0=Math.max(vx0,lx-hw),X1=Math.min(vx1,lx+hw),Y0=Math.max(vy0,ly-hw/2.2),Y1=Math.min(vy1,ly+hw/2.2);
+    if(X1<=X0||Y1<=Y0){X0=cx0;X1=Math.min(cx1,cx0+LW[r]);Y0=cy0;Y1=Math.min(cy1,cy0+LW[r]/2.2)}
+    vis.push([r,wa,inside?lx:(cx0+cx1)/2,inside?ly:(cy0+cy1)/2,X0,X1,Y0,Y1]);
+    const n=own[r];let e=acc.get(n);if(!e){e={c:[],w:0,x:0,y:0,a:1e9,b:1e9,c2:-1e9,d:-1e9,items:[]};acc.set(n,e)}e.items.push(vis.length-1);
+    if(LW[r]*K>80&&T.k>5)regL.push(r)}
+  const lim=Math.min(110,Math.max(20,350/K));
+  for(const e of acc.values()){const it=e.items;const top=it.slice().sort((p,q)=>vis[q][1]-vis[p][1]).slice(0,6);let bs=-1;
+    for(const t of top){const ax=vis[t][2],ay=vis[t][3];let sc=0;for(const j of it){const v=vis[j];if(Math.abs(v[2]-ax)<lim*2&&Math.abs(v[3]-ay)<lim)sc+=v[1]}if(sc>bs){bs=sc;e.ax=ax;e.ay=ay}}
+    for(const j of it){const[r,wa,px,py,cx0,cx1,cy0,cy1]=vis[j];if(Math.abs(px-e.ax)>lim*2||Math.abs(py-e.ay)>lim)continue;
+      e.w+=wa;e.x+=px*wa;e.y+=py*wa;if(cx0<e.a)e.a=cx0;if(cx1>e.c2)e.c2=cx1;if(cy0<e.b)e.b=cy0;if(cy1>e.d)e.d=cy1}}
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
+  if(regL.length<120){ctx.font='500 11px system-ui';ctx.lineWidth=2.5;
+    for(const r of regL){if(RN[r]===NAT[own[r]].n)continue;const x=LP[2*r]*K+ox,y=LP[2*r+1]*K+T.y;if(x<0||x>W||y<0||y>H)continue;
+      ctx.strokeStyle='rgba(0,0,0,.45)';ctx.strokeText(RN[r],x,y+14);ctx.fillStyle='rgba(255,255,255,.75)';ctx.fillText(RN[r],x,y+14)}}
+  for(const[n,e]of acc){const wpx=Math.min((e.c2-e.a)*K,(e.d-e.b)*K*2.5);if(!e.w)continue;const t=NAT[n].n;const fs=Math.min(24,wpx/(t.length*.8));if(fs<9)continue;
+    const x=e.x/e.w*K+ox,y=e.y/e.w*K+T.y;
+    ctx.font=`800 ${fs|0}px system-ui`;ctx.lineWidth=3.5;ctx.strokeStyle='rgba(0,0,0,.55)';ctx.strokeText(t,x,y);ctx.fillStyle='#fff';ctx.fillText(t,x,y)}}
 addEventListener('resize',resize);
 
-// ================= GAME (real time) =================
-let G=null;const SAVE='geopolit_rts_v2';
+// ================= GAME (real time, regions) =================
+let G=null;const SAVE='geopolit_rts_v3';
 const MONTHS=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-const SPEEDS=[0,1,3,8,20];  // days per second
-let speed=1;
+const SPEEDS=[0,1,3,8,20];let speed=1;
 const fmt=n=>{n=Math.round(n);const a=Math.abs(n);return a>=1e6?(n/1e6).toFixed(2)+'трлн':a>=1e3?(n/1e3).toFixed(1)+'млрд':n+'млн'};
 const fmtN=n=>n>=1e6?(n/1e6).toFixed(2)+' млн':n>=1e3?(n/1e3).toFixed(0)+' тыс':Math.round(n)+'';
-const flagImg=(i,cls='flag')=>{const f=F[i].properties.f;return f?`<img class="${cls}" src="flags/${f}.svg">`:`<span class="${cls}" style="display:inline-block"></span>`};
-const nm=i=>F[i].properties.n;
-function newGame(p){const n=F.length;
-  G={player:p,day:0,owner:[...Array(n).keys()],nat:[],allies:[],war:[],rel:{},log:[],offs:[],col:{},aiWar:[]};
-  for(let i=0;i<n;i++){const pr=F[i].properties,gdp=Math.max(pr.gdp,50);
-    G.nat.push({gdp,money:gdp*.05,army:Math.max(500,Math.sqrt(pr.pop)*25+gdp*.004),stab:60+Math.random()*30,tech:1})}
-  addLog(`🎖️ Вы возглавили страну ${nm(p)}.`);startGame();zoomTo(p)}
+const flagImg=(n,cls='flag')=>{const f=NAT[n].f;return f?`<img class="${cls}" src="flags/${f}.svg">`:`<span class="${cls}" style="display:inline-block"></span>`};
+const nm=n=>NAT[n].n;
+function newGame(p){const R=RK.length;
+  G={player:p,day:0,owner:Array.from(RK),gdp:new Array(R).fill(0),nat:[],allies:[],war:[],rel:{},log:[],offs:[],aiWar:[]};
+  const ws={};for(let r=0;r<R;r++){const w=Math.sqrt(AREA[r]+.01);G.gdp[r]=w;ws[RK[r]]=(ws[RK[r]]||0)+w}
+  for(let r=0;r<R;r++)G.gdp[r]=G.gdp[r]/ws[RK[r]]*Math.max(NAT[RK[r]].gdp,30);
+  for(const n of NAT){const gdp=Math.max(n.gdp,30);G.nat.push({money:gdp*.05,army:Math.max(500,Math.sqrt(Math.max(n.pop,0))*25+gdp*.004),stab:60+Math.random()*30,tech:1})}
+  addLog(`🎖️ Вы возглавили страну ${nm(p)}.`);startGame();zoomToNat(p)}
 let TER={},INC={};
-function recalc(){TER={};INC={};for(let i=0;i<F.length;i++){const o=G.owner[i];(TER[o]||(TER[o]=[])).push(i);INC[o]=(INC[o]||0)+G.nat[i].gdp}calcLabels()}
+function recalc(){TER={};INC={};for(let r=0;r<RK.length;r++){const o=G.owner[r];(TER[o]||(TER[o]=[])).push(r);INC[o]=(INC[o]||0)+G.gdp[r]}}
 const terr=o=>TER[o]||[],income=o=>INC[o]||0,power=o=>G.nat[o].army*G.nat[o].tech,nations=()=>Object.keys(TER).map(Number);
 function save(){try{localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}}
 function dateStr(){const d=new Date(Date.UTC(2026,0,1)+G.day*864e5);return d.getUTCDate()+' '+MONTHS[d.getUTCMonth()]+' '+d.getUTCFullYear()}
-function addLog(t){G.log.unshift(`<b>${dateStr()}</b> ${t}`);G.log=G.log.slice(0,50);logDirty=true}
-let logDirty=true;
-function startGame(){recalc();document.getElementById('hud').style.display='flex';document.getElementById('log').style.display='block';
-  spd.innerHTML=['⏸','▶','▶▶','▶▶▶','⏩'].map((s,i)=>`<button id="sp${i}" onclick="setSpeed(${i})">${s}</button>`).join('');setSpeed(1);updHud();draw()}
+let logDirty=true;function addLog(t){G.log.unshift(`<b>${dateStr()}</b> ${t}`);G.log=G.log.slice(0,50);logDirty=true}
+function startGame(){recalc();hud.style.display='flex';log.style.display='block';
+  spd.innerHTML=['⏸','▶','▶▶','▶▶▶','⏩'].map((s,i)=>`<button id="sp${i}" onclick="setSpeed(${i})">${s}</button>`).join('');setSpeed(1);updHud();invalidate()}
 function setSpeed(i){speed=i;for(let j=0;j<5;j++)document.getElementById('sp'+j).classList.toggle('on',j===i)}
 function updHud(){const p=G.player,n=G.nat[p];
   me.innerHTML=flagImg(p)+'<b>'+nm(p)+'</b>';money.textContent='$'+fmt(n.money);inc.textContent=' +'+fmt(dailyInc(p)*30)+'/мес';
   army.textContent=fmtN(n.army);stab.textContent=Math.round(n.stab)+'%';date.textContent=dateStr();
   if(logDirty){log.innerHTML=G.log.slice(0,20).map(x=>`<div>${x}</div>`).join('');logDirty=false}}
 function dailyInc(o){const N=G.nat[o];return income(o)*.0009*(N.stab/100+.3)-N.army*.000015}
-function adjMode(o,t){for(const i of terr(o))if(NB[i].includes(t))return{m:'land',from:i};
+function adjMode(o,t){for(const n of NB[t])if(G.owner[n]===o)return{m:'land',from:n};
   let bd=1e9,bf=-1;for(const i of terr(o)){const d=d3.geoDistance(CEN[i],CEN[t])*6371;if(d<bd){bd=d;bf=i}}
-  return bd<1800?{m:'sea',from:bf}:null}
-function winChance(a,t,mode){const o=G.owner[t];let atk=power(a)*(mode==='sea'?.6:1)*(G.nat[a].stab/100+.5);
-  const share=1/Math.max(1,terr(o).length*.6);let def=power(o)*Math.max(.35,share)*1.25*(G.nat[o].stab/100+.5);
-  if(o===G.player)for(const al of G.allies)def+=power(al)*.15;else if(G.allies.includes(o))def+=power(G.player)*.15;
+  return bd<1500?{m:'sea',from:bf}:null}
+function winChance(a,t,mode){const o=G.owner[t];const sf=x=>G.nat[x].stab/100+.5;
+  let atk=power(a)*.4*(mode==='sea'?.6:1)*sf(a);
+  const share=Math.min(1,Math.max(.1,G.gdp[t]/Math.max(1,income(o))*3+.1));let def=power(o)*share*1.2*sf(o);
+  if(o===G.player)for(const al of G.allies)def+=power(al)*.1;else if(G.allies.includes(o))def+=power(G.player)*.1;
   return atk/(atk+def)}
-function startOff(a,t){if(G.offs.some(x=>x.a===a&&x.t===t))return false;const ad=adjMode(a,t);if(!ad)return false;
-  G.offs.push({a,t,from:ad.from,m:ad.m,p:0});return true}
 function atWar(a,b){if(a===G.player)return G.war.includes(b);if(b===G.player)return G.war.includes(a);
   return G.aiWar.some(w=>(w[0]===a&&w[1]===b)||(w[0]===b&&w[1]===a))}
+function startOff(a,t){if(G.offs.some(x=>x.a===a&&x.t===t))return false;const ad=adjMode(a,t);if(!ad)return false;G.offs.push({a,t,from:ad.from,m:ad.m,p:0});return true}
 function stepOffs(){
   for(const o of G.offs){const def=G.owner[o.t];
     if(def===o.a||!atWar(o.a,def)||G.owner[o.from]!==o.a){o.done=1;continue}
-    const ch=winChance(o.a,o.t,o.m);o.p+=(ch-.38)*14+(Math.random()-.5)*4;
-    const A=G.nat[o.a],D=G.nat[def];A.army=Math.max(100,A.army*(1-.0025*(1.2-ch)));D.army=Math.max(100,D.army*(1-.002*(.4+ch)));
+    const ch=winChance(o.a,o.t,o.m);o.p+=(ch-.38)*30+(Math.random()-.5)*6;
+    const A=G.nat[o.a],D=G.nat[def];A.army=Math.max(100,A.army*(1-.0015*(1.2-ch)));D.army=Math.max(100,D.army*(1-.0012*(.4+ch)));
     if(o.p>=100){o.done=1;conquer(o.a,o.t)}
-    else if(o.p<-40){o.done=1;if(o.a===G.player||def===G.player)addLog(`🛡️ ${nm(def)} отбила наступление на ${nm(o.t)}.`)}}
+    else if(o.p<-40){o.done=1;if(o.a===G.player||def===G.player)addLog(`🛡️ ${nm(def)} отбила наступление: ${RN[o.t]}.`)}}
   G.offs=G.offs.filter(o=>!o.done)}
-function conquer(a,t){const o=G.owner[t];G.owner[t]=a;G.nat[a].money+=G.nat[o].money*.1;G.nat[t].gdp*=.9;recalc();
-  if(a===G.player||o===G.player)addLog(`${a===G.player?'🏆':'💥'} ${nm(a)} захватывает ${nm(t)}!`);
-  else if(F[t].properties.pop>8e6)addLog(`📰 ${nm(a)} захватила ${nm(t)}.`);
-  if(!terr(o).length){if(F[o].properties.pop>2e6||G.war.includes(o))addLog(`☠️ ${nm(o)} прекратила существование.`);
+function conquer(a,t){const o=G.owner[t];G.owner[t]=a;G.gdp[t]*=.92;recalc();dirty();
+  if(a===G.player||o===G.player)addLog(`${a===G.player?'🏆':'💥'} ${nm(a)} занимает: ${RN[t]} (${nm(o)}).`);
+  if(!terr(o).length){G.nat[a].money+=G.nat[o].money*.3;if(NAT[o].pop>1e6||G.war.includes(o))addLog(`☠️ ${nm(o)} прекратила существование.`);
     G.war=G.war.filter(w=>w!==o);G.allies=G.allies.filter(w=>w!==o);G.aiWar=G.aiWar.filter(w=>w[0]!==o&&w[1]!==o);
-    if(o===G.player)gameOver(false)}
+    G.offs=G.offs.filter(x=>x.a!==o);if(o===G.player)gameOver(false)}
   if(sel>=0&&!modalOpen())showPanel(sel)}
-function dayTick(){G.day++;const me=G.player;
-  for(const o of nations()){const N=G.nat[o];N.money+=dailyInc(o);N.stab+=(65-N.stab)*.004;
-    if(N.money<0){N.stab-=.15;N.army*=.998}
-    if(o!==me)N.army*=1.0004}
-  if(G.day%30===0){for(let i=0;i<F.length;i++)G.nat[i].gdp*=1.0025;recalc()}
+function dayTick(){G.day++;const me=G.player,ns=nations();
+  for(const o of ns){const N=G.nat[o];N.money+=dailyInc(o);N.stab+=(65-N.stab)*.004;
+    if(N.money<0){N.stab-=.15;N.army*=.998}if(o!==me)N.army*=1.0004}
+  if(G.day%30===0){for(let r=0;r<RK.length;r++)G.gdp[r]*=1.0025;recalc()}
   stepOffs();
-  // AI: few nations decide each day
-  const ns=nations();for(let k=0;k<6;k++)aiThink(ns[Math.floor(Math.random()*ns.length)]);
+  for(let k=0;k<6;k++)aiThink(ns[Math.floor(Math.random()*ns.length)]);
   if(Math.random()<.004)randomEvent();
   if(G.day%15===0)save();
   if(ns.length===1)gameOver(true)}
-function aiThink(o){if(o===G.player)return;const N=G.nat[o],inc=income(o);
+function aiThink(o){if(o===G.player||!TER[o])return;const N=G.nat[o],inc=income(o);
   if(N.money>inc*.06){N.army*=1.06;N.money-=inc*.04}
   const enemies=[];if(G.war.includes(o))enemies.push(G.player);for(const w of G.aiWar){if(w[0]===o)enemies.push(w[1]);if(w[1]===o)enemies.push(w[0])}
-  // attack targets bordering enemies
-  for(const e of enemies){if(G.offs.filter(x=>x.a===o).length>=2)break;
-    for(const i of terr(o)){const t=NB[i].find(n=>G.owner[n]===e);if(t!==undefined){if(winChance(o,t,'land')>.4)startOff(o,t);break}}}
-  // make peace
-  if(enemies.length&&Math.random()<.05){const e=enemies[0];if(e!==G.player){G.aiWar=G.aiWar.filter(w=>!(w.includes(o)&&w.includes(e)))}}
-  // declare new war
-  if(Math.random()<.04&&enemies.length===0){const c=[];for(const i of terr(o))for(const n of NB[i]){const t=G.owner[n];if(t!==o)c.push(t)}
+  let cnt=G.offs.filter(x=>x.a===o).length;
+  for(const e of enemies){if(cnt>=3)break;const tg=[];for(const r of terr(e))for(const n of NB[r])if(G.owner[n]===o){tg.push(r);break}
+    if(tg.length){const t=tg[Math.floor(Math.random()*tg.length)];if(winChance(o,t,'land')>.35&&startOff(o,t))cnt++}}
+  if(enemies.length&&Math.random()<.03){const e=enemies[0];if(e!==G.player)G.aiWar=G.aiWar.filter(w=>!(w.includes(o)&&w.includes(e)))}
+  if(Math.random()<.03&&!enemies.length){const rs=terr(o),r=rs[Math.floor(Math.random()*rs.length)];const c=NB[r].map(n=>G.owner[n]).filter(t=>t!==o);
     if(!c.length)return;const t=c[Math.floor(Math.random()*c.length)];
-    if(power(o)>power(t)*1.6){if(t===G.player){if(G.allies.includes(o))return;G.war.push(o);addLog(`🚨 ${nm(o)} объявляет вам войну!`);setSpeed(0)}
-      else{if(G.allies.includes(t)&&Math.random()<.5)return;G.aiWar.push([o,t]);if(F[o].properties.pop>2e7||F[t].properties.pop>2e7)addLog(`⚔️ ${nm(o)} объявила войну ${nm(t)}.`)}}}}
+    if(power(o)>power(t)*1.6){if(t===G.player){if(G.allies.includes(o))return;G.war.push(o);addLog(`🚨 ${nm(o)} объявляет вам войну!`);setSpeed(0);dirty()}
+      else{if(G.allies.includes(t)&&Math.random()<.5)return;G.aiWar.push([o,t]);if(NAT[o].pop>2e7||NAT[t].pop>2e7)addLog(`⚔️ ${nm(o)} объявила войну: ${nm(t)}.`)}}}}
 function randomEvent(){const me=G.player,M=G.nat[me],ev=[
-  ()=>{M.money+=income(me)*.02;return'🛢️ Найдено месторождение нефти! Бюджет пополнен.'},
+  ()=>{M.money+=income(me)*.02;return'🛢️ Найдено месторождение нефти!'},
   ()=>{M.stab-=7;return'✊ Массовые протесты в столице.'},
-  ()=>{for(const i of terr(me))G.nat[i].gdp*=.97;recalc();return'📉 Мировой кризис ударил по экономике.'},
+  ()=>{for(const r of terr(me))G.gdp[r]*=.97;recalc();return'📉 Мировой кризис ударил по экономике.'},
   ()=>{M.tech+=.1;return'💡 Учёные совершили открытие.'},
   ()=>{M.army*=.96;return'🌪️ Стихийное бедствие.'}];addLog(ev[Math.floor(Math.random()*ev.length)]())}
-
-let last=performance.now(),acc=0,hudT=0;
+let last=performance.now(),acc=0;
 function loop(now){const dt=Math.min(.25,(now-last)/1000);last=now;
-  if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;let ch=false;
-    while(acc>=1&&n<10){acc-=1;n++;const before=G.offs.length+'/'+G.day;dayTick();ch=true}
-    if(ch){draw();hudT+=n}
-    if(hudT>0){updHud();hudT=0;if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
+  if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;
+    while(acc>=1&&n<10){acc-=1;n++;dayTick()}
+    if(n){updHud();if(G.offs.length)draw();if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
   requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 
 // ================= UI =================
 function modalOpen(){return !!document.getElementById('modal')}
-function onTap(i){if(i<0){closePanel();return}sel=i;draw();if(!G){confirmPick(i);return}showPanel(i)}
+function onTap(r){if(r<0){closePanel();return}sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
 function closePanel(){sel=-1;panel.style.display='none';draw()}
 let panelSig='';
 function refreshPanelLight(){const s=panelState(sel);if(s!==panelSig)showPanel(sel);else{const e=document.getElementById('offs');if(e)e.innerHTML=offsHtml(sel)}}
-function panelState(i){const o=G.owner[i],M=G.nat[G.player];return [o,G.war.includes(o),G.allies.includes(o),M.money>recCost(),M.money>invCost(i),M.money>techCost(),M.money>stabCost(),M.money>spyCost(),!!adjMode(G.player,i)].join()}
-function offsHtml(i){const o=G.owner[i];const list=G.offs.filter(x=>(x.a===G.player&&G.owner[x.t]===o)||(x.a===o&&G.owner[x.t]===G.player)||(o===G.player&&(x.a===o||G.owner[x.t]===o)));
-  return list.map(x=>`<div class="off">${x.a===G.player?'➡️':'⬅️'} ${nm(x.a)} → ${nm(x.t)} ${x.m==='sea'?'(десант)':''}<div class="prog"><i style="width:${Math.max(0,x.p)}%"></i></div></div>`).join('')}
-function showPanel(i){panelSig=panelState(i);const pr=F[i].properties,o=G.owner[i],N=G.nat[o],me=G.player,M=G.nat[me];
-  let h=`<button class="x" onclick="closePanel()">✕</button><div style="display:flex;gap:10px;align-items:center">${flagImg(i,'flag big')}<div><h2>${pr.n}</h2><span class="tag">${pr.c||''}</span></div></div>`;
-  if(o!==i)h+=`<div style="margin-top:8px" class="chip">${flagImg(o)} Под контролем: <b>${nm(o)}</b></div>`;
+function panelState(i){const o=G.owner[i],M=G.nat[G.player];return [o,G.war.includes(o),G.allies.includes(o),M.money>recCost(),M.money>invCost(i),M.money>techCost(),M.money>stabCost(),M.money>spyCost(),G.offs.length].join()}
+function offsHtml(i){const o=G.owner[i],P=G.player;const list=G.offs.filter(x=>(x.a===P&&G.owner[x.t]===o)||(x.a===o&&G.owner[x.t]===P)||(o===P&&(x.a===P||G.owner[x.t]===P))).slice(0,8);
+  return list.map(x=>`<div class="off">${x.a===P?'➡️':'⬅️'} ${nm(x.a)} → ${RN[x.t]} ${x.m==='sea'?'(десант)':''}<div class="prog"><i style="width:${Math.max(0,x.p)}%"></i></div></div>`).join('')}
+function showPanel(i){panelSig=panelState(i);const o=G.owner[i],N=G.nat[o],me=G.player,M=G.nat[me],orig=RK[i];
+  let h=`<button class="x" onclick="closePanel()">✕</button><div style="display:flex;gap:10px;align-items:center">${flagImg(o,'flag big')}<div><h2>${nm(o)}</h2><span class="tag">📍 ${RN[i]}</span></div></div>`;
+  if(o!==orig)h+=`<div style="margin-top:8px" class="chip">${flagImg(orig)} Исторически: <b>${nm(orig)}</b></div>`;
   h+=`<div style="margin-top:8px">
-  <div class="row"><span>Население</span><span>${fmtN(pr.pop)}</span></div>
-  <div class="row"><span>ВВП территории</span><span>$${fmt(G.nat[i].gdp)}</span></div>
-  <div class="row"><span>Армия державы</span><span>${fmtN(N.army)}</span></div>
+  <div class="row"><span>ВВП региона</span><span>$${fmt(G.gdp[i])}</span></div>
+  <div class="row"><span>ВВП державы</span><span>$${fmt(income(o))}</span></div>
+  <div class="row"><span>Армия</span><span>${fmtN(N.army)}</span></div>
   <div class="row"><span>Технологии</span><span>ур. ${N.tech.toFixed(1)}</span></div>
   <div class="row"><span>Стабильность</span><span>${Math.round(N.stab)}%</span></div>
-  <div class="row"><span>Территорий</span><span>${terr(o).length}</span></div>
+  <div class="row"><span>Регионов</span><span>${terr(o).length}</span></div>
   <div class="row"><span>Отношения</span><span>${o===me?'—':rel(o)}</span></div></div><div class="acts">`;
   if(o===me){
     h+=`<button class="p" onclick="act('rec')" ${M.money<recCost()?'disabled':''}>🪖 Мобилизация<br><small>$${fmt(recCost())}</small></button>
-    <button onclick="act('inv',${i})" ${M.money<invCost(i)?'disabled':''}>🏭 Инвестиции<br><small>$${fmt(invCost(i))}</small></button>
+    <button onclick="act('inv',${i})" ${M.money<invCost(i)?'disabled':''}>🏭 В регион<br><small>$${fmt(invCost(i))}</small></button>
     <button onclick="act('tech')" ${M.money<techCost()?'disabled':''}>🔬 Наука<br><small>$${fmt(techCost())}</small></button>
     <button onclick="act('stab')" ${M.money<stabCost()?'disabled':''}>🎉 Соцпрограммы<br><small>$${fmt(stabCost())}</small></button>`;
   }else{
     const ad=adjMode(me,i),war=G.war.includes(o),ally=G.allies.includes(o),going=G.offs.some(x=>x.a===me&&x.t===i);
-    if(war)h+=`<button class="r" onclick="act('atk',${i})" ${ad&&!going?'':'disabled'}>⚔️ Наступление<br><small>${going?'идёт':ad?Math.round(winChance(me,i,ad.m)*100)+'% · '+(ad.m==='land'?'суша':'десант'):'нет границы'}</small></button>
-      <button onclick="act('peace',${o})">🕊️ Мир</button>`;
+    if(war)h+=`<button class="r" onclick="act('atk',${i})" ${ad&&!going?'':'disabled'}>⚔️ Наступать<br><small>${going?'идёт':ad?Math.round(winChance(me,i,ad.m)*100)+'% · '+(ad.m==='land'?'суша':'десант'):'нет границы'}</small></button>
+      <button onclick="act('front',${o})">🔥 Весь фронт</button><button onclick="act('peace',${o})">🕊️ Мир</button>`;
     else h+=`<button class="r" onclick="act('war',${o})" ${ally?'disabled':''}>⚔️ Объявить войну</button>
       <button class="g" onclick="act('ally',${o})" ${ally?'disabled':''}>🤝 Союз</button>`;
     h+=`<button onclick="act('trade',${o})" ${war?'disabled':''}>📦 Торговля</button>
     <button onclick="act('sanc',${o})">🚫 Санкции</button>
     <button onclick="act('spy',${o})" ${M.money<spyCost()?'disabled':''}>🕵️ Переворот<br><small>$${fmt(spyCost())}</small></button>`;
   }
-  h+=`</div><div id="offs">${offsHtml(i)}</div><button style="width:100%;margin-top:6px" onclick="zoomTo(${i})">🔍 Приблизить</button>`;
+  h+=`</div><div id="offs">${offsHtml(i)}</div><div class="acts"><button onclick="zoomToReg(${i})">🔍 Регион</button><button onclick="zoomToNat(${o})">🗺️ Страна</button></div>`;
   panel.innerHTML=h;panel.style.display='block'}
 function rel(o){const r=G.rel[o]??0;return G.allies.includes(o)?'🤝 Союзник':G.war.includes(o)?'⚔️ Война':r>30?'😊 Дружба':r<-30?'😠 Враждебность':'😐 Нейтралитет'}
-const recCost=()=>income(G.player)*.03+20,invCost=i=>G.nat[i].gdp*.08+15,
+const recCost=()=>income(G.player)*.03+20,invCost=i=>G.gdp[i]*.08+5,
   techCost=()=>income(G.player)*.06*G.nat[G.player].tech+30,stabCost=()=>income(G.player)*.02+10,spyCost=()=>income(G.player)*.05+40;
 function act(a,x){const me=G.player,M=G.nat[me];
   switch(a){
   case'rec':{M.money-=recCost();const add=Math.max(2000,M.army*.12);M.army+=add;M.stab-=1.5;addLog(`🪖 Мобилизовано ${fmtN(add)} солдат.`);break}
-  case'inv':{M.money-=invCost(x);G.nat[x].gdp*=1.06;recalc();addLog(`🏭 Инвестиции в ${nm(x)}: ВВП +6%.`);break}
+  case'inv':{M.money-=invCost(x);G.gdp[x]*=1.08;recalc();addLog(`🏭 Инвестиции: ${RN[x]}, ВВП +8%.`);break}
   case'tech':{M.money-=techCost();M.tech+=.2;addLog(`🔬 Технологии ур. ${M.tech.toFixed(1)}.`);break}
   case'stab':{M.money-=stabCost();M.stab=Math.min(100,M.stab+8);addLog('🎉 Стабильность выросла.');break}
-  case'war':{G.war.push(x);G.rel[x]=-100;M.stab-=4;addLog(`⚔️ Вы объявили войну: ${nm(x)}!`);break}
-  case'peace':{if(G.nat[x].army<M.army*.5||Math.random()<.4){G.war=G.war.filter(w=>w!==x);G.rel[x]=-20;addLog(`🕊️ Мир с ${nm(x)}.`)}else addLog(`❌ ${nm(x)} отвергает мир.`);break}
+  case'war':{G.war.push(x);G.rel[x]=-100;M.stab-=4;addLog(`⚔️ Вы объявили войну: ${nm(x)}!`);dirty();break}
+  case'peace':{if(G.nat[x].army<M.army*.5||Math.random()<.4){G.war=G.war.filter(w=>w!==x);G.rel[x]=-20;addLog(`🕊️ Мир с ${nm(x)}.`);dirty()}else addLog(`❌ ${nm(x)} отвергает мир.`);break}
   case'ally':{const r=(G.rel[x]??0)+Math.random()*60-10+(power(me)>power(x)?20:0);if(r>45){G.allies.push(x);G.rel[x]=80;addLog(`🤝 ${nm(x)} — ваш союзник!`)}else{G.rel[x]=(G.rel[x]??0)+5;addLog(`❌ ${nm(x)} отклоняет союз.`)}break}
   case'trade':{const g=Math.min(income(x),income(me))*.03;M.money+=g;G.nat[x].money+=g*.5;G.rel[x]=(G.rel[x]??0)+10;addLog(`📦 Сделка с ${nm(x)}: +$${fmt(g)}.`);break}
   case'sanc':{G.nat[x].money*=.85;G.nat[x].stab-=5;G.rel[x]=(G.rel[x]??0)-30;G.allies=G.allies.filter(y=>y!==x);M.money-=income(me)*.01;addLog(`🚫 Санкции против ${nm(x)}.`);break}
-  case'spy':{M.money-=spyCost();const N=G.nat[x];if(Math.random()<(100-N.stab)/130){N.stab-=25;N.army*=.7;addLog(`🕵️ Переворот в ${nm(x)} удался!`)}else{G.rel[x]=-80;addLog(`🚨 Агенты раскрыты в ${nm(x)}!`)}break}
-  case'atk':{if(startOff(me,x))addLog(`➡️ Наступление на ${nm(x)} началось.`);break}
+  case'spy':{M.money-=spyCost();const N=G.nat[x];if(Math.random()<(100-N.stab)/130){N.stab-=25;N.army*=.7;addLog(`🕵️ Переворот в ${nm(x)} удался!`)}else{G.rel[x]=-80;addLog(`🚨 Агенты раскрыты: ${nm(x)}!`)}break}
+  case'atk':{if(startOff(me,x))addLog(`➡️ Наступление: ${RN[x]}.`);break}
+  case'front':{let c=0;for(const r of terr(x))for(const n of NB[r])if(G.owner[n]===me){if(startOff(me,r))c++;break}addLog(c?`🔥 Наступление по всему фронту: ${c} направлений.`:'Нет общей границы.');break}
   }
   updHud();save();draw();if(sel>=0)showPanel(sel)}
-function gameOver(win){localStorage.removeItem(SAVE);modal(`<h1>${win?'🌍 Мировое господство!':'☠️ Поражение'}</h1><p>${win?'Весь мир под вашим флагом.':'Ваше государство пало.'}</p><button class="p" onclick="restart()">Новая игра</button>`)}
+function gameOver(win){localStorage.removeItem(SAVE);setSpeed(0);modal(`<h1>${win?'🌍 Мировое господство!':'☠️ Поражение'}</h1><p>${win?'Весь мир под вашим флагом.':'Ваше государство пало.'}</p><button class="p" onclick="restart()">Новая игра</button>`)}
 function modal(h){closeModal();const m=document.createElement('div');m.className='modal';m.id='modal';m.innerHTML=`<div class="card">${h}</div>`;document.body.appendChild(m);return m}
 function closeModal(){document.getElementById('modal')?.remove()}
-function restart(){localStorage.removeItem(SAVE);G=null;closeModal();closePanel();hud.style.display='none';log.style.display='none';calcLabels();pickScreen();draw()}
-function menu(){modal(`<h1>Меню</h1><p>${dateStr()}</p><div style="display:grid;gap:8px"><button class="p" onclick="closeModal()">Продолжить</button><button onclick="closeModal();zoomTo(G.player)">К моей стране</button><button onclick="save();closeModal()">💾 Сохранить</button><button class="r" onclick="restart()">Новая игра</button></div>`)}
+function restart(){localStorage.removeItem(SAVE);G=null;closeModal();closePanel();hud.style.display='none';log.style.display='none';invalidate();pickScreen()}
+function menu(){modal(`<h1>Меню</h1><p>${dateStr()}</p><div style="display:grid;gap:8px"><button class="p" onclick="closeModal()">Продолжить</button><button onclick="closeModal();zoomToNat(G.player)">К моей стране</button><button onclick="save();closeModal()">💾 Сохранить</button><button class="r" onclick="restart()">Новая игра</button></div>`)}
 function showRank(){const r=nations().map(o=>({o,s:income(o)+power(o)*.05,t:terr(o).length})).sort((a,b)=>b.s-a.s).slice(0,40);
-  modal(`<h1>🏆 Рейтинг держав</h1><div class="list">${r.map((x,k)=>`<div class="it" onclick="closeModal();zoomTo(${x.o});onTap(${x.o})"><b>${k+1}</b><span class="sw" style="background:${natColor(x.o)}"></span>${flagImg(x.o)}<span style="flex:1">${nm(x.o)}${x.o===G.player?' (вы)':''}</span><span class="tag">${x.t} терр.</span><span class="tag">$${fmt(income(x.o))}</span></div>`).join('')}</div><br><button onclick="closeModal()">Закрыть</button>`)}
-function pickScreen(){calcLabels();
+  modal(`<h1>🏆 Рейтинг держав</h1><div class="list">${r.map((x,k)=>`<div class="it" onclick="closeModal();zoomToNat(${x.o})"><b>${k+1}</b><span class="sw" style="background:${natColor(x.o)}"></span>${flagImg(x.o)}<span style="flex:1">${nm(x.o)}${x.o===G.player?' (вы)':''}</span><span class="tag">${x.t} рег.</span><span class="tag">$${fmt(income(x.o))}</span></div>`).join('')}</div><br><button onclick="closeModal()">Закрыть</button>`)}
+function pickScreen(){
   modal(`<h1>🌍 Мировая Держава</h1><p style="color:var(--mut)">Выберите страну — коснитесь её на карте или найдите в списке</p><input id="search" placeholder="Поиск страны…"><div class="list" id="plist"></div><br><button onclick="closeModal()">Выбрать на карте</button>`);
-  const order=F.map((f,i)=>i).filter(i=>F[i].properties.pop>0).sort((a,b)=>F[b].properties.gdp-F[a].properties.gdp);
-  const fill=q=>{plist.innerHTML=order.filter(i=>!q||nm(i).toLowerCase().includes(q)||F[i].properties.e.toLowerCase().includes(q)).map(i=>`<div class="it" onclick="confirmPick(${i})"><span class="sw" style="background:${natColor(i)}"></span>${flagImg(i)}<span style="flex:1">${nm(i)}</span><span class="tag">$${fmt(F[i].properties.gdp)}</span></div>`).join('')};
+  const order=NAT.map((f,i)=>i).filter(i=>NAT[i].pop>0&&RK.includes(i)).sort((a,b)=>NAT[b].gdp-NAT[a].gdp);
+  const fill=q=>{plist.innerHTML=order.filter(i=>!q||nm(i).toLowerCase().includes(q)||NAT[i].e.toLowerCase().includes(q)).map(i=>`<div class="it" onclick="confirmPick(${i})"><span class="sw" style="background:${natColor(i)}"></span>${flagImg(i)}<span style="flex:1">${nm(i)}</span><span class="tag">$${fmt(NAT[i].gdp)}</span></div>`).join('')};
   fill('');search.oninput=e=>fill(e.target.value.toLowerCase().trim())}
-function confirmPick(i){if(F[i].properties.pop<=0)return;const p=F[i].properties;
+function confirmPick(i){if(NAT[i].pop<=0)return;const p=NAT[i];
   modal(`${flagImg(i,'flag big')}<h1>${p.n}</h1><p>Население: ${fmtN(p.pop)}<br>ВВП: $${fmt(p.gdp)}</p><div style="display:flex;gap:8px;justify-content:center"><button onclick="pickScreen()">Назад</button><button class="p" onclick="closeModal();newGame(${i})">Играть</button></div>`);
-  zoomTo(i)}
+  zoomToNat(i)}
 window.onBack=()=>{if(modalOpen()){if(G)closeModal();return true}if(panel.style.display==='block'){closePanel();return true}if(G){menu();return true}return false};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&G)save()});
 init();
