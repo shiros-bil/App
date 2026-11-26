@@ -143,7 +143,24 @@ function useMeta(L){best=L;BB=L.bb;AREA=L.area;LP=L.lp;LW=L.lw;CEN=[];for(let r=
 
 const imgP=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src});
 function hydrateIcons(){document.querySelectorAll('i[data-i]').forEach(e=>{e.outerHTML=I(e.dataset.i)})}
-let SEA=[],selSea=-1;
+let SEA=[],selSea=-1,WAT=null,selW=null;
+const wRank=k=>k<1.6?1:k<2.5?3:k<4?5:k<7?7:k<12?8:10;
+async function loadWater(){const t=await getJ('water.json');const pr=d3.geoEquirectangular().fitSize([MW,MH],{type:'Sphere'});
+  const lakes=topojson.feature(t,t.objects.l).features.map(f=>{const g=f.geometry,P=g.type==='Polygon'?[g.coordinates]:g.coordinates;const pp=P.map(poly=>poly.map(r=>r.map(c=>pr(c))));
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;const p2=new Path2D();for(const poly of pp)for(const r of poly){r.forEach((q,i)=>{i?p2.lineTo(q[0],q[1]):p2.moveTo(q[0],q[1]);x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);y0=Math.min(y0,q[1]);y1=Math.max(y1,q[1])});p2.closePath()}
+    return{n:f.properties.n,t:f.properties.t,r:f.properties.r,pp,p:p2,b:[x0,y0,x1,y1]}});
+  const rivers=topojson.feature(t,t.objects.v).features.map(f=>{const g=f.geometry,Ls=g.type==='LineString'?[g.coordinates]:g.coordinates;const ls=Ls.map(l=>l.map(c=>pr(c)));
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const l of ls)for(const q of l){x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);y0=Math.min(y0,q[1]);y1=Math.max(y1,q[1])}return{n:f.properties.n,r:f.properties.r,ls,b:[x0,y0,x1,y1]}});
+  WAT={lakes,rivers}}
+function hitWater(x,y){if(!WAT)return null;const[mx,my]=toMap(x,y),mr=wRank(T.k),K=S0()*T.k;
+  let best=null,ba=1e18;for(const l of WAT.lakes){if(l.r>mr)continue;const b=l.b;if(mx<b[0]||mx>b[2]||my<b[1]||my>b[3])continue;if(hctx.isPointInPath(l.p,mx,my)){const a=(b[2]-b[0])*(b[3]-b[1]);if(a<ba){ba=a;best={n:l.n,t:l.t,img:'lake',o:l}}}}
+  if(best)return best;const tol=10/K;let bd=tol*tol;
+  for(const v of WAT.rivers){if(v.r>mr)continue;const b=v.b;if(mx<b[0]-tol||mx>b[2]+tol||my<b[1]-tol||my>b[3]+tol)continue;
+    for(const l of v.ls)for(let i=1;i<l.length;i++){const ax=l[i-1][0],ay=l[i-1][1],bx=l[i][0],by=l[i][1],dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;let u=L2?((mx-ax)*dx+(my-ay)*dy)/L2:0;u=Math.max(0,Math.min(1,u));const ex=ax+u*dx-mx,ey=ay+u*dy-my,d=ex*ex+ey*ey;if(d<bd){bd=d;best={n:v.n,t:'Река',img:'riverv',o:v}}}}
+  return best}
+function showWater(w){selW=w;selSea=-1;sel=-1;draw();panel.style.display='none';
+  let sp=document.getElementById('seap');if(!sp){sp=document.createElement('div');sp.id='seap';document.body.appendChild(sp)}
+  sp.innerHTML=`<img src="sea/${w.img}.jpg" onerror="this.style.display='none'"><div class="st"><h2>${w.n}</h2><span class="tag">${w.t}</span></div><button class="x" onclick="closePanel()">${I("x")}</button>`;sp.style.display='flex'}
 async function loadSeas(){const t=await getJ('marine.json');const pr=d3.geoEquirectangular().fitSize([MW,MH],{type:'Sphere'}),pa=d3.geoPath(pr);
   SEA=topojson.feature(t,t.objects.m).features.map(f=>{const g=f.geometry,P=!g?[]:g.type==='Polygon'?[g.coordinates]:g.coordinates;const ol=new Path2D();
     const segs=[];for(const poly of P)for(const ring of poly){let prev=null;for(const c of ring){const q=pr(c);if(prev&&!edgeSeg(prev,q))segs.push([prev,q]);prev=q}}
@@ -161,7 +178,7 @@ function hitSea(x,y){const[mx,my]=toMap(x,y);let b=-1,ba=1e18;
   SEA.forEach((s,i)=>{if(mx<s.b[0][0]||mx>s.b[1][0]||my<s.b[0][1]||my>s.b[1][1])return;if(s.a<ba&&hctx.isPointInPath(s.p,mx,my)){ba=s.a;b=i}});
   if(b<0){let bd=1e18;SEA.forEach((s,i)=>{if(!s.o)return;const d=(s.c[0]-mx)**2+(s.c[1]-my)**2;if(d<bd){bd=d;b=i}})}return b}
 const SIMG={'Океан':'ocean','Море':'sea','Залив':'bay','Пролив':'strait','Лагуна':'lagoon','Фьорд':'fjord','Риф':'reef','Эстуарий':'river','Акватория':'generic'};
-function showSea(i){const s=SEA[i];selSea=i;sel=-1;draw();panel.style.display='none';
+function showSea(i){const s=SEA[i];selSea=i;selW=null;sel=-1;draw();panel.style.display='none';
   let sp=document.getElementById('seap');if(!sp){sp=document.createElement('div');sp.id='seap';document.body.appendChild(sp)}
   sp.innerHTML=`<img src="sea/${SIMG[s.t]||'generic'}.jpg" onerror="this.style.display='none'"><div class="st"><h2>${s.n}</h2><span class="tag">${s.t}</span></div><button class="x" onclick="closePanel()">${I("x")}</button>`;sp.style.display='flex'}
 function lsay(t){const e=document.querySelector('#load b');if(e)e.textContent=t}
@@ -170,7 +187,7 @@ async function init(){
   lsay('Загрузка карты (1/3)…');LOD[0]=buildLOD(await getJ('world_lo.json'),true);
   lsay('Загрузка карты (2/3)…');LOD[1]=buildLOD(await getJ('world_mid.json'));
   lsay('Загрузка карты (3/3)…');LOD[2]=buildLOD(await getJ('world.json'));useMeta(LOD[2]);
-  lsay('Загрузка морей…');await loadSeas();
+  lsay('Загрузка морей…');await loadSeas();lsay('Загрузка озёр и рек…');await loadWater();
   lsay('Загрузка рельефа…');
   const tl=[];for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++)tl.push(imgP('bg/'+tx+'_'+ty+'.jpg').then(i=>{if(i){i.ok=1;TIL[tx+'_'+ty]=i}}));
   await Promise.all([BGI.decode?BGI.decode().catch(()=>{}):0,...tl]);
@@ -320,7 +337,37 @@ precision mediump float;in vec2 vU;uniform sampler2D uT;out vec4 o;void main(){o
   GLR.bgT=glTex(BGI);GLR.tiles={};
   for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++){const t=TIL[tx+'_'+ty];if(t)GLR.tiles[tx+'_'+ty]=glTex(t)}
   for(let i=0;i<3;i++)if(LOD[i])GLR.lods[i]=glBuildLOD(LOD[i]);
+  if(WAT)glBuildWater();
 }
+function glBuildWater(){
+  GLR.wfill=glProg(`#version 300 es
+precision highp float;uniform vec2 uRes;uniform float uK;uniform vec2 uOff;uniform float uMax;
+layout(location=0) in vec2 aP;layout(location=1) in float aR;
+void main(){vec2 s=aP*uK+uOff;vec2 c=s/uRes*2.0-1.0;gl_Position=aR>uMax?vec4(2.,2.,2.,1.):vec4(c.x,-c.y,0.,1.);}`,`#version 300 es
+precision mediump float;uniform vec4 uC;out vec4 o;void main(){o=uC;}`);
+  GLR.wline=glProg(`#version 300 es
+precision highp float;uniform vec2 uRes;uniform float uK;uniform vec2 uOff;uniform float uMax,uW;
+layout(location=0) in vec2 aT;layout(location=1) in vec4 aS;layout(location=2) in float aR;
+void main(){float hw=uW*max(.35,1.2-aR*.09);vec2 a=aS.xy*uK+uOff,b=aS.zw*uK+uOff;vec2 d=b-a;float L=length(d);d=L>0.?d/L:vec2(1.,0.);vec2 n=vec2(-d.y,d.x);
+  vec2 p=mix(a,b,aT.x)+d*(aT.x*2.-1.)*hw+n*aT.y*hw;vec2 c=p/uRes*2.0-1.0;gl_Position=aR>uMax?vec4(2.,2.,2.,1.):vec4(c.x,-c.y,0.,1.);}`,`#version 300 es
+precision mediump float;uniform vec4 uC;out vec4 o;void main(){o=uC;}`);
+  const pos=[],rk=[],idx=[];let base=0;
+  for(const l of WAT.lakes)for(const poly of l.pp){const flat=[],holes=[];poly.forEach((r,i)=>{if(i)holes.push(flat.length/2);for(let k=0;k<r.length-1;k++)flat.push(r[k][0],r[k][1])});
+    const tri=earcut(flat,holes.length?holes:null,2);const n=flat.length/2;for(let k=0;k<n;k++){pos.push(flat[2*k],flat[2*k+1]);rk.push(l.r)}for(const t of tri)idx.push(base+t);base+=n}
+  const v=gl.createVertexArray();gl.bindVertexArray(v);
+  let b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(pos),gl.STATIC_DRAW);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+  b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(rk),gl.STATIC_DRAW);gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,1,gl.FLOAT,false,0,0);
+  b=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,b);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(idx),gl.STATIC_DRAW);
+  GLR.lakes={vao:v,n:idx.length};
+  // lake outlines + rivers as instanced segments
+  const seg=[],sr=[],oseg=[],osr=[];
+  for(const l of WAT.lakes)for(const poly of l.pp)for(const r of poly)for(let k=1;k<r.length;k++){oseg.push(r[k-1][0],r[k-1][1],r[k][0],r[k][1]);osr.push(l.r)}
+  for(const w of WAT.rivers)for(const l of w.ls)for(let k=1;k<l.length;k++){seg.push(l[k-1][0],l[k-1][1],l[k][0],l[k][1]);sr.push(w.r)}
+  const mk=(S,Rr)=>{const vv=gl.createVertexArray();gl.bindVertexArray(vv);gl.bindBuffer(gl.ARRAY_BUFFER,GLR.seg);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+    let q=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,q);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(S),gl.STATIC_DRAW);gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,4,gl.FLOAT,false,0,0);gl.vertexAttribDivisor(1,1);
+    q=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,q);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(Rr),gl.STATIC_DRAW);gl.enableVertexAttribArray(2);gl.vertexAttribPointer(2,1,gl.FLOAT,false,0,0);gl.vertexAttribDivisor(2,1);
+    gl.bindVertexArray(null);return{vao:vv,n:Rr.length}};
+  GLR.rivers=mk(seg,sr);GLR.lakeOl=mk(oseg,osr)}
 function glTex(img){if(!img||!img.width)return null;const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
@@ -383,6 +430,11 @@ function glFrame(){const K=S0()*T.k,ww=MW*K;if(GLR.dirty)glUpload();
     gl.bindVertexArray(L.fill.vao);{const F=L.fill;let st=-1,cn=0;const fl=()=>{if(cn)gl.drawElements(gl.TRIANGLES,cn,gl.UNSIGNED_INT,st*4);cn=0;st=-1};
       for(let k=0;k<512;k++){const n=F.fr[2*k+1];if(!n)continue;const vis=!(F.fbb[4*k+2]<vx0||F.fbb[4*k]>vx1||F.fbb[4*k+3]<vy0||F.fbb[4*k+1]>vy1);
         if(vis){if(st<0)st=F.fr[2*k];if(F.fr[2*k]===st+cn)cn+=n;else{fl();st=F.fr[2*k];cn=n}}else fl()}fl()}
+    if(GLR.lakes){const mr=wRank(T.k);let P2=GLR.wfill;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);gl.uniform4f(P2.u.uC,.11,.33,.58,1.);
+      gl.bindVertexArray(GLR.lakes.vao);gl.drawElements(gl.TRIANGLES,GLR.lakes.n,gl.UNSIGNED_INT,0);
+      P2=GLR.wline;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);
+      gl.uniform1f(P2.u.uW,Math.min(2.2,.7+T.k*.05)*DPR*.5);gl.uniform4f(P2.u.uC,.16,.42,.7,1.);gl.bindVertexArray(GLR.rivers.vao);gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,GLR.rivers.n);
+      gl.uniform1f(P2.u.uW,.5*DPR);gl.uniform4f(P2.u.uC,0.,0.,0.,.55);gl.bindVertexArray(GLR.lakeOl.vao);gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,GLR.lakeOl.n)}
     // borders
     P=GLR.line;gl.useProgram(P.p);gl.uniform2fv(P.u.uRes,res);gl.uniform1f(P.u.uK,kd);gl.uniform2fv(P.u.uOff,off);
     gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,GLR.ownT);gl.uniform1i(P.u.uOwn,1);
@@ -395,6 +447,8 @@ function glFrame(){const K=S0()*T.k,ww=MW*K;if(GLR.dirty)glUpload();
 
 function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
   for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;
+    if(selW){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.strokeStyle='#7fd0ff';ctx.lineWidth=2.5/K;ctx.setLineDash([6/K,4/K]);
+      if(selW.o.p)ctx.stroke(selW.o.p);else{ctx.setLineDash([]);ctx.lineWidth=4/K;ctx.strokeStyle='rgba(127,208,255,.9)';ctx.beginPath();for(const l of selW.o.ls){l.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]))}ctx.stroke()}ctx.restore()}
     if(selSea>=0&&SEA[selSea]){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2/K;ctx.strokeStyle='#7fd0ff';ctx.setLineDash([6/K,4/K]);ctx.stroke(SEA[selSea].ol);ctx.restore()}
     if(sel>=0){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(regOutline(lodFor(T.k),sel));ctx.restore()}
     if(G)drawOffensives(K,ox);
@@ -548,8 +602,8 @@ requestAnimationFrame(loop);
 
 // ================= UI =================
 function modalOpen(){return !!document.getElementById('modal')}
-function onTap(r,ev){if(r<0){const si=ev?hitSea(ev.clientX,ev.clientY):-1;if(si>=0&&G){showSea(si);return}closePanel();return}selSea=-1;sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
-function closePanel(){const sp=document.getElementById('seap');if(sp)sp.style.display='none';sel=-1;selSea=-1;panel.style.display='none';draw()}
+function onTap(r,ev){if(G&&ev){const w=hitWater(ev.clientX,ev.clientY);if(w){showWater(w);return}}selW=null;if(r<0){const si=ev?hitSea(ev.clientX,ev.clientY):-1;if(si>=0&&G){showSea(si);return}closePanel();return}selSea=-1;sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
+function closePanel(){selW=null;const sp=document.getElementById('seap');if(sp)sp.style.display='none';sel=-1;selSea=-1;panel.style.display='none';draw()}
 let panelSig='';
 function refreshPanelLight(){const s=panelState(sel);if(s!==panelSig)showPanel(sel);else{const e=document.getElementById('offs');if(e)e.innerHTML=offsHtml(sel)}}
 function panelState(i){const o=G.owner[i],M=G.nat[G.player];return [o,G.war.includes(o),G.allies.includes(o),M.money>recCost(),M.money>invCost(i),M.money>techCost(),M.money>stabCost(),M.money>spyCost(),G.offs.length].join()}
