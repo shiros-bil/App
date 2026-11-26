@@ -21,6 +21,8 @@ class MainActivity : Activity() {
         web = WebView(this)
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
+        web.overScrollMode = View.OVER_SCROLL_NEVER
+        web.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         web.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(v: WebView, r: android.webkit.WebResourceRequest) =
                 loader.shouldInterceptRequest(r.url)
@@ -43,6 +45,10 @@ class MainActivity : Activity() {
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         }
     }
+
+    override fun onPause() { web.evaluateJavascript("typeof G!=='undefined'&&G&&save()", null); web.onPause(); web.pauseTimers(); super.onPause() }
+    override fun onResume() { super.onResume(); web.onResume(); web.resumeTimers() }
+    override fun onDestroy() { web.destroy(); super.onDestroy() }
 
     override fun onSaveInstanceState(out: Bundle) { super.onSaveInstanceState(out); web.saveState(out) }
 
