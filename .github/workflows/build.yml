@@ -18,14 +18,16 @@ jobs:
             echo "ANDROID_HOME=$ANDROID_HOME"
             wget -q https://services.gradle.org/distributions/gradle-8.14.3-bin.zip
             unzip -q gradle-8.14.3-bin.zip
-            ./gradle-8.14.3/bin/gradle :app:assembleRelease --no-daemon
+            ./gradle-8.14.3/bin/gradle :app:assembleRelease :geo:assembleRelease --no-daemon
           } 2>&1 | tee build.log
-      - run: cp app/build/outputs/apk/release/app-release.apk BlueWave.apk
+      - run: cp app/build/outputs/apk/release/app-release.apk BlueWave.apk && cp geo/build/outputs/apk/release/geo-release.apk GeoPolit.apk
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: BlueWave build ${{ github.run_number }}
-          files: BlueWave.apk
+          files: |
+            BlueWave.apk
+            GeoPolit.apk
       - if: failure()
         uses: softprops/action-gh-release@v2
         with:

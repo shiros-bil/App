@@ -4,4 +4,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "BlueWave"
-include(":app")
+include(":app", ":geo")
