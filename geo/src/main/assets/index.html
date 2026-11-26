@@ -68,6 +68,7 @@ const MW=2000,MH=1000;
 const cv=document.getElementById('c'),ctx=cv.getContext('2d',{alpha:false});
 const hctx=document.createElement('canvas').getContext('2d');
 const scn=document.createElement('canvas'),sctx=scn.getContext('2d',{alpha:false});
+const qcn=document.createElement('canvas'),qctx=qcn.getContext('2d',{alpha:false});
 const bdc=document.createElement('canvas'),bctx=bdc.getContext('2d',{alpha:false});
 bdc.width=4096;bdc.height=2048;
 let W,H,DPR=Math.min(devicePixelRatio||1,2);
@@ -75,8 +76,8 @@ let NAT=[],RN=[],RK=[],NB=[],ARL,ARR,LOD=[null,null,null],best=null,GRAT;
 let BB,AREA,LP,LW,CEN; // region metadata (from best LOD)
 let T=d3.zoomIdentity,zoomB,sceneT=null,sceneOK=false,bdOK=false,interacting=false;
 const S0=()=>H/MH;
-const BGI=new Image();let BGOK=false;BGI.onload=()=>{BGOK=true;invalidate()};BGI.src='bg.jpg';
-const TIL={};function tile(tx,ty){const k=tx+'_'+ty;let t=TIL[k];if(!t){t=TIL[k]=new Image();t.onload=()=>{t.ok=1;sceneOK=false;draw()};t.src='bg/'+k+'.jpg'}return t.ok?t:null}
+const BGI=new Image();let BGOK=false;BGI.onload=()=>{BGOK=true;TC.clear();baseVer=-1;draw()};BGI.src='bg.jpg';
+const TIL={};function tile(tx,ty){const k=tx+'_'+ty;let t=TIL[k];if(!t){t=TIL[k]=new Image();t.onload=()=>{t.ok=1;TC.clear();draw()};t.src='bg/'+k+'.jpg'}return t.ok?t:null}
 
 const COL={aq:'#e6edf3',ru:'#1d3b8f',cn:'#d0201f',us:'#4a7fd4',gb:'#b8324f',fr:'#2c6bd1',de:'#5b5b5b',it:'#2f9a4c',es:'#e2b928',pt:'#1f7a3a',
 jp:'#efe6d8',kr:'#6b8fd6',kp:'#8a2a2a',in:'#f08a2b',pk:'#2a6b3e',bd:'#1e8a5a',ir:'#3d9a5c',iq:'#8c6a3c',sa:'#1b6e3a',tr:'#c84343',
@@ -87,7 +88,7 @@ ca:'#d65252',mx:'#3a8a5a',br:'#2fae4c',ar:'#86bde8',cl:'#c4485c',co:'#e6c13a',pe
 au:'#2a9d8f',nz:'#3a4f8f',id:'#c43c3c',my:'#3c4fb0',th:'#5b6fc8',vn:'#d94a3a',ph:'#4a6ed0',mm:'#4ea65a',la:'#a84a5a',kh:'#3a5aa8',
 za:'#e08f36',ng:'#3f9a2e',et:'#6fa83c',cd:'#4fa8d8',dz:'#2e8a4e',ly:'#3a7a3a',ma:'#b54141',sd:'#c49a5a',ao:'#a8323a',ke:'#7a3a3a',tz:'#3aa0a8',
 ge:'#d65a5a',am:'#e08a3a',az:'#3fa8c8',tm:'#3d9a6a',tj:'#c25a4a',kg:'#d84a4a',om:'#a84a4a',ae:'#4a8a4a',ye:'#8a6a5a',jo:'#5a8a5a',
-gl:'#d3e2ee',md:'#a8963a',pmr:'#c8102e',art:'#d9822b',hou:'#2f7a3a',stc:'#5aa0d0',rsf:'#8a6a2a',shb:'#222222',pnt:'#7fb3e0',aza:'#c9a227',jnm:'#3a3a3a',isw:'#111111',arA:'#2a4fa0',kia:'#8a2c2c',nug:'#c0392b',knu:'#2a6a9a',lna:'#5a6a3a',sdf:'#d8c53a',m23:'#4a7a9a',si:'#5f9fd8',ba:'#3a5aa8',me:'#b83a3a',mk:'#e0a83a',al:'#a52a2a',cy:'#d6a855',lu:'#73b8e0',np:'#c0392b',lk:'#e0a030',
+gl:'#d3e2ee',md:'#a8963a',pmr:'#c8102e',art:'#d9822b',hou:'#2f7a3a',stc:'#5aa0d0',rsf:'#8a6a2a',shb:'#222222',pnt:'#7fb3e0',aza:'#c9a227',jnm:'#3a3a3a',isw:'#111111',arA:'#2a4fa0',kia:'#8a2c2c',nug:'#c0392b',knu:'#2a6a9a',lna:'#5a6a3a',sdf:'#d8c53a',m23:'#4a7a9a',krd:'#e8c13a',si:'#5f9fd8',ba:'#3a5aa8',me:'#b83a3a',mk:'#e0a83a',al:'#a52a2a',cy:'#d6a855',lu:'#73b8e0',np:'#c0392b',lk:'#e0a030',
 dnr:'#4b2d73',lnr:'#3d8fd0',abh:'#2c8c47',sos:'#e3b31f',et:'#2e9e3e',ss:'#c0562e',so:'#3a8fe0',ke:'#b8282e',mw:'#e0562a',tz:'#1fa8a0',ma:'#c22d3a',eh:'#d9a066',cg:'#6abf3a',cd:'#2a7fd4',na:'#3a5fc8',za:'#f0902a',ly:'#2f8a3a',tn:'#d83a4a',zm:'#2fae5a',sl:'#3a9ad8',gn:'#e0b52a',lr:'#a8302e',cf:'#d4c22a',sd:'#c99a3a',dj:'#5ab8e8',er:'#3faf6a',ci:'#f08a1e',ml:'#e3c21f',sn:'#2a9a4a',ng:'#20a24a',bj:'#e04a3a',ao:'#c4202a',bw:'#5aa8e0',zw:'#d8b81f',td:'#2a4fa8',dz:'#1f8f4e',mz:'#e8a02a',sz:'#7a5ac8',bi:'#c83a6a',rw:'#3ab0d8',ug:'#e8c41f',ls:'#2a6ad0',cm:'#2a9a5a',ga:'#3aa83a',ne:'#f07a1e',bf:'#c8342e',tg:'#3a8a3a',gh:'#e8b81f',gw:'#b8302e',eg:'#d8b25a',mr:'#1e8a5a',gq:'#3a7ad0',gm:'#c83a3a',mg:'#d8482e',km:'#2a9a5a',st:'#3ab05a',cv:'#2a5ab0',xsl:'#2a8a8a'};
 const CC=[];
 function natColor(o){if(CC[o])return CC[o];const iso=NAT[o].iso||(NAT[o].e==='Somaliland'?'xsl':'');if(COL[iso])return CC[o]=COL[iso];
@@ -137,7 +138,7 @@ async function init(){
   if(s){try{G=JSON.parse(s);ok=true;startGame()}catch(e){G=null}}
   if(!ok)pickScreen();
 }
-function resize(){W=innerWidth;H=innerHeight;for(const c of[cv,scn]){c.width=W*DPR;c.height=H*DPR}cv.style.width=W+'px';cv.style.height=H+'px';
+function resize(){W=innerWidth;H=innerHeight;qcn.width=W;qcn.height=H;for(const c of[cv,scn]){c.width=W*DPR;c.height=H*DPR}cv.style.width=W+'px';cv.style.height=H+'px';
   if(zoomB)d3.select(cv).call(zoomB.transform,T);invalidate()}
 function constrain(t){const k=t.k,ww=MW*S0()*k,hh=H*k;let x=t.x%ww;if(x>0)x-=ww;return new d3.ZoomTransform(k,x,Math.min(0,Math.max(H-hh,t.y)))}
 let idleT=0;
@@ -145,12 +146,12 @@ function setupZoom(){
   zoomB=d3.zoom().scaleExtent([1,400]).constrain(constrain)
     .on('start',()=>{interacting=true;clearTimeout(idleT)})
     .on('zoom',e=>{T=constrain(e.transform);cv.__zoom=T;draw()})
-    .on('end',()=>{clearTimeout(idleT);idleT=setTimeout(()=>{interacting=false;sceneOK=false;draw()},40)});
+    .on('end',()=>{clearTimeout(idleT);idleT=setTimeout(()=>{interacting=false;draw()},40)});
   d3.select(cv).call(zoomB).on('dblclick.zoom',null);
   cv.addEventListener('click',e=>onTap(hit(e.clientX,e.clientY)));
 }
-function invalidate(){if(lblDirty&&G){lblDirty=false;computeLabels()}sceneOK=false;bdOK=false;draw()}
-let dirtyT=0;function dirty(){if(dirtyT)return;dirtyT=setTimeout(()=>{dirtyT=0;invalidate()},300)}
+function invalidate(){if(lblDirty&&G){lblDirty=false;computeLabels()}draw()}
+let dirtyT=0;function dirty(g=true){if(g)ownVer++;if(dirtyT)return;dirtyT=setTimeout(()=>{dirtyT=0;invalidate()},300)}
 function zoomToBox(x0,y0,x1,y1,dur=700){const s=S0();let w=x1-x0,h=y1-y0;
   const k=Math.max(1,Math.min(60,.6/Math.max(w*s/W,h*s/H))),cx=(x0+x1)/2*s,cy=(y0+y1)/2*s;
   d3.select(cv).transition().duration(dur).call(zoomB.transform,d3.zoomIdentity.translate(W/2-cx*k,H/2-cy*k).scale(k))}
@@ -166,27 +167,43 @@ function hit(x,y){const[mx,my]=toMap(x,y),L=lodFor(T.k);let b=-1,ba=1e18;
     if(AREA[r]<ba&&hctx.isPointInPath(L.paths[r],mx,my)){ba=AREA[r];b=r}}return b}
 
 // generic world painter
+let ownVer=0;
 function paint(c,K,X,Y,w,h,L,regBorders,ps=1){
   const ww=MW*K,vy0=-Y/K,vy1=(h-Y)/K,own=G?G.owner:RK,P=G?G.player:-1;
   for(let cpy=0;X+cpy*ww<w;cpy++){const ox=X+cpy*ww;if(ox+ww<0)continue;
     c.setTransform(K*ps,0,0,K*ps,ox*ps,Y*ps);const vx0=-ox/K,vx1=(w-ox)/K;
     if(BGOK)c.drawImage(BGI,0,0,MW,MH);
-    if(regBorders&&K*MW*(ps||1)>4096*1.1){for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++){const x0=tx*MW/4,y0=ty*MH/2;if(x0+MW/4<vx0||x0>vx1||y0+MH/2<vy0||y0>vy1)continue;const t=tile(tx,ty);if(t)c.drawImage(t,x0,y0,MW/4+.3,MH/2+.3)}}c.globalAlpha=.75;
-    for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;const col=natColor(own[r]);c.fillStyle=col;c.fill(L.paths[r]);}c.globalAlpha=1;
-    const pr=new Path2D(),pn=new Path2D(),pp=new Path2D(),pw=new Path2D();let hasP=false,hasW=false;
-    const ab=L.abb,war=G?G.war:[];
+    if(K*MW*ps>4096*1.1){for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++){const x0=tx*MW/4,y0=ty*MH/2;if(x0+MW/4<vx0||x0>vx1||y0+MH/2<vy0||y0>vy1)continue;const t=tile(tx,ty);if(t)c.drawImage(t,x0,y0,MW/4+.3,MH/2+.3)}}
+    c.globalAlpha=.75;
+    for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;c.fillStyle=natColor(own[r]);c.fill(L.paths[r])}
+    c.globalAlpha=1;
+    const pr=new Path2D(),pn=new Path2D(),pp=new Path2D(),pw=new Path2D();let hasP=false,hasW=false;const ab=L.abb,war=G?G.war:[];
     for(let a=0;a<L.arcs.length;a++){if(ab[4*a+2]<vx0||ab[4*a]>vx1||ab[4*a+3]<vy0||ab[4*a+1]>vy1)continue;
-      const l=ARL[a],r=ARR[a],ol=own[l],or=r<0?-1:own[r];let tgt;
-      if(ol===or){if(!regBorders)continue;tgt=pr}else tgt=pn;
-      const f=L.arcs[a];tgt.moveTo(f[0],f[1]);for(let k=2;k<f.length;k+=2)tgt.lineTo(f[k],f[k+1]);
-      if(G&&ol!==or){if((ol===P)!==(or===P)){pp.moveTo(f[0],f[1]);for(let k=2;k<f.length;k+=2)pp.lineTo(f[k],f[k+1]);hasP=true}
-        if(war.length&&(war.includes(ol)!==war.includes(or))&&or!==-1){pw.moveTo(f[0],f[1]);for(let k=2;k<f.length;k+=2)pw.lineTo(f[k],f[k+1]);hasW=true}}}
+      const l=ARL[a],r=ARR[a],ol=own[l],or=r<0?-1:own[r];const f=L.arcs[a];const add=t=>{t.moveTo(f[0],f[1]);for(let k=2;k<f.length;k+=2)t.lineTo(f[k],f[k+1])};
+      if(ol===or){if(regBorders)add(pr);continue}add(pn);
+      if(G){if((ol===P)!==(or===P)){add(pp);hasP=true}if(war.length&&or!==-1&&(war.includes(ol)!==war.includes(or))){add(pw);hasW=true}}}
     c.lineJoin='round';
-    if(regBorders){c.lineWidth=.9/K;c.strokeStyle=`rgba(0,0,0,${Math.min(.33,(K/S0()-8)*.04+.08)})`;c.stroke(pr)}
+    if(regBorders){c.lineWidth=.9/K;c.strokeStyle=`rgba(0,0,0,${Math.min(.33,(K/S0()/DPR-12)*.03+.1)})`;c.stroke(pr)}
     c.lineWidth=1.3/K;c.strokeStyle='rgba(10,15,35,.42)';c.stroke(pn);
     if(hasW){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,70,70,.75)';c.stroke(pw)}
     if(hasP){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,255,255,.85)';c.stroke(pp)}
   }}
+// ---------- tile cache ----------
+const TS=256,TC=new Map(),TMAX=300;let baseCv=null,baseVer=-1;const tq=[];
+function tileKey(z,x,y){return z+'/'+x+'/'+y}
+function renderTile(z,tx,ty){const wp=2048<<z,s=wp/MW;let t=TC.get(tileKey(z,tx,ty));
+  if(!t){t={c:document.createElement('canvas'),v:-1};t.c.width=TS;t.c.height=TS;}
+  const c=t.c.getContext('2d',{alpha:false});c.setTransform(1,0,0,1,0,0);c.fillStyle='#0d3358';c.fillRect(0,0,TS,TS);
+  const ek=s/(S0()*DPR);const L=ek>9&&LOD[2]?LOD[2]:ek>2.2&&LOD[1]?LOD[1]:LOD[0];
+  paint(c,s,-tx*TS,-ty*TS,TS,TS,L,ek>=12,1);
+  t.v=ownVer;TC.delete(tileKey(z,tx,ty));TC.set(tileKey(z,tx,ty),t);
+  while(TC.size>TMAX){const k=TC.keys().next().value;TC.delete(k)}return t}
+let baseStale=false,baseT=0;
+function markRegion(r){const x0=BB[4*r]-2,y0=BB[4*r+1]-2,x1=BB[4*r+2]+2,y1=BB[4*r+3]+2;
+  for(const[k,t]of TC){const[z,tx,ty]=k.split('/').map(Number);const n=(2048<<z)/TS,sz=MW/n;const bx=tx*sz,by=ty*sz;if(bx>x1||bx+sz<x0||by>y1||by+sz<y0)continue;t.v=-1}baseStale=true}
+function renderBase(){if(!baseCv){baseCv=document.createElement('canvas');baseCv.width=2048;baseCv.height=1024}
+  const c=baseCv.getContext('2d',{alpha:false});c.setTransform(1,0,0,1,0,0);c.fillStyle='#0d3358';c.fillRect(0,0,2048,1024);
+  paint(c,2048/MW,0,0,2048,1024,LOD[0],false,1);baseVer=ownVer}
 function renderBackdrop(){bctx.setTransform(1,0,0,1,0,0);bctx.fillStyle='#0d3358';bctx.fillRect(0,0,4096,2048);paint(bctx,4096/MW,0,0,4096,2048,LOD[0],false);bdOK=true}
 let lastSc=0,scCost=0;
 function renderScene(){const t0=performance.now();const K=S0()*T.k;sctx.setTransform(DPR,0,0,DPR,0,0);sctx.fillStyle='#0d3358';sctx.fillRect(0,0,W,H);
@@ -194,19 +211,21 @@ function renderScene(){const t0=performance.now();const K=S0()*T.k;sctx.setTrans
 
 let sel=-1,raf=0;
 function draw(){if(!raf)raf=requestAnimationFrame(frame)}
-function frame(){raf=0;if(!RK.length)return;
-  const now=performance.now();
-  if(!sceneOK&&!interacting)renderScene();
-  else if(interacting&&(!sceneOK||sceneT!==T)&&now-lastSc>(scCost<18?0:Math.min(150,scCost*3)))renderScene();
-  const K=S0()*T.k,ww=MW*K;
-  ctx.setTransform(1,0,0,1,0,0);
-  if(sceneOK&&sceneT.k===T.k&&sceneT.x===T.x&&sceneT.y===T.y){ctx.drawImage(scn,0,0)}
-  else{ if(!bdOK)renderBackdrop();
-    ctx.fillStyle='#0d3358';ctx.fillRect(0,0,W*DPR,H*DPR);ctx.imageSmoothingEnabled=true;
-    for(let c=0;T.x+c*ww<W;c++)ctx.drawImage(bdc,(T.x+c*ww)*DPR,T.y*DPR,ww*DPR,MH*K*DPR);
-    if(sceneOK){const s=T.k/sceneT.k;let ox=T.x-sceneT.x*s;const n=Math.round(ox/ww);ox-=n*ww;const oy=T.y-sceneT.y*s;
-      if(s>.4&&s<4)ctx.drawImage(scn,ox*DPR,oy*DPR,W*DPR*s,H*DPR*s)}}
-  overlay(K,ww)}
+function frame(){raf=0;if(!RK.length)return;const t0=performance.now();
+  const K=S0()*T.k,ww=MW*K;if(!baseCv||(!interacting&&(baseVer!==ownVer||baseStale&&t0-baseT>1500))){renderBase();baseStale=false;baseT=t0}
+  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#0d3358';ctx.fillRect(0,0,W*DPR,H*DPR);ctx.imageSmoothingEnabled=true;
+  const wpx=ww*DPR;let z=Math.max(0,Math.min(6,Math.ceil(Math.log2(wpx/2048)-0.05)));const wp=2048<<z,f=wpx/wp,tsz=TS*f;
+  const nx=wp/TS,ny=nx/2;let need=[];
+  for(let c=0;T.x+c*ww<W;c++){const ox=(T.x+c*ww)*DPR,oy=T.y*DPR;if(ox+wpx<0)continue;
+    ctx.drawImage(baseCv,ox,oy,wpx,wpx/2);
+    const x0=Math.max(0,Math.floor(-ox/tsz)),x1=Math.min(nx-1,Math.floor((W*DPR-ox)/tsz)),y0=Math.max(0,Math.floor(-oy/tsz)),y1=Math.min(ny-1,Math.floor((H*DPR-oy)/tsz));
+    for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){const t=TC.get(tileKey(z,tx,ty));
+      if(t){ctx.drawImage(t.c,Math.floor(ox+tx*tsz),Math.floor(oy+ty*tsz),Math.ceil(tsz)+1,Math.ceil(tsz)+1);if(t.v!==ownVer)need.push([z,tx,ty,1])}
+      else need.push([z,tx,ty,0])}}
+  overlay(K,ww);
+  if(need.length){need.sort((a,b)=>a[3]-b[3]);const budget=interacting?6:14;let did=0;
+    for(const[zz,x,y]of need){if(performance.now()-t0>budget&&did>0)break;renderTile(zz,x,y);did++}
+    draw()}}
 function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
   for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;
     if(sel>=0){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(lodFor(T.k).paths[sel]);ctx.restore()}
@@ -265,7 +284,7 @@ function drawLabels(K,ox){const k=T.k,fade=k<5?1:k>8?0:1-(k-5)/3;if(fade<=0)retu
 addEventListener('resize',resize);
 
 // ================= GAME (real time, regions) =================
-let G=null;const SAVE='geopolit_rts_v6';
+let G=null;const SAVE='geopolit_rts_v7';
 const MONTHS=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
 const SPEEDS=[0,1,3,8,20];let speed=1;
 const fmt=n=>{n=Math.round(n);const a=Math.abs(n);return a>=1e6?(n/1e6).toFixed(2)+'трлн':a>=1e3?(n/1e3).toFixed(1)+'млрд':n+'млн'};
@@ -277,7 +296,7 @@ function newGame(p){const R=RK.length;
   const ws={};for(let r=0;r<R;r++){const w=Math.sqrt(AREA[r]+.01);G.gdp[r]=w;ws[RK[r]]=(ws[RK[r]]||0)+w}
   for(let r=0;r<R;r++)G.gdp[r]=G.gdp[r]/ws[RK[r]]*Math.max(NAT[RK[r]].gdp,30);
   for(const n of NAT){const gdp=Math.max(n.gdp,30);G.nat.push({money:gdp*.05,army:n.army||Math.max(500,Math.sqrt(Math.max(n.pop,0))*25+gdp*.004),stab:60+Math.random()*30,tech:1})}
-  NAT.forEach((n,i)=>{if(n.par===undefined)return;if(i===p)G.war.push(n.par);else if(n.par===p)G.war.push(i);else G.aiWar.push([i,n.par])});
+  NAT.forEach((n,i)=>{if(n.par===undefined||n.peace)return;if(i===p)G.war.push(n.par);else if(n.par===p)G.war.push(i);else G.aiWar.push([i,n.par])});
   if(p===NAT.findIndex(n=>n.iso==='hou'))G.war.push(NAT.findIndex(n=>n.iso==='stc'));
   addLog(`🎖️ Вы возглавили: ${nm(p)}.`);if(G.war.length)addLog(`⚔️ Гражданская война! Противники: ${G.war.map(nm).join(', ')}.`);startGame();zoomToNat(p)}
 let TER={},INC={};
@@ -287,7 +306,7 @@ const terr=o=>TER[o]||[],income=o=>INC[o]||0,power=o=>G.nat[o].army*G.nat[o].tec
 function save(){try{localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}}
 function dateStr(){const d=new Date(Date.UTC(2026,0,1)+G.day*864e5);return d.getUTCDate()+' '+MONTHS[d.getUTCMonth()]+' '+d.getUTCFullYear()}
 let logDirty=true;function addLog(t){G.log.unshift(`<b>${dateStr()}</b> ${t}`);G.log=G.log.slice(0,50);logDirty=true}
-function startGame(){recalc();hud.style.display='flex';log.style.display='block';
+function startGame(){ownVer++;recalc();hud.style.display='flex';log.style.display='block';
   spd.innerHTML=['⏸','▶','▶▶','▶▶▶','⏩'].map((s,i)=>`<button id="sp${i}" onclick="setSpeed(${i})">${s}</button>`).join('');setSpeed(1);updHud();invalidate()}
 function setSpeed(i){speed=i;for(let j=0;j<5;j++)document.getElementById('sp'+j).classList.toggle('on',j===i)}
 function updHud(){const p=G.player,n=G.nat[p];
@@ -314,7 +333,7 @@ function stepOffs(){
     if(o.p>=100){o.done=1;conquer(o.a,o.t)}
     else if(o.p<-40){o.done=1;if(o.a===G.player||def===G.player)addLog(`🛡️ ${nm(def)} отбила наступление: ${RN[o.t]}.`)}}
   G.offs=G.offs.filter(o=>!o.done)}
-function conquer(a,t){const o=G.owner[t];G.owner[t]=a;G.gdp[t]*=.92;recalc();dirty();
+function conquer(a,t){const o=G.owner[t];G.owner[t]=a;G.gdp[t]*=.92;recalc();markRegion(t);dirty(false);
   if(a===G.player||o===G.player)addLog(`${a===G.player?'🏆':'💥'} ${nm(a)} занимает: ${RN[t]} (${nm(o)}).`);
   if(!terr(o).length){G.nat[a].money+=G.nat[o].money*.3;if(NAT[o].pop>1e6||G.war.includes(o))addLog(`☠️ ${nm(o)} прекратила существование.`);
     G.war=G.war.filter(w=>w!==o);G.allies=G.allies.filter(w=>w!==o);G.aiWar=G.aiWar.filter(w=>w[0]!==o&&w[1]!==o);
@@ -413,7 +432,7 @@ function act(a,x){const me=G.player,M=G.nat[me];
 function gameOver(win){localStorage.removeItem(SAVE);setSpeed(0);modal(`<h1>${win?'🌍 Мировое господство!':'☠️ Поражение'}</h1><p>${win?'Весь мир под вашим флагом.':'Ваше государство пало.'}</p><button class="p" onclick="restart()">Новая игра</button>`)}
 function modal(h){closeModal();const m=document.createElement('div');m.className='modal';m.id='modal';m.innerHTML=`<div class="card">${h}</div>`;document.body.appendChild(m);return m}
 function closeModal(){document.getElementById('modal')?.remove()}
-function restart(){localStorage.removeItem(SAVE);G=null;closeModal();closePanel();hud.style.display='none';log.style.display='none';invalidate();pickScreen()}
+function restart(){localStorage.removeItem(SAVE);G=null;ownVer++;closeModal();closePanel();hud.style.display='none';log.style.display='none';invalidate();pickScreen()}
 function menu(){modal(`<h1>Меню</h1><p>${dateStr()}</p><div style="display:grid;gap:8px"><button class="p" onclick="closeModal()">Продолжить</button><button onclick="closeModal();zoomToNat(G.player)">К моей стране</button><button onclick="save();closeModal()">💾 Сохранить</button><button class="r" onclick="restart()">Новая игра</button></div>`)}
 function showRank(){const r=nations().map(o=>({o,s:income(o)+power(o)*.05,t:terr(o).length})).sort((a,b)=>b.s-a.s).slice(0,40);
   modal(`<h1>🏆 Рейтинг держав</h1><div class="list">${r.map((x,k)=>`<div class="it" onclick="closeModal();zoomToNat(${x.o})"><b>${k+1}</b><span class="sw" style="background:${natColor(x.o)}"></span>${flagImg(x.o)}<span style="flex:1">${nm(x.o)}${x.o===G.player?' (вы)':''}</span><span class="tag">${x.t} рег.</span><span class="tag">$${fmt(income(x.o))}</span></div>`).join('')}</div><br><button onclick="closeModal()">Закрыть</button>`)}
