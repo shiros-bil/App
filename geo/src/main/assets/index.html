@@ -216,7 +216,7 @@ function setupZoom(){
   zoomB=d3.zoom().scaleExtent([1,400]).constrain(constrain)
     .on('start',()=>{interacting=true;clearTimeout(idleT)})
     .on('zoom',e=>{T=constrain(e.transform);cv.__zoom=T;draw()})
-    .on('end',()=>{clearTimeout(idleT);idleT=setTimeout(()=>{interacting=false;draw()},40)});
+    .on('end',()=>{clearTimeout(idleT);idleT=setTimeout(()=>{interacting=false;lastF=0;draw()},40)});
   d3.select(cv).call(zoomB).on('dblclick.zoom',null);
   cv.addEventListener('click',e=>onTap(hit(e.clientX,e.clientY),e));
 }
@@ -391,11 +391,13 @@ function glUpload(){const own=G?G.owner:RK,war=G?G.war:[];const R=RK.length;
   for(let r=0;r<R;r++){const o=own[r],c=cssCol(natColor(o));GLR.colA.set([c[0],c[1],c[2],255],4*r);GLR.ownA[4*r]=o;GLR.ownA[4*r+1]=war.includes(o)?1:0}
   gl.bindTexture(gl.TEXTURE_2D,GLR.colT);gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,TW,GLR.th,gl.RGBA,gl.UNSIGNED_BYTE,GLR.colA);
   gl.bindTexture(gl.TEXTURE_2D,GLR.ownT);gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,TW,GLR.th,gl.RGBA_INTEGER,gl.UNSIGNED_INT,GLR.ownA);GLR.dirty=false}
-function glFrame(){const K=S0()*T.k,ww=MW*K;if(GLR.dirty)glUpload();
+let GSC=1,ftAvg=16,lastF=0;function glScale(sc){if(Math.abs(sc-GSC)<.01)return;GSC=sc;glc.width=Math.round(W*DPR*sc);glc.height=Math.round(H*DPR*sc)}
+function glFrame(){const nowF=performance.now();if(lastF)ftAvg=ftAvg*.85+Math.min(200,nowF-lastF)*.15;lastF=nowF;
+  if(interacting&&ftAvg>24)glScale(Math.max(.55,GSC*.85));else if(!interacting)glScale(1);const K=S0()*T.k,ww=MW*K;if(GLR.dirty)glUpload();
   gl.viewport(0,0,glc.width,glc.height);gl.clearColor(.05,.2,.35,1);gl.clear(gl.COLOR_BUFFER_BIT);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
-  const res=[glc.width,glc.height],kd=K*DPR;let li=T.k>9?2:T.k>2.2?1:0;while(li>0&&!GLR.lods[li])li--;const L=GLR.lods[li];if(!L){ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);return}
+  const res=[glc.width,glc.height],kd=K*DPR*GSC;let li=T.k>9?2:T.k>2.2?1:0;while(li>0&&!GLR.lods[li])li--;const L=GLR.lods[li];if(!L){ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);return}
   const useTiles=K*MW*DPR>4096*1.1;
-  for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;const off=[ox*DPR,T.y*DPR];const vx0=-ox/K,vx1=(W-ox)/K,vy0=-T.y/K,vy1=(H-T.y)/K;
+  for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;const off=[ox*DPR*GSC,T.y*DPR*GSC];const vx0=-ox/K,vx1=(W-ox)/K,vy0=-T.y/K,vy1=(H-T.y)/K;
     // background
     let P=GLR.img;gl.useProgram(P.p);gl.uniform2fv(P.u.uRes,res);gl.uniform1f(P.u.uK,kd);gl.uniform2fv(P.u.uOff,off);gl.uniform1i(P.u.uT,0);gl.activeTexture(gl.TEXTURE0);
     gl.bindVertexArray(null);gl.bindBuffer(gl.ARRAY_BUFFER,GLR.quad);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
@@ -407,13 +409,13 @@ function glFrame(){const K=S0()*T.k,ww=MW*K;if(GLR.dirty)glUpload();
     gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,GLR.colT);gl.uniform1i(P.u.uCol,0);
     drawFill(L.fill,vx0,vx1,vy0,vy1);
     if(GLR.lakes){const mr=wRank(T.k);let P2=GLR.wline;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);
-      gl.uniform1f(P2.u.uW,Math.min(2.2,.7+T.k*.05)*DPR*.5);gl.uniform4f(P2.u.uC,.16,.42,.7,1.);drawLine(GLR.rivers,vx0,vx1,vy0,vy1,4/K);
+      gl.uniform1f(P2.u.uW,Math.min(2.2,.7+T.k*.05)*DPR*GSC*.5);gl.uniform4f(P2.u.uC,.16,.42,.7,1.);drawLine(GLR.rivers,vx0,vx1,vy0,vy1,4/K);
       P2=GLR.wfill;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);gl.uniform4f(P2.u.uC,.11,.33,.58,1.);drawFill(GLR.lakes,vx0,vx1,vy0,vy1);
-      P2=GLR.wline;gl.useProgram(P2.p);gl.uniform1f(P2.u.uW,.5*DPR);gl.uniform4f(P2.u.uC,0.,0.,0.,.55);drawLine(GLR.lakeOl,vx0,vx1,vy0,vy1,4/K)}
+      P2=GLR.wline;gl.useProgram(P2.p);gl.uniform1f(P2.u.uW,.5*DPR*GSC);gl.uniform4f(P2.u.uC,0.,0.,0.,.55);drawLine(GLR.lakeOl,vx0,vx1,vy0,vy1,4/K)}
     // borders
     P=GLR.line;gl.useProgram(P.p);gl.uniform2fv(P.u.uRes,res);gl.uniform1f(P.u.uK,kd);gl.uniform2fv(P.u.uOff,off);
     gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,GLR.ownT);gl.uniform1i(P.u.uOwn,1);
-    const k=T.k;gl.uniform1f(P.u.uWC,Math.min(2.4,1.0+k*.06)*DPR*.5);gl.uniform1f(P.u.uWR,k>=12?.6*DPR:0.);gl.uniform1f(P.u.uAR,Math.min(.35,(k-12)*.03+.12));
+    const k=T.k;gl.uniform1f(P.u.uWC,Math.min(2.4,1.0+k*.06)*DPR*GSC*.5);gl.uniform1f(P.u.uWR,k>=12?.6*DPR*GSC:0.);gl.uniform1f(P.u.uAR,Math.min(.35,(k-12)*.03+.12));
     drawLine(L.line,vx0,vx1,vy0,vy1,4/K);
     gl.bindVertexArray(null)}
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);overlay(K,ww)}
