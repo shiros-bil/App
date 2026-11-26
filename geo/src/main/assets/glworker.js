@@ -32,9 +32,11 @@ function buildRegions(topo){const arcs=decode(topo),G=topo.objects.r.geometries;
         if(flat.length-st>=4&&flat[flat.length-2]===flat[st]&&flat[flat.length-1]===flat[st+1])flat.length-=2}
       const tri=earcut(flat,holes.length?holes:null,2),n=flat.length/2;for(let k=0;k<n;k++){pos.push(flat[2*k]);pos.push(flat[2*k+1]);rid.push(r)}for(const t of tri)idx.push(base+t);base+=n}});
   const seg=new FA(Float32Array,1<<16),lr=new FA(Float32Array,1<<15);
-  arcs.forEach((f,a)=>{const l=ARL[a],r=ARR[a]<0?65535:ARR[a];for(let k=0;k+3<f.length;k+=2){const x0=f[k],y0=f[k+1],x1=f[k+2],y1=f[k+3];
-    if((x0<.05&&x1<.05)||(x0>MW-.05&&x1>MW-.05)||(y0>MH-.05&&y1>MH-.05))continue;seg.push(x0);seg.push(y0);seg.push(x1);seg.push(y1);lr.push(l);lr.push(r)}});
-  return{fill:fills(pos.get(),rid.get(),idx.get()),line:lines(seg.get(),lr.get(),2)}}
+  const seg2=new FA(Float32Array,1<<16),lr2=new FA(Float32Array,1<<15),NK=G.map(g=>g.properties.k);
+  arcs.forEach((f,a)=>{const l=ARL[a],r=ARR[a]<0?65535:ARR[a];const minor=r!==65535&&NK[l]===NK[r];const S=minor?seg2:seg,LR=minor?lr2:lr;
+    for(let k=0;k+3<f.length;k+=2){const x0=f[k],y0=f[k+1],x1=f[k+2],y1=f[k+3];
+    if((x0<.05&&x1<.05)||(x0>MW-.05&&x1>MW-.05)||(y0>MH-.05&&y1>MH-.05))continue;S.push(x0);S.push(y0);S.push(x1);S.push(y1);LR.push(l);LR.push(r)}});
+  return{fill:fills(pos.get(),rid.get(),idx.get()),line:lines(seg.get(),lr.get(),2),line2:lines(seg2.get(),lr2.get(),2)}}
 function buildWater(t){const P=c=>[(c[0]+180)*MW/360,(90-c[1])*MH/180];
   const pos=new FA(Float32Array),rk=new FA(Float32Array),idx=new FA(Uint32Array),oseg=new FA(Float32Array),osr=new FA(Float32Array),seg=new FA(Float32Array),sr=new FA(Float32Array);let base=0;
   for(const f of topojson.feature(t,t.objects.l).features){const g=f.geometry,PP=g.type==='Polygon'?[g.coordinates]:g.coordinates,r=f.properties.r;
