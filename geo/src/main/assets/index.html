@@ -328,7 +328,7 @@ function glBuildLOD(L){
   const fill={vao,n:idx.length};
   // border segments (instanced)
   const seg=[],lr=[];
-  for(let a=0;a<L.arcs.length;a++){const f=L.arcs[a],l=ARL[a],r=ARR[a]<0?65535:ARR[a];for(let k=0;k+3<f.length;k+=2){seg.push(f[k],f[k+1],f[k+2],f[k+3]);lr.push(l,r)}}
+  for(let a=0;a<L.arcs.length;a++){const f=L.arcs[a],l=ARL[a],r=ARR[a]<0?65535:ARR[a];for(let k=0;k+3<f.length;k+=2){const x0=f[k],y0=f[k+1],x1=f[k+2],y1=f[k+3];if((x0<.05&&x1<.05)||(x0>MW-.05&&x1>MW-.05)||(y0>MH-.05&&y1>MH-.05))continue;seg.push(x0,y0,x1,y1);lr.push(l,r)}}
   const lvao=gl.createVertexArray();gl.bindVertexArray(lvao);
   gl.bindBuffer(gl.ARRAY_BUFFER,GLR.seg);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
   const sb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,sb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(seg),gl.STATIC_DRAW);gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,4,gl.FLOAT,false,0,0);gl.vertexAttribDivisor(1,1);
