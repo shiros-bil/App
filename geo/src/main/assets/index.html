@@ -571,12 +571,12 @@ function randomEvent(){const me=G.player,M=G.nat[me],ev=[
   ()=>{for(const r of terr(me))G.gdp[r]*=.97;recalc();return`${I("trending-down")} Мировой кризис ударил по экономике.`},
   ()=>{M.tech+=.1;return`${I("lightbulb")} Учёные совершили открытие.`},
   ()=>{M.army*=.96;return`${I("tornado")} Стихийное бедствие.`}];addLog(ev[Math.floor(Math.random()*ev.length)]())}
-let last=performance.now(),acc=0;
+let last=performance.now(),acc=0,lastHud=0,lastSimDraw=0;
 let lastClk='';function clockStr(){const f=Math.min(.9999,Math.max(0,acc)),m=Math.floor(f*1440);const h=Math.floor(m/60),mm=m%60;return String(h).padStart(2,'0')+':'+String(speed>=3?0:mm-mm%10).padStart(2,'0')}
 function loop(now){const dt=Math.min(.25,(now-last)/1000);last=now;
   if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;
     while(acc>=1&&n<10){acc-=1;n++;dayTick()}
-    if(n){updHud();if(G.offs.length)draw();if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
+    if(n){if(now-lastHud>100){lastHud=now;updHud()}if(G.offs.length&&now-lastSimDraw>66){lastSimDraw=now;draw()}if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
   if(G){const c=clockStr();if(c!==lastClk){lastClk=c;const e=document.getElementById('clk');if(e)e.textContent=c}}
   requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
