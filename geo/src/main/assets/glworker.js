@@ -45,8 +45,8 @@ function buildWater(t){const P=c=>[(c[0]+180)*MW/360,(90-c[1])*MH/180];
     for(const l of LS){const q=l.map(P);for(let k=1;k<q.length;k++){seg.push(q[k-1][0]);seg.push(q[k-1][1]);seg.push(q[k][0]);seg.push(q[k][1]);sr.push(r)}}}
   const RG=[1,3,5,7,8,99],grp=r=>RG.findIndex(t=>r<=t);
   const splitL=(S,R)=>RG.map((_,g)=>{const s2=new FA(Float32Array),r2=new FA(Float32Array);for(let i=0;i<R.length;i++)if(grp(R[i])===g){for(let j=0;j<4;j++)s2.push(S[4*i+j]);r2.push(R[i])}return lines(s2.get(),r2.get(),1)});
-  const P=pos.get(),RK=rk.get(),I=idx.get();const splitF=RG.map((_,g)=>{const i2=new FA(Uint32Array);for(let t=0;t<I.length;t+=3)if(grp(RK[I[t]])===g){i2.push(I[t]);i2.push(I[t+1]);i2.push(I[t+2])}return fills(P,RK,i2.get())});
+  const PP0=pos.get(),RK=rk.get(),I=idx.get();const splitF=RG.map((_,g)=>{const i2=new FA(Uint32Array);for(let t=0;t<I.length;t+=3)if(grp(RK[I[t]])===g){i2.push(I[t]);i2.push(I[t+1]);i2.push(I[t+2])}return fills(PP0,RK,i2.get())});
   return{RG,fill:splitF,riv:splitL(seg.get(),sr.get()),ol:splitL(oseg.get(),osr.get())}}
 onmessage=async e=>{const files=['world_lo.json','world_mid.json','world.json'];
   for(let i=0;i<3;i++){const t=await (await fetch(files[i])).json();const d=buildRegions(t);postMessage({k:'lod',i,d},tr(d))}
-  const w=buildWater(await (await fetch('water.json')).json());postMessage({k:'water',d:w},tr(w))};
+  const w=buildWater(await (await fetch('water.json')).json());postMessage({k:"water",d:w},[...new Set(tr(w))])};
