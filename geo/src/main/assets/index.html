@@ -164,7 +164,7 @@ function paint(c,K,X,Y,w,h,L,regBorders,ps=1){
   for(let cpy=0;X+cpy*ww<w;cpy++){const ox=X+cpy*ww;if(ox+ww<0)continue;
     c.setTransform(K*ps,0,0,K*ps,ox*ps,Y*ps);const vx0=-ox/K,vx1=(w-ox)/K;
     c.lineWidth=1/K;c.strokeStyle='rgba(150,200,250,.08)';c.stroke(GRAT);
-    for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;c.fillStyle=natColor(own[r]);c.fill(L.paths[r])}
+    for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;const col=natColor(own[r]);c.fillStyle=col;c.fill(L.paths[r]);if(!regBorders){c.strokeStyle=col;c.lineWidth=1.2/K;c.stroke(L.paths[r])}}
     const pr=new Path2D(),pn=new Path2D(),pp=new Path2D(),pw=new Path2D();let hasP=false,hasW=false;
     const ab=L.abb,war=G?G.war:[];
     for(let a=0;a<L.arcs.length;a++){if(ab[4*a+2]<vx0||ab[4*a]>vx1||ab[4*a+3]<vy0||ab[4*a+1]>vy1)continue;
@@ -174,14 +174,14 @@ function paint(c,K,X,Y,w,h,L,regBorders,ps=1){
       if(G&&ol!==or){if((ol===P)!==(or===P)){pp.moveTo(f[0],f[1]);for(let k=2;k<f.length;k+=2)pp.lineTo(f[k],f[k+1]);hasP=true}
         if(war.length&&(war.includes(ol)!==war.includes(or))&&or!==-1){pw.moveTo(f[0],f[1]);for(let k=2;k<f.length;k+=2)pw.lineTo(f[k],f[k+1]);hasW=true}}}
     c.lineJoin='round';
-    if(regBorders){c.lineWidth=.9/K;c.strokeStyle='rgba(0,0,0,.33)';c.stroke(pr)}
+    if(regBorders){c.lineWidth=.9/K;c.strokeStyle=`rgba(0,0,0,${Math.min(.33,(K/S0()-3)*.11+.1)})`;c.stroke(pr)}
     c.lineWidth=1.3/K;c.strokeStyle='rgba(10,15,35,.42)';c.stroke(pn);
     if(hasW){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,70,70,.75)';c.stroke(pw)}
     if(hasP){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,255,255,.85)';c.stroke(pp)}
   }}
-function renderBackdrop(){bctx.setTransform(1,0,0,1,0,0);bctx.fillStyle='#0d3358';bctx.fillRect(0,0,4096,2048);paint(bctx,4096/MW,0,0,4096,2048,LOD[0],true);bdOK=true}
+function renderBackdrop(){bctx.setTransform(1,0,0,1,0,0);bctx.fillStyle='#0d3358';bctx.fillRect(0,0,4096,2048);paint(bctx,4096/MW,0,0,4096,2048,LOD[0],false);bdOK=true}
 function renderScene(){const K=S0()*T.k;sctx.setTransform(DPR,0,0,DPR,0,0);sctx.fillStyle='#0d3358';sctx.fillRect(0,0,W,H);
-  paint(sctx,K,T.x,T.y,W,H,lodFor(T.k),true,DPR);sceneT=T;sceneOK=true}
+  paint(sctx,K,T.x,T.y,W,H,lodFor(T.k),T.k>=3,DPR);sceneT=T;sceneOK=true}
 
 let sel=-1,raf=0;
 function draw(){if(!raf)raf=requestAnimationFrame(frame)}
