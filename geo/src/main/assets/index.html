@@ -374,6 +374,7 @@ function mkLine(d,an){const vao=gl.createVertexArray();gl.bindVertexArray(vao);
   const sb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,sb);gl.bufferData(gl.ARRAY_BUFFER,d.S,gl.STATIC_DRAW);gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,4,gl.FLOAT,false,0,0);gl.vertexAttribDivisor(1,1);
   const lb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,lb);gl.bufferData(gl.ARRAY_BUFFER,d.L,gl.STATIC_DRAW);gl.enableVertexAttribArray(2);gl.vertexAttribPointer(2,an,gl.FLOAT,false,0,0);gl.vertexAttribDivisor(2,1);
   gl.bindVertexArray(null);return{vao,sb,lb,rg:d.rg,bb:d.bb,an}}
+function glFlushQ(){if(interacting){setTimeout(glFlushQ,200);return}const m=GLQ.shift();if(m){glAccept(m);if(GLQ.length)setTimeout(glFlushQ,50)}}
 function drawFill(F,vx0,vx1,vy0,vy1){gl.bindVertexArray(F.vao);let st=-1,cn=0;const fl=()=>{if(cn)gl.drawElements(gl.TRIANGLES,cn,gl.UNSIGNED_INT,st*4);cn=0;st=-1};
   for(let k=0;k<512;k++){const n=F.fr[2*k+1];if(!n)continue;const b=F.fbb;if(b[4*k+2]<vx0||b[4*k]>vx1||b[4*k+3]<vy0||b[4*k+1]>vy1){fl();continue}
     if(st<0)st=F.fr[2*k];if(F.fr[2*k]===st+cn)cn+=n;else{fl();st=F.fr[2*k];cn=n}}fl()}
@@ -381,7 +382,7 @@ function drawLine(Ln,vx0,vx1,vy0,vy1,pad){gl.bindVertexArray(Ln.vao);let st=-1,c
   const fl=()=>{if(cn){gl.bindBuffer(gl.ARRAY_BUFFER,Ln.sb);gl.vertexAttribPointer(1,4,gl.FLOAT,false,0,st*16);gl.bindBuffer(gl.ARRAY_BUFFER,Ln.lb);gl.vertexAttribPointer(2,Ln.an,gl.FLOAT,false,0,st*4*Ln.an);gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,cn)}cn=0;st=-1};
   for(let k=0;k<512;k++){const n=Ln.rg[2*k+1];if(!n)continue;const b=Ln.bb;if(b[4*k+2]+pad<vx0||b[4*k]-pad>vx1||b[4*k+3]+pad<vy0||b[4*k+1]-pad>vy1){fl();continue}
     if(st<0)st=Ln.rg[2*k];if(Ln.rg[2*k]===st+cn)cn+=n;else{fl();st=Ln.rg[2*k];cn=n}}fl()}
-const GLQ=[];function glAccept(m){if(!GLR.ok)return;if(!GLR.fill){GLQ.push(m);return}
+const GLQ=[];function glAccept(m){if(!GLR.ok)return;if(!GLR.fill||(interacting&&GLR.lods[0])){GLQ.push(m);if(GLR.fill)setTimeout(glFlushQ,200);return}
   if(m.k==='lod')GLR.lods[m.i]={fill:mkFill(m.d.fill,1),line:mkLine(m.d.line,2)};
   else{GLR.lakes=mkFill(m.d.fill,1);GLR.rivers=mkLine(m.d.riv,1);GLR.lakeOl=mkLine(m.d.ol,1)}
   draw()}
