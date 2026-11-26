@@ -164,7 +164,7 @@ function paint(c,K,X,Y,w,h,L,regBorders,ps=1){
   const ww=MW*K,vy0=-Y/K,vy1=(h-Y)/K,own=G?G.owner:RK,P=G?G.player:-1;
   for(let cpy=0;X+cpy*ww<w;cpy++){const ox=X+cpy*ww;if(ox+ww<0)continue;
     c.setTransform(K*ps,0,0,K*ps,ox*ps,Y*ps);const vx0=-ox/K,vx1=(w-ox)/K;
-    if(BGOK)c.drawImage(BGI,0,0,MW,MH);c.globalAlpha=.55;
+    if(BGOK)c.drawImage(BGI,0,0,MW,MH);c.globalAlpha=.75;
     for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;const col=natColor(own[r]);c.fillStyle=col;c.fill(L.paths[r]);}c.globalAlpha=1;
     const pr=new Path2D(),pn=new Path2D(),pp=new Path2D(),pw=new Path2D();let hasP=false,hasW=false;
     const ab=L.abb,war=G?G.war:[];
@@ -234,9 +234,14 @@ function drawLabels(K,ox){const own=G?G.owner:RK,vx0=-ox/K,vx1=(W-ox)/K,vy0=-T.y
   if(regL.length<120){ctx.font='500 11px system-ui';ctx.lineWidth=2.5;
     for(const r of regL){if(RN[r]===NAT[own[r]].n)continue;const x=LP[2*r]*K+ox,y=LP[2*r+1]*K+T.y;if(x<0||x>W||y<0||y>H)continue;
       ctx.strokeStyle='rgba(0,0,0,.45)';ctx.strokeText(RN[r],x,y+14);ctx.fillStyle='rgba(255,255,255,.75)';ctx.fillText(RN[r],x,y+14)}}
+  const LL=[];
   for(const[n,e]of acc){const wpx=Math.min((e.c2-e.a)*K,(e.d-e.b)*K*2.5);if(!e.w)continue;const t=NAT[n].n;const fs=Math.min(24,wpx/(t.length*.8));if(fs<9)continue;
     const x=e.x/e.w*K+ox,y=e.y/e.w*K+T.y;
-    ctx.font=`800 ${fs|0}px system-ui`;ctx.lineWidth=3.5;ctx.strokeStyle='rgba(0,0,0,.55)';ctx.strokeText(t,x,y);ctx.fillStyle='#fff';ctx.fillText(t,x,y)}}
+    LL.push([fs,t,x,y])}
+  LL.sort((p,q)=>q[0]-p[0]);const boxes=[];
+  for(const[fs,t,x,y]of LL){ctx.font=`800 ${fs|0}px system-ui`;const w=ctx.measureText(t).width/2+2,h=fs*.55;
+    if(boxes.some(b=>x-w<b[2]&&x+w>b[0]&&y-h<b[3]&&y+h>b[1]))continue;boxes.push([x-w,y-h,x+w,y+h]);
+    ctx.lineWidth=3.5;ctx.strokeStyle='rgba(0,0,0,.55)';ctx.strokeText(t,x,y);ctx.fillStyle='#fff';ctx.fillText(t,x,y)}}
 addEventListener('resize',resize);
 
 // ================= GAME (real time, regions) =================
