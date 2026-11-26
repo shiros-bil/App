@@ -230,20 +230,44 @@ function drawLabels(K,ox){const own=G?G.owner:RK,vx0=-ox/K,vx1=(W-ox)/K,vy0=-T.y
   const lim=Math.min(110,Math.max(20,350/K));
   for(const e of acc.values()){const it=e.items;const top=it.slice().sort((p,q)=>vis[q][1]-vis[p][1]).slice(0,6);let bs=-1;
     for(const t of top){const ax=vis[t][2],ay=vis[t][3];let sc=0;for(const j of it){const v=vis[j];if(Math.abs(v[2]-ax)<lim*2&&Math.abs(v[3]-ay)<lim)sc+=v[1]}if(sc>bs){bs=sc;e.ax=ax;e.ay=ay}}
-    for(const j of it){const[r,wa,px,py,cx0,cx1,cy0,cy1]=vis[j];if(Math.abs(px-e.ax)>lim*2||Math.abs(py-e.ay)>lim)continue;
-      e.w+=wa;e.x+=px*wa;e.y+=py*wa;if(cx0<e.a)e.a=cx0;if(cx1>e.c2)e.c2=cx1;if(cy0<e.b)e.b=cy0;if(cy1>e.d)e.d=cy1}}
-  ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
-  if(regL.length<120){ctx.font='500 11px system-ui';ctx.lineWidth=2.5;
-    for(const r of regL){if(RN[r]===NAT[own[r]].n)continue;const x=LP[2*r]*K+ox,y=LP[2*r+1]*K+T.y;if(x<0||x>W||y<0||y>H)continue;
-      ctx.strokeStyle='rgba(0,0,0,.45)';ctx.strokeText(RN[r],x,y+14);ctx.fillStyle='rgba(255,255,255,.75)';ctx.fillText(RN[r],x,y+14)}}
+    const P=[];for(const j of it){const[r,wa,px,py,X0,X1,Y0,Y1]=vis[j];if(Math.abs(px-e.ax)>lim*2||Math.abs(py-e.ay)>lim)continue;
+      P.push([px,py,wa],[X0,py,wa*.3],[X1,py,wa*.3],[px,Y0,wa*.3],[px,Y1,wa*.3])}
+    e.P=P}
+  ctx.lineJoin='round';ctx.textBaseline='middle';ctx.textAlign='center';
   const LL=[];
-  for(const[n,e]of acc){const wpx=Math.min((e.c2-e.a)*K,(e.d-e.b)*K*2.5);if(!e.w)continue;const t=NAT[n].n;const fs=Math.min(24,wpx/(t.length*.8));if(fs<9)continue;
-    const x=e.x/e.w*K+ox,y=e.y/e.w*K+T.y;
-    LL.push([fs,t,x,y])}
-  LL.sort((p,q)=>q[0]-p[0]);const boxes=[];
-  for(const[fs,t,x,y]of LL){ctx.font=`800 ${fs|0}px system-ui`;const w=ctx.measureText(t).width/2+2,h=fs*.55;
-    if(boxes.some(b=>x-w<b[2]&&x+w>b[0]&&y-h<b[3]&&y+h>b[1]))continue;boxes.push([x-w,y-h,x+w,y+h]);
-    ctx.lineWidth=3.5;ctx.strokeStyle='rgba(0,0,0,.55)';ctx.strokeText(t,x,y);ctx.fillStyle='#fff';ctx.fillText(t,x,y)}}
+  for(const[n,e]of acc){const P=e.P;if(!P||!P.length)continue;let sw=0,mx=0,my=0;for(const[x,y,w]of P){sw+=w;mx+=x*w;my+=y*w}if(sw<=0)continue;mx/=sw;my/=sw;
+    let sxx=0,syy=0,sxy=0;for(const[x,y,w]of P){const dx=x-mx,dy=y-my;sxx+=w*dx*dx;syy+=w*dy*dy;sxy+=w*dx*dy}
+    let ang=.5*Math.atan2(2*sxy,sxx-syy);if(ang>Math.PI/2)ang-=Math.PI;if(ang<-Math.PI/2)ang+=Math.PI;
+    ang=Math.max(-.85,Math.min(.85,ang));
+    // keep horizontal when shape is roundish
+    const ev=Math.sqrt(Math.max(0,(sxx-syy)**2/4+sxy*sxy)),l1=(sxx+syy)/2+ev,l2=(sxx+syy)/2-ev;if(l1<l2*1.6)ang*=Math.max(0,(l1/Math.max(l2,1e-9)-1)/0.6);
+    const ux=Math.cos(ang),uy=Math.sin(ang);
+    let t0=1e9,t1=-1e9,o0=1e9,o1=-1e9,S=[0,0,0,0,0],Y=[0,0,0];
+    for(const[x,y,w]of P){const dx=x-mx,dy=y-my,t=dx*ux+dy*uy,o=-dx*uy+dy*ux;if(t<t0)t0=t;if(t>t1)t1=t;if(o<o0)o0=o;if(o>o1)o1=o;
+      let tp=1;for(let k=0;k<5;k++){S[k]+=w*tp;tp*=t}Y[0]+=w*o;Y[1]+=w*o*t;Y[2]+=w*o*t*t}
+    const len=(t1-t0),thick=(o1-o0);if(len<=0)continue;
+    // quadratic fit o=a+b t+c t^2
+    const M=[[S[0],S[1],S[2]],[S[1],S[2],S[3]],[S[2],S[3],S[4]]],det=m=>m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1])-m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0])+m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+    const D=det(M);let ca=0,cb=0,cc=0;if(Math.abs(D)>1e-12){const rep=(c)=>M.map((row,i)=>row.map((v,j)=>j===c?Y[i]:v));ca=det(rep(0))/D;cb=det(rep(1))/D;cc=det(rep(2))/D}
+    cc*=.7;const half=len/2,lim2=thick*.35;if(Math.abs(cc*half*half)>lim2)cc=Math.sign(cc)*lim2/(half*half);
+    const tc=(t0+t1)/2;const t=NAT[n].n,nc=[...t].length;
+    let fs=Math.min(thick*.36,len*.7/(nc*.62))*K;fs=Math.min(fs,120);if(fs<9)continue;
+    LL.push({fs,t,mx,my,ux,uy,tc,len,ca,cb,cc})}
+  LL.sort((p,q)=>q.fs-p.fs);const boxes=[];
+  for(const L of LL){let{fs,t,mx,my,ux,uy,tc,len,ca,cb,cc}=L;ctx.font=`700 ${fs|0}px Georgia,'Times New Roman',serif`;
+    const ch=[...t];let ws=ch.map(c=>ctx.measureText(c).width),Wn=ws.reduce((a,b)=>a+b,0);
+    if(Wn>len*K*.62){const f=len*K*.62/Wn;fs*=f;if(fs<9)continue;ws=ws.map(w=>w*f);Wn*=f;ctx.font=`700 ${fs|0}px Georgia,'Times New Roman',serif`}
+    const target=Math.min(len*K*.66,Wn+fs*.55*(ch.length-1));const sp=ch.length>1?Math.max(0,(target-Wn)/(ch.length-1)):0;
+    const tot=Wn+sp*(ch.length-1);let s=-tot/2;const pos=[];let bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9;
+    for(let i=0;i<ch.length;i++){const sc=s+ws[i]/2;s+=ws[i]+sp;const tt=tc+sc/K,o=ca+cb*tt+cc*tt*tt,d=cb+2*cc*tt;
+      const x=(mx+tt*ux-o*uy)*K+ox,y=(my+tt*uy+o*ux)*K+T.y,a=Math.max(-.95,Math.min(.95,Math.atan2(uy,ux)+Math.atan(d)));pos.push([x,y,a]);
+      if(x<bx0)bx0=x;if(x>bx1)bx1=x;if(y<by0)by0=y;if(y>by1)by1=y}
+    bx0-=fs*.3;bx1+=fs*.3;by0-=fs*.45;by1+=fs*.45;
+    if(bx1<0||bx0>W||by1<0||by0>H)continue;
+    const cb2=pos.map(([x,y],i)=>[x-ws[i]/2-1,y-fs*.42,x+ws[i]/2+1,y+fs*.42]);
+    if(cb2.some(c=>boxes.some(b=>c[0]<b[2]&&c[2]>b[0]&&c[1]<b[3]&&c[3]>b[1])))continue;boxes.push(...cb2);
+    ctx.lineWidth=Math.max(2.5,fs*.12);ctx.strokeStyle='rgba(0,0,0,.5)';ctx.fillStyle='rgba(255,255,255,.92)';
+    for(let i=0;i<ch.length;i++){const[x,y,a]=pos[i];ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.strokeText(ch[i],0,0);ctx.fillText(ch[i],0,0);ctx.restore()}}}
 addEventListener('resize',resize);
 
 // ================= GAME (real time, regions) =================
