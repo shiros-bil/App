@@ -55,7 +55,7 @@ button small{width:100%;font-weight:500;opacity:.75;font-size:11px}
 .off{padding:8px;border:1px solid rgba(255,90,90,.25);border-radius:10px;margin-top:6px;font-size:12px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
 .off .prog{width:100%}
 </style></head><body>
-<canvas id="c"></canvas>
+<canvas id="g"></canvas><canvas id="c"></canvas>
 <div class="hud" id="hud" style="display:none">
   <div class="chip me" id="me"></div>
   <div class="chip"><i data-i="coins"></i><b id="money"></b><small id="inc" class="good"></small></div>
@@ -72,6 +72,7 @@ button small{width:100%;font-weight:500;opacity:.75;font-size:11px}
 <div id="load"><b>Загрузка карты мира…</b><div class="bar"><i></i></div></div>
 <script src="d3.min.js"></script>
 <script src="topojson-client.min.js"></script>
+<script src="earcut.min.js"></script>
 <script>
 "use strict";
 const ICO={"coins": "<circle cx=\"8\" cy=\"8\" r=\"6\" /> <path d=\"M18.09 10.37A6 6 0 1 1 10.34 18\" /> <path d=\"M7 6h1v4\" /> <path d=\"m16.71 13.88.7.71-2.82 2.82\" />", "shield": "<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\" />", "calendar": "<path d=\"M8 2v4\" /> <path d=\"M16 2v4\" /> <rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\" /> <path d=\"M3 10h18\" />", "trophy": "<path d=\"M6 9H4.5a2.5 2.5 0 0 1 0-5H6\" /> <path d=\"M18 9h1.5a2.5 2.5 0 0 0 0-5H18\" /> <path d=\"M4 22h16\" /> <path d=\"M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22\" /> <path d=\"M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22\" /> <path d=\"M18 2H6v7a6 6 0 0 0 12 0V2Z\" />", "menu": "<line x1=\"4\" x2=\"20\" y1=\"12\" y2=\"12\" /> <line x1=\"4\" x2=\"20\" y1=\"6\" y2=\"6\" /> <line x1=\"4\" x2=\"20\" y1=\"18\" y2=\"18\" />", "pause": "<rect x=\"14\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\" /> <rect x=\"6\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\" />", "play": "<polygon points=\"6 3 20 12 6 21 6 3\" />", "fast-forward": "<polygon points=\"13 19 22 12 13 5 13 19\" /> <polygon points=\"2 19 11 12 2 5 2 19\" />", "chevrons-right": "<path d=\"m6 17 5-5-5-5\" /> <path d=\"m13 17 5-5-5-5\" />", "factory": "<path d=\"M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z\" /> <path d=\"M17 18h1\" /> <path d=\"M12 18h1\" /> <path d=\"M7 18h1\" />", "flask-conical": "<path d=\"M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2\" /> <path d=\"M8.5 2h7\" /> <path d=\"M7 16h10\" />", "swords": "<polyline points=\"14.5 17.5 3 6 3 3 6 3 17.5 14.5\" /> <line x1=\"13\" x2=\"19\" y1=\"19\" y2=\"13\" /> <line x1=\"16\" x2=\"20\" y1=\"16\" y2=\"20\" /> <line x1=\"19\" x2=\"21\" y1=\"21\" y2=\"19\" /> <polyline points=\"14.5 6.5 18 3 21 3 21 6 17.5 9.5\" /> <line x1=\"5\" x2=\"9\" y1=\"14\" y2=\"18\" /> <line x1=\"7\" x2=\"4\" y1=\"17\" y2=\"20\" /> <line x1=\"3\" x2=\"5\" y1=\"19\" y2=\"21\" />", "handshake": "<path d=\"m11 17 2 2a1 1 0 1 0 3-3\" /> <path d=\"m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4\" /> <path d=\"m21 3 1 11h-2\" /> <path d=\"M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3\" /> <path d=\"M3 4h8\" />", "package": "<path d=\"M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z\" /> <path d=\"M12 22V12\" /> <path d=\"m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7\" /> <path d=\"m7.5 4.27 9 5.15\" />", "ban": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"m4.9 4.9 14.2 14.2\" />", "venetian-mask": "<path d=\"M2 12a5 5 0 0 0 5 5 8 8 0 0 1 5 2 8 8 0 0 1 5-2 5 5 0 0 0 5-5V7h-5a8 8 0 0 0-5 2 8 8 0 0 0-5-2H2Z\" /> <path d=\"M6 11c1.5 0 3 .5 3 2-2 0-3 0-3-2Z\" /> <path d=\"M18 11c-1.5 0-3 .5-3 2 2 0 3 0 3-2Z\" />", "flame": "<path d=\"M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z\" />", "bird": "<path d=\"M16 7h.01\" /> <path d=\"M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20\" /> <path d=\"m20 7 2 .5-2 .5\" /> <path d=\"M10 18v3\" /> <path d=\"M14 17.75V21\" /> <path d=\"M7 18a6 6 0 0 0 3.84-10.61\" />", "zoom-in": "<circle cx=\"11\" cy=\"11\" r=\"8\" /> <line x1=\"21\" x2=\"16.65\" y1=\"21\" y2=\"16.65\" /> <line x1=\"11\" x2=\"11\" y1=\"8\" y2=\"14\" /> <line x1=\"8\" x2=\"14\" y1=\"11\" y2=\"11\" />", "map": "<path d=\"M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z\" /> <path d=\"M15 5.764v15\" /> <path d=\"M9 3.236v15\" />", "map-pin": "<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\" /> <circle cx=\"12\" cy=\"10\" r=\"3\" />", "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\" /> <path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\" /> <path d=\"M7 3v4a1 1 0 0 0 1 1h7\" />", "globe": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20\" /> <path d=\"M2 12h20\" />", "skull": "<path d=\"m12.5 17-.5-1-.5 1h1z\" /> <path d=\"M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z\" /> <circle cx=\"15\" cy=\"12\" r=\"1\" /> <circle cx=\"9\" cy=\"12\" r=\"1\" />", "crown": "<path d=\"M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z\" /> <path d=\"M5 21h14\" />", "siren": "<path d=\"M7 18v-6a5 5 0 1 1 10 0v6\" /> <path d=\"M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z\" /> <path d=\"M21 12h1\" /> <path d=\"M18.5 4.5 18 5\" /> <path d=\"M2 12h1\" /> <path d=\"M12 2v1\" /> <path d=\"m4.929 4.929.707.707\" /> <path d=\"M12 12v6\" />", "newspaper": "<path d=\"M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2\" /> <path d=\"M18 14h-8\" /> <path d=\"M15 18h-5\" /> <path d=\"M10 6h8v4h-8V6Z\" />", "lightbulb": "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\" /> <path d=\"M9 18h6\" /> <path d=\"M10 22h4\" />", "droplet": "<path d=\"M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z\" />", "megaphone": "<path d=\"m3 11 18-5v12L3 14v-3z\" /> <path d=\"M11.6 16.8a3 3 0 1 1-5.8-1.6\" />", "tornado": "<path d=\"M21 4H3\" /> <path d=\"M18 8H6\" /> <path d=\"M19 12H9\" /> <path d=\"M16 16h-6\" /> <path d=\"M11 20H9\" />", "arrow-right": "<path d=\"M5 12h14\" /> <path d=\"m12 5 7 7-7 7\" />", "arrow-left": "<path d=\"m12 19-7-7 7-7\" /> <path d=\"M19 12H5\" />", "x": "<path d=\"M18 6 6 18\" /> <path d=\"m6 6 12 12\" />", "search": "<circle cx=\"11\" cy=\"11\" r=\"8\" /> <path d=\"m21 21-4.3-4.3\" />", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\" /> <circle cx=\"9\" cy=\"7\" r=\"4\" /> <path d=\"M22 21v-2a4 4 0 0 0-3-3.87\" /> <path d=\"M16 3.13a4 4 0 0 1 0 7.75\" />", "trending-down": "<polyline points=\"22 17 13.5 8.5 8.5 13.5 2 7\" /> <polyline points=\"16 17 22 17 22 11\" />", "medal": "<path d=\"M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15\" /> <path d=\"M11 12 5.12 2.2\" /> <path d=\"m13 12 5.88-9.8\" /> <path d=\"M8 7h8\" /> <circle cx=\"12\" cy=\"17\" r=\"5\" /> <path d=\"M12 18v-2h-.5\" />", "rocket": "<path d=\"M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z\" /> <path d=\"m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z\" /> <path d=\"M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0\" /> <path d=\"M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5\" />", "target": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <circle cx=\"12\" cy=\"12\" r=\"6\" /> <circle cx=\"12\" cy=\"12\" r=\"2\" />"};
@@ -79,7 +80,7 @@ const I=(n,c='')=>`<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="
 
 // ================= MAP ENGINE =================
 const MW=2000,MH=1000;
-const cv=document.getElementById('c'),ctx=cv.getContext('2d',{alpha:false});
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 const hctx=document.createElement('canvas').getContext('2d');
 const scn=document.createElement('canvas'),sctx=scn.getContext('2d',{alpha:false});
 const qcn=document.createElement('canvas'),qctx=qcn.getContext('2d',{alpha:false});
@@ -133,7 +134,7 @@ function buildLOD(topo,first){
         else if(bigA<0){bx=(rx0+rx1)/2;by=(ry0+ry1)/2}}}
     paths[r]=p;bb[4*r]=x0;bb[4*r+1]=y0;bb[4*r+2]=x1;bb[4*r+3]=y1;area[r]=tot;lp[2*r]=bx;lp[2*r+1]=by;lw[r]=bw}
   if(first)NB=topojson.neighbors(G);
-  return{arcs,abb,paths,bb,area,lp,lw}}
+  return{arcs,abb,paths,bb,area,lp,lw,geoms:G}}
 function useMeta(L){best=L;BB=L.bb;AREA=L.area;LP=L.lp;LW=L.lw;CEN=[];for(let r=0;r<RK.length;r++)CEN.push([LP[2*r]/MW*360-180,90-LP[2*r+1]/MH*180]);sceneOK=false;computeLabels()}
 
 const imgP=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src});
@@ -157,12 +158,13 @@ async function init(){
   const tl=[];for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++)tl.push(imgP('bg/'+tx+'_'+ty+'.jpg').then(i=>{if(i){i.ok=1;TIL[tx+'_'+ty]=i}}));
   await Promise.all([BGI.decode?BGI.decode().catch(()=>{}):0,...tl]);
   GRAT=new Path2D();
+  if(GLR.ok){lsay('Подготовка графики…');await new Promise(r=>setTimeout(r,30));try{glInit()}catch(e){console.error(e);GLR.ok=false}}
   hydrateIcons();setupZoom();resize();document.getElementById('load').remove();
   const s=localStorage.getItem(SAVE);let ok=false;
   if(s){try{G=JSON.parse(s);ok=true;startGame()}catch(e){G=null}}
   if(!ok)pickScreen();
 }
-function resize(){W=innerWidth;H=innerHeight;qcn.width=W;qcn.height=H;for(const c of[cv,scn]){c.width=W*DPR;c.height=H*DPR}cv.style.width=W+'px';cv.style.height=H+'px';
+function resize(){W=innerWidth;H=innerHeight;glc.width=W*DPR;glc.height=H*DPR;glc.style.width=W+'px';glc.style.height=H+'px';qcn.width=W;qcn.height=H;for(const c of[cv,scn]){c.width=W*DPR;c.height=H*DPR}cv.style.width=W+'px';cv.style.height=H+'px';
   if(zoomB)d3.select(cv).call(zoomB.transform,T);invalidate()}
 function constrain(t){const k=t.k,ww=MW*S0()*k,hh=H*k;let x=t.x%ww;if(x>0)x-=ww;return new d3.ZoomTransform(k,x,Math.min(0,Math.max(H-hh,t.y)))}
 let idleT=0;
@@ -174,7 +176,7 @@ function setupZoom(){
   d3.select(cv).call(zoomB).on('dblclick.zoom',null);
   cv.addEventListener('click',e=>onTap(hit(e.clientX,e.clientY),e));
 }
-function invalidate(){if(lblDirty&&G){lblDirty=false;computeLabels()}draw()}
+function invalidate(){GLR.dirty=true;if(lblDirty&&G){lblDirty=false;computeLabels()}draw()}
 let dirtyT=0;function dirty(g=true){if(g)ownVer++;if(dirtyT)return;dirtyT=setTimeout(()=>{dirtyT=0;invalidate()},300)}
 function zoomToBox(x0,y0,x1,y1,dur=700){const s=S0();let w=x1-x0,h=y1-y0;
   const k=Math.max(1,Math.min(60,.6/Math.max(w*s/W,h*s/H))),cx=(x0+x1)/2*s,cy=(y0+y1)/2*s;
@@ -234,7 +236,7 @@ function renderScene(){const t0=performance.now();const K=S0()*T.k;sctx.setTrans
 
 let sel=-1,raf=0;
 function draw(){if(!raf)raf=requestAnimationFrame(frame)}
-function frame(){raf=0;if(!RK.length)return;const t0=performance.now();
+function frame(){raf=0;if(!RK.length)return;if(GLR.ok&&GLR.lods[0]){glFrame();return}const t0=performance.now();
   const K=S0()*T.k,ww=MW*K;if(!baseCv||(!interacting&&(baseVer!==ownVer||baseStale&&t0-baseT>1500))){renderBase();baseStale=false;baseT=t0}
   ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#0d3358';ctx.fillRect(0,0,W*DPR,H*DPR);ctx.imageSmoothingEnabled=true;
   const wpx=ww*DPR;let z=Math.max(0,Math.min(6,Math.ceil(Math.log2(wpx/2048)-0.05)));const wp=2048<<z,f=wpx/wp,tsz=TS*f;
@@ -249,6 +251,117 @@ function frame(){raf=0;if(!RK.length)return;const t0=performance.now();
   if(need.length){need.sort((a,b)=>a[3]-b[3]);const budget=interacting?6:14;let did=0;
     for(const[zz,x,y]of need){if(performance.now()-t0>budget&&did>0)break;renderTile(zz,x,y);did++}
     draw()}}
+// ================= WebGL2 MAP RENDERER =================
+const glc=document.getElementById('g');const gl=glc.getContext('webgl2',{antialias:true,alpha:false,premultipliedAlpha:false});
+const GLR={ok:!!gl,dirty:true,lods:[]};
+function glShader(t,src){const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(s);return s}
+function glProg(vs,fs){const p=gl.createProgram();gl.attachShader(p,glShader(gl.VERTEX_SHADER,vs));gl.attachShader(p,glShader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw gl.getProgramInfoLog(p);
+  const u={};const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);for(let i=0;i<n;i++){const a=gl.getActiveUniform(p,i);u[a.name]=gl.getUniformLocation(p,a.name)}return{p,u}}
+const TW=4096;
+function glInit(){if(!GLR.ok)return;
+  const hdr=`#version 300 es
+precision highp float;precision highp int;
+uniform vec2 uRes;uniform float uK;uniform vec2 uOff;
+vec4 toClip(vec2 s){vec2 c=s/uRes*2.0-1.0;return vec4(c.x,-c.y,0.,1.);}
+ivec2 rid(int i){return ivec2(i%${TW},i/${TW});}
+`;
+  GLR.fill=glProg(hdr+`
+layout(location=0) in vec2 aP;layout(location=1) in float aR;
+uniform sampler2D uCol;out vec4 vC;
+void main(){gl_Position=toClip(aP*uK+uOff);vC=texelFetch(uCol,rid(int(aR+.5)),0);}`,
+  `#version 300 es
+precision mediump float;in vec4 vC;uniform float uA;out vec4 o;void main(){o=vec4(vC.rgb,uA);}`);
+  GLR.line=glProg(hdr+`
+layout(location=0) in vec2 aT;layout(location=1) in vec4 aS;layout(location=2) in vec2 aLR;
+uniform highp usampler2D uOwn;uniform float uWC,uWR,uAR;out vec4 vC;
+void main(){int l=int(aLR.x+.5),r=int(aLR.y+.5);uvec4 ol=texelFetch(uOwn,rid(l),0);
+  bool coast=r>=65535;uvec4 orr=coast?uvec4(99999u):texelFetch(uOwn,rid(r),0);
+  bool same=!coast&&ol.r==orr.r;
+  float hw;vec4 col;
+  if(same){hw=uWR;col=vec4(0.,0.,0.,uAR);}else{hw=uWC;bool war=!coast&&(ol.g!=orr.g);col=war?vec4(1.,.27,.27,.85):vec4(0.,0.,0.,.9);}
+  vec2 a=aS.xy*uK+uOff,b=aS.zw*uK+uOff;vec2 d=b-a;float L=length(d);d=L>0.?d/L:vec2(1.,0.);vec2 n=vec2(-d.y,d.x);
+  vec2 p=mix(a,b,aT.x)+d*(aT.x*2.-1.)*hw*.5+n*aT.y*hw;
+  if(hw<=0.)p=vec2(-9999.);
+  gl_Position=toClip(p);vC=col;}`,
+  `#version 300 es
+precision mediump float;in vec4 vC;out vec4 o;void main(){o=vC;}`);
+  GLR.img=glProg(hdr+`
+layout(location=0) in vec2 aP;uniform vec4 uRect;out vec2 vU;
+void main(){vU=aP;gl_Position=toClip((uRect.xy+aP*uRect.zw)*uK+uOff);}`,
+  `#version 300 es
+precision mediump float;in vec2 vU;uniform sampler2D uT;out vec4 o;void main(){o=texture(uT,vU);}`);
+  // quad buffers
+  GLR.quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,GLR.quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,0,1,0,0,1,1,1]),gl.STATIC_DRAW);
+  GLR.seg=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,GLR.seg);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,-1,1,-1,0,1,1,1]),gl.STATIC_DRAW);
+  // region textures
+  const R=RK.length,h=Math.ceil(R/TW);GLR.th=h;
+  GLR.colT=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,GLR.colT);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,TW,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  for(const p of[gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER])gl.texParameteri(gl.TEXTURE_2D,p,gl.NEAREST);
+  GLR.ownT=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,GLR.ownT);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA32UI,TW,h,0,gl.RGBA_INTEGER,gl.UNSIGNED_INT,null);
+  for(const p of[gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER])gl.texParameteri(gl.TEXTURE_2D,p,gl.NEAREST);
+  GLR.colA=new Uint8Array(TW*h*4);GLR.ownA=new Uint32Array(TW*h*4);
+  GLR.bgT=glTex(BGI);GLR.tiles={};
+  for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++){const t=TIL[tx+'_'+ty];if(t)GLR.tiles[tx+'_'+ty]=glTex(t)}
+  for(let i=0;i<3;i++)if(LOD[i])GLR.lods[i]=glBuildLOD(LOD[i]);
+}
+function glTex(img){if(!img||!img.width)return null;const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  const ext=gl.getExtension('EXT_texture_filter_anisotropic');if(ext)gl.texParameterf(gl.TEXTURE_2D,ext.TEXTURE_MAX_ANISOTROPY_EXT,4);return t}
+function glBuildLOD(L){
+  // fills via earcut
+  const pos=[],rid=[],idx=[];let base=0;
+  for(let r=0;r<L.geoms.length;r++){const g=L.geoms[r];const polys=g.type==='Polygon'?[g.arcs]:g.type==='MultiPolygon'?g.arcs:[];
+    for(const poly of polys){const flat=[],holes=[];
+      for(let ri=0;ri<poly.length;ri++){if(ri>0)holes.push(flat.length/2);let first=true;
+        for(const ai of poly[ri]){const a=ai<0?~ai:ai,f=L.arcs[a],m=f.length/2;for(let k=0;k<m;k++){if(k===0&&!first)continue;const j=ai<0?m-1-k:k;flat.push(f[2*j],f[2*j+1])}first=false}
+        if(flat.length>=4&&flat[flat.length-2]===flat[(holes.length?holes[holes.length-1]:0)*2]&&flat[flat.length-1]===flat[(holes.length?holes[holes.length-1]:0)*2+1]){flat.length-=2}}
+      const tri=earcut(flat,holes.length?holes:null,2);const n=flat.length/2;
+      for(let k=0;k<n;k++){pos.push(flat[2*k],flat[2*k+1]);rid.push(r)}for(const t of tri)idx.push(base+t);base+=n}}
+  const vao=gl.createVertexArray();gl.bindVertexArray(vao);
+  const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(pos),gl.STATIC_DRAW);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+  const rb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,rb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(rid),gl.STATIC_DRAW);gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,1,gl.FLOAT,false,0,0);
+  const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(idx),gl.STATIC_DRAW);
+  const fill={vao,n:idx.length};
+  // border segments (instanced)
+  const seg=[],lr=[];
+  for(let a=0;a<L.arcs.length;a++){const f=L.arcs[a],l=ARL[a],r=ARR[a]<0?65535:ARR[a];for(let k=0;k+3<f.length;k+=2){seg.push(f[k],f[k+1],f[k+2],f[k+3]);lr.push(l,r)}}
+  const lvao=gl.createVertexArray();gl.bindVertexArray(lvao);
+  gl.bindBuffer(gl.ARRAY_BUFFER,GLR.seg);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+  const sb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,sb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(seg),gl.STATIC_DRAW);gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,4,gl.FLOAT,false,0,0);gl.vertexAttribDivisor(1,1);
+  const lb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,lb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(lr),gl.STATIC_DRAW);gl.enableVertexAttribArray(2);gl.vertexAttribPointer(2,2,gl.FLOAT,false,0,0);gl.vertexAttribDivisor(2,1);
+  gl.bindVertexArray(null);
+  return{fill,line:{vao:lvao,n:seg.length/4}}}
+const cssCol=(()=>{const c=document.createElement('canvas').getContext('2d');const m={};return s=>{if(m[s])return m[s];c.fillStyle='#000';c.fillStyle=s;const h=c.fillStyle;let r,g,b;
+  if(h[0]==='#'){r=parseInt(h.slice(1,3),16);g=parseInt(h.slice(3,5),16);b=parseInt(h.slice(5,7),16)}else{const v=h.match(/[\d.]+/g).map(Number);[r,g,b]=v}return m[s]=[r,g,b]}})();
+function glUpload(){const own=G?G.owner:RK,war=G?G.war:[];const R=RK.length;
+  for(let r=0;r<R;r++){const o=own[r],c=cssCol(natColor(o));GLR.colA.set([c[0],c[1],c[2],255],4*r);GLR.ownA[4*r]=o;GLR.ownA[4*r+1]=war.includes(o)?1:0}
+  gl.bindTexture(gl.TEXTURE_2D,GLR.colT);gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,TW,GLR.th,gl.RGBA,gl.UNSIGNED_BYTE,GLR.colA);
+  gl.bindTexture(gl.TEXTURE_2D,GLR.ownT);gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,TW,GLR.th,gl.RGBA_INTEGER,gl.UNSIGNED_INT,GLR.ownA);GLR.dirty=false}
+function glFrame(){const K=S0()*T.k,ww=MW*K;if(GLR.dirty)glUpload();
+  gl.viewport(0,0,glc.width,glc.height);gl.clearColor(.05,.2,.35,1);gl.clear(gl.COLOR_BUFFER_BIT);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  const res=[glc.width,glc.height],kd=K*DPR;const L=GLR.lods[T.k>9&&GLR.lods[2]?2:T.k>2.2&&GLR.lods[1]?1:0];
+  const useTiles=K*MW*DPR>4096*1.1;
+  for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;const off=[ox*DPR,T.y*DPR];const vx0=-ox/K,vx1=(W-ox)/K,vy0=-T.y/K,vy1=(H-T.y)/K;
+    // background
+    let P=GLR.img;gl.useProgram(P.p);gl.uniform2fv(P.u.uRes,res);gl.uniform1f(P.u.uK,kd);gl.uniform2fv(P.u.uOff,off);gl.uniform1i(P.u.uT,0);gl.activeTexture(gl.TEXTURE0);
+    gl.bindVertexArray(null);gl.bindBuffer(gl.ARRAY_BUFFER,GLR.quad);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+    if(GLR.bgT){gl.bindTexture(gl.TEXTURE_2D,GLR.bgT);gl.uniform4f(P.u.uRect,0,0,MW,MH);gl.drawArrays(gl.TRIANGLE_STRIP,0,4)}
+    if(useTiles)for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++){const x0=tx*MW/4,y0=ty*MH/2;if(x0+MW/4<vx0||x0>vx1||y0+MH/2<vy0||y0>vy1)continue;const t=GLR.tiles[tx+'_'+ty];if(!t)continue;
+      gl.bindTexture(gl.TEXTURE_2D,t);gl.uniform4f(P.u.uRect,x0,y0,MW/4,MH/2);gl.drawArrays(gl.TRIANGLE_STRIP,0,4)}
+    // fills
+    P=GLR.fill;gl.useProgram(P.p);gl.uniform2fv(P.u.uRes,res);gl.uniform1f(P.u.uK,kd);gl.uniform2fv(P.u.uOff,off);gl.uniform1f(P.u.uA,.75);
+    gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,GLR.colT);gl.uniform1i(P.u.uCol,0);
+    gl.bindVertexArray(L.fill.vao);gl.drawElements(gl.TRIANGLES,L.fill.n,gl.UNSIGNED_INT,0);
+    // borders
+    P=GLR.line;gl.useProgram(P.p);gl.uniform2fv(P.u.uRes,res);gl.uniform1f(P.u.uK,kd);gl.uniform2fv(P.u.uOff,off);
+    gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,GLR.ownT);gl.uniform1i(P.u.uOwn,1);
+    const k=T.k;gl.uniform1f(P.u.uWC,Math.min(2.4,1.0+k*.06)*DPR*.5);gl.uniform1f(P.u.uWR,k>=12?.6*DPR:0.);gl.uniform1f(P.u.uAR,Math.min(.35,(k-12)*.03+.12));
+    gl.bindVertexArray(L.line.vao);gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,L.line.n);
+    gl.bindVertexArray(null)}
+  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);overlay(K,ww)}
+
 function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
   for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;
     if(selSea>=0&&SEA[selSea]){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2/K;ctx.strokeStyle='#7fd0ff';ctx.setLineDash([6/K,4/K]);ctx.stroke(SEA[selSea].p);ctx.restore()}
@@ -328,7 +441,7 @@ let TER={},INC={},PPN={};
 function initPop(){const R=RK.length,ws={};G.pop=new Array(R).fill(0);for(let r=0;r<R;r++){const w=Math.sqrt(AREA[r]+.01);G.pop[r]=w;ws[RK[r]]=(ws[RK[r]]||0)+w}
   for(let r=0;r<R;r++)G.pop[r]=G.pop[r]/ws[RK[r]]*Math.max(NAT[RK[r]].pop||0,0)}
 const popOf=o=>PPN[o]||0;
-function recalc(){TER={};INC={};PPN={};if(!G.pop)initPop();for(let r=0;r<RK.length;r++){const o=G.owner[r];(TER[o]||(TER[o]=[])).push(r);INC[o]=(INC[o]||0)+G.gdp[r];PPN[o]=(PPN[o]||0)+G.pop[r]}lblDirty=true}
+function recalc(){GLR.dirty=true;TER={};INC={};PPN={};if(!G.pop)initPop();for(let r=0;r<RK.length;r++){const o=G.owner[r];(TER[o]||(TER[o]=[])).push(r);INC[o]=(INC[o]||0)+G.gdp[r];PPN[o]=(PPN[o]||0)+G.pop[r]}lblDirty=true}
 let lblDirty=true;
 const terr=o=>TER[o]||[],income=o=>INC[o]||0,power=o=>G.nat[o].army*G.nat[o].tech,nations=()=>Object.keys(TER).map(Number);
 function save(){try{localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}}
