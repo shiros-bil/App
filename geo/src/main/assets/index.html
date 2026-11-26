@@ -59,7 +59,8 @@ button small{width:100%;font-weight:500;opacity:.75;font-size:11px}
 <div class="hud" id="hud" style="display:none">
   <div class="chip me" id="me"></div>
   <div class="chip"><i data-i="coins"></i><b id="money"></b><small id="inc" class="good"></small></div>
-  <div class="chip"><i data-i="users"></i><b id="army"></b></div>
+  <div class="chip"><i data-i="users"></i><b id="popu"></b></div>
+  <div class="chip"><i data-i="shield"></i><b id="army"></b></div>
   <div class="chip"><i data-i="calendar"></i><b id="date"></b></div>
   <div class="sp"></div>
   <div class="spd" id="spd"></div>
@@ -137,12 +138,21 @@ function useMeta(L){best=L;BB=L.bb;AREA=L.area;LP=L.lp;LW=L.lw;CEN=[];for(let r=
 
 const imgP=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src});
 function hydrateIcons(){document.querySelectorAll('i[data-i]').forEach(e=>{e.outerHTML=I(e.dataset.i)})}
+let SEA=[],selSea=-1;
+async function loadSeas(){const t=await getJ('marine.json');const pr=d3.geoEquirectangular().fitSize([MW,MH],{type:'Sphere'}),pa=d3.geoPath(pr);
+  SEA=topojson.feature(t,t.objects.m).features.map(f=>({n:f.properties.n,t:f.properties.t,o:f.properties.o,p:new Path2D(pa(f)||''),a:pa.area(f),b:pa.bounds(f),c:pa.centroid(f)}))}
+function hitSea(x,y){const[mx,my]=toMap(x,y);let b=-1,ba=1e18;
+  SEA.forEach((s,i)=>{if(mx<s.b[0][0]||mx>s.b[1][0]||my<s.b[0][1]||my>s.b[1][1])return;if(s.a<ba&&hctx.isPointInPath(s.p,mx,my)){ba=s.a;b=i}});
+  if(b<0){let bd=1e18;SEA.forEach((s,i)=>{if(!s.o)return;const d=(s.c[0]-mx)**2+(s.c[1]-my)**2;if(d<bd){bd=d;b=i}})}return b}
+function showSea(i){const s=SEA[i];selSea=i;sel=-1;draw();
+  panel.style.bottom="auto";panel.innerHTML=`<button class="x" onclick="closePanel()">${I("x")}</button><div style="display:flex;gap:10px;align-items:center"><div class="flag big" style="display:flex;align-items:center;justify-content:center;background:#1b4f8f;color:#fff">${I("droplet")}</div><div><h2>${s.n}</h2><span class="tag">${s.t}</span></div></div>`;panel.style.display='block'}
 function lsay(t){const e=document.querySelector('#load b');if(e)e.textContent=t}
 async function init(){
   lsay('Загрузка стран…');NAT=await getJ('nations.json');
   lsay('Загрузка карты (1/3)…');LOD[0]=buildLOD(await getJ('world_lo.json'),true);
   lsay('Загрузка карты (2/3)…');LOD[1]=buildLOD(await getJ('world_mid.json'));
   lsay('Загрузка карты (3/3)…');LOD[2]=buildLOD(await getJ('world.json'));useMeta(LOD[2]);
+  lsay('Загрузка морей…');await loadSeas();
   lsay('Загрузка рельефа…');
   const tl=[];for(let ty=0;ty<2;ty++)for(let tx=0;tx<4;tx++)tl.push(imgP('bg/'+tx+'_'+ty+'.jpg').then(i=>{if(i){i.ok=1;TIL[tx+'_'+ty]=i}}));
   await Promise.all([BGI.decode?BGI.decode().catch(()=>{}):0,...tl]);
@@ -162,7 +172,7 @@ function setupZoom(){
     .on('zoom',e=>{T=constrain(e.transform);cv.__zoom=T;draw()})
     .on('end',()=>{clearTimeout(idleT);idleT=setTimeout(()=>{interacting=false;draw()},40)});
   d3.select(cv).call(zoomB).on('dblclick.zoom',null);
-  cv.addEventListener('click',e=>onTap(hit(e.clientX,e.clientY)));
+  cv.addEventListener('click',e=>onTap(hit(e.clientX,e.clientY),e));
 }
 function invalidate(){if(lblDirty&&G){lblDirty=false;computeLabels()}draw()}
 let dirtyT=0;function dirty(g=true){if(g)ownVer++;if(dirtyT)return;dirtyT=setTimeout(()=>{dirtyT=0;invalidate()},300)}
@@ -200,7 +210,6 @@ function paint(c,K,X,Y,w,h,L,regBorders,ps=1){
     if(regBorders){c.lineWidth=.9/K;c.strokeStyle=`rgba(0,0,0,${Math.min(.33,(K/S0()/DPR-12)*.03+.1)})`;c.stroke(pr)}
     c.lineWidth=1.6/K;c.strokeStyle='rgba(0,0,0,.9)';c.stroke(pn);
     if(hasW){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,70,70,.75)';c.stroke(pw)}
-    if(hasP){c.lineWidth=2.2/K;c.strokeStyle='rgba(255,255,255,.85)';c.stroke(pp)}
   }}
 // ---------- tile cache ----------
 const TS=256,TC=new Map(),TMAX=300;let baseCv=null,baseVer=-1;const tq=[];
@@ -242,6 +251,7 @@ function frame(){raf=0;if(!RK.length)return;const t0=performance.now();
     draw()}}
 function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
   for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;
+    if(selSea>=0&&SEA[selSea]){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2/K;ctx.strokeStyle='#7fd0ff';ctx.setLineDash([6/K,4/K]);ctx.stroke(SEA[selSea].p);ctx.restore()}
     if(sel>=0){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(lodFor(T.k).paths[sel]);ctx.restore()}
     if(G)drawOffensives(K,ox);
     drawLabels(K,ox)}}
@@ -309,12 +319,16 @@ function newGame(p){const R=RK.length;
   G={player:p,day:0,owner:Array.from(RK),gdp:new Array(R).fill(0),nat:[],allies:[],war:[],rel:{},log:[],offs:[],aiWar:[]};
   const ws={};for(let r=0;r<R;r++){const w=Math.sqrt(AREA[r]+.01);G.gdp[r]=w;ws[RK[r]]=(ws[RK[r]]||0)+w}
   for(let r=0;r<R;r++)G.gdp[r]=G.gdp[r]/ws[RK[r]]*Math.max(NAT[RK[r]].gdp,30);
+  initPop();
   for(const n of NAT){const gdp=Math.max(n.gdp,30);G.nat.push({money:gdp*.05,army:n.army||Math.max(500,Math.sqrt(Math.max(n.pop,0))*25+gdp*.004),stab:60+Math.random()*30,tech:1})}
   NAT.forEach((n,i)=>{if(n.par===undefined||n.peace)return;if(i===p)G.war.push(n.par);else if(n.par===p)G.war.push(i);else G.aiWar.push([i,n.par])});
   if(p===NAT.findIndex(n=>n.iso==='hou'))G.war.push(NAT.findIndex(n=>n.iso==='stc'));
   addLog(`${I("medal")} Вы возглавили: ${nm(p)}.`);if(G.war.length)addLog(`${I("swords")} Гражданская война! Противники: ${G.war.map(nm).join(', ')}.`);startGame();zoomToNat(p)}
-let TER={},INC={};
-function recalc(){TER={};INC={};for(let r=0;r<RK.length;r++){const o=G.owner[r];(TER[o]||(TER[o]=[])).push(r);INC[o]=(INC[o]||0)+G.gdp[r]}lblDirty=true}
+let TER={},INC={},PPN={};
+function initPop(){const R=RK.length,ws={};G.pop=new Array(R).fill(0);for(let r=0;r<R;r++){const w=Math.sqrt(AREA[r]+.01);G.pop[r]=w;ws[RK[r]]=(ws[RK[r]]||0)+w}
+  for(let r=0;r<R;r++)G.pop[r]=G.pop[r]/ws[RK[r]]*Math.max(NAT[RK[r]].pop||0,0)}
+const popOf=o=>PPN[o]||0;
+function recalc(){TER={};INC={};PPN={};if(!G.pop)initPop();for(let r=0;r<RK.length;r++){const o=G.owner[r];(TER[o]||(TER[o]=[])).push(r);INC[o]=(INC[o]||0)+G.gdp[r];PPN[o]=(PPN[o]||0)+G.pop[r]}lblDirty=true}
 let lblDirty=true;
 const terr=o=>TER[o]||[],income=o=>INC[o]||0,power=o=>G.nat[o].army*G.nat[o].tech,nations=()=>Object.keys(TER).map(Number);
 function save(){try{localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}}
@@ -325,7 +339,7 @@ function startGame(){ownVer++;recalc();hud.style.display='flex';log.style.displa
 function setSpeed(i){speed=i;for(let j=0;j<5;j++)document.getElementById('sp'+j).classList.toggle('on',j===i)}
 function updHud(){const p=G.player,n=G.nat[p];
   me.innerHTML=flagImg(p)+'<b>'+nm(p)+'</b>';money.textContent='$'+fmt(n.money);inc.textContent=' +'+fmt(dailyInc(p)*30)+'/мес';
-  army.textContent=fmtN(n.army);date.textContent=dateStr();
+  army.textContent=fmtN(n.army);popu.textContent=fmtN(popOf(p));date.textContent=dateStr();
   if(logDirty){log.innerHTML=G.log.slice(0,20).map(x=>`<div>${x}</div>`).join('');logDirty=false}}
 function dailyInc(o){const N=G.nat[o];return income(o)*.0009*(N.stab/100+.3)-N.army*.000015}
 function adjMode(o,t){for(const n of NB[t])if(G.owner[n]===o)return{m:'land',from:n};
@@ -347,7 +361,7 @@ function stepOffs(){
     if(o.p>=100){o.done=1;conquer(o.a,o.t)}
     else if(o.p<-40){o.done=1;if(o.a===G.player||def===G.player)addLog(`${I("shield")} ${nm(def)} отбила наступление: ${RN[o.t]}.`)}}
   G.offs=G.offs.filter(o=>!o.done)}
-function conquer(a,t){const o=G.owner[t];G.owner[t]=a;G.gdp[t]*=.92;recalc();markRegion(t);dirty(false);
+function conquer(a,t){const o=G.owner[t];G.owner[t]=a;recalc();markRegion(t);dirty(false);
   if(a===G.player||o===G.player)addLog(`${a===G.player?`${I("trophy")}`:`${I("target")}`} ${nm(a)} занимает: ${RN[t]} (${nm(o)}).`);
   if(!terr(o).length){G.nat[a].money+=G.nat[o].money*.3;if(NAT[o].pop>1e6||G.war.includes(o))addLog(`${I("skull")} ${nm(o)} прекратила существование.`);
     G.war=G.war.filter(w=>w!==o);G.allies=G.allies.filter(w=>w!==o);G.aiWar=G.aiWar.filter(w=>w[0]!==o&&w[1]!==o);
@@ -356,7 +370,7 @@ function conquer(a,t){const o=G.owner[t];G.owner[t]=a;G.gdp[t]*=.92;recalc();mar
 function dayTick(){G.day++;const me=G.player,ns=nations();
   for(const o of ns){const N=G.nat[o];N.money+=dailyInc(o);N.stab+=(65-N.stab)*.004;
     if(N.money<0){N.stab-=.15;N.army*=.998}if(o!==me)N.army*=1.0004}
-  if(G.day%30===0){for(let r=0;r<RK.length;r++)G.gdp[r]*=1.0025;recalc()}
+  if(G.day%30===0){for(let r=0;r<RK.length;r++)G.pop[r]*=Math.pow(1+(NAT[RK[r]].g||0),30/365);recalc()}
   stepOffs();
   for(let k=0;k<6;k++)aiThink(ns[Math.floor(Math.random()*ns.length)]);
   if(Math.random()<.004)randomEvent();
@@ -389,19 +403,21 @@ requestAnimationFrame(loop);
 
 // ================= UI =================
 function modalOpen(){return !!document.getElementById('modal')}
-function onTap(r){if(r<0){closePanel();return}sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
-function closePanel(){sel=-1;panel.style.display='none';draw()}
+function onTap(r,ev){if(r<0){const si=ev?hitSea(ev.clientX,ev.clientY):-1;if(si>=0&&G){showSea(si);return}closePanel();return}selSea=-1;sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
+function closePanel(){sel=-1;selSea=-1;panel.style.display='none';draw()}
 let panelSig='';
 function refreshPanelLight(){const s=panelState(sel);if(s!==panelSig)showPanel(sel);else{const e=document.getElementById('offs');if(e)e.innerHTML=offsHtml(sel)}}
 function panelState(i){const o=G.owner[i],M=G.nat[G.player];return [o,G.war.includes(o),G.allies.includes(o),M.money>recCost(),M.money>invCost(i),M.money>techCost(),M.money>stabCost(),M.money>spyCost(),G.offs.length].join()}
 function offsHtml(i){const o=G.owner[i],P=G.player;const list=G.offs.filter(x=>(x.a===P&&G.owner[x.t]===o)||(x.a===o&&G.owner[x.t]===P)||(o===P&&(x.a===P||G.owner[x.t]===P))).slice(0,8);
   return list.map(x=>`<div class="off">${x.a===P?`${I("arrow-right")}`:`${I("arrow-left")}`} ${nm(x.a)} → ${RN[x.t]} ${x.m==='sea'?'(десант)':''}<div class="prog"><i style="width:${Math.max(0,x.p)}%"></i></div></div>`).join('')}
-function showPanel(i){panelSig=panelState(i);const o=G.owner[i],N=G.nat[o],me=G.player,M=G.nat[me],orig=RK[i];
+function showPanel(i){panel.style.bottom="";panelSig=panelState(i);const o=G.owner[i],N=G.nat[o],me=G.player,M=G.nat[me],orig=RK[i];
   let h=`<button class="x" onclick="closePanel()">${I("x")}</button><div style="display:flex;gap:10px;align-items:center">${flagImg(o,'flag big')}<div><h2>${nm(o)}</h2><span class="tag">${I("map-pin")} ${RN[i]}</span></div></div>`;
   if(o!==orig)h+=`<div style="margin-top:8px" class="chip">${flagImg(orig)} Исторически: <b>${nm(orig)}</b></div>`;
   h+=`<div style="margin-top:8px">
   <div class="row"><span>ВВП региона</span><span>$${fmt(G.gdp[i])}</span></div>
+  <div class="row"><span>Население региона</span><span>${fmtN(G.pop[i])}</span></div>
   <div class="row"><span>ВВП державы</span><span>$${fmt(income(o))}</span></div>
+  <div class="row"><span>Население державы</span><span>${fmtN(popOf(o))}</span></div>
   <div class="row"><span>Армия</span><span>${fmtN(N.army)}</span></div>
   <div class="row"><span>Технологии</span><span>ур. ${N.tech.toFixed(1)}</span></div>
   <div class="row"><span>Регионов</span><span>${terr(o).length}</span></div>
