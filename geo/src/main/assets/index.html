@@ -143,7 +143,18 @@ const imgP=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=
 function hydrateIcons(){document.querySelectorAll('i[data-i]').forEach(e=>{e.outerHTML=I(e.dataset.i)})}
 let SEA=[],selSea=-1;
 async function loadSeas(){const t=await getJ('marine.json');const pr=d3.geoEquirectangular().fitSize([MW,MH],{type:'Sphere'}),pa=d3.geoPath(pr);
-  SEA=topojson.feature(t,t.objects.m).features.map(f=>({n:f.properties.n,t:f.properties.t,o:f.properties.o,p:new Path2D(pa(f)||''),a:pa.area(f),b:pa.bounds(f),c:pa.centroid(f)}))}
+  SEA=topojson.feature(t,t.objects.m).features.map(f=>{const g=f.geometry,P=!g?[]:g.type==='Polygon'?[g.coordinates]:g.coordinates;const ol=new Path2D();
+    const segs=[];for(const poly of P)for(const ring of poly){let prev=null;for(const c of ring){const q=pr(c);if(prev&&!edgeSeg(prev,q))segs.push([prev,q]);prev=q}}
+    return{n:f.properties.n,t:f.properties.t,o:f.properties.o,p:new Path2D(pa(f)||''),segs,a:pa.area(f),b:pa.bounds(f),c:pa.centroid(f)}});
+  const byN=new Map();for(const q of SEA){(byN.get(q.n)||byN.set(q.n,[]).get(q.n)).push(q)}
+  const key=(a,b)=>{const k1=a[0].toFixed(1)+','+a[1].toFixed(1),k2=b[0].toFixed(1)+','+b[1].toFixed(1);return k1<k2?k1+'|'+k2:k2+'|'+k1};
+  for(const[n,qs]of byN){const cnt=new Map();for(const q of qs)for(const[a,b]of q.segs){const k=key(a,b);cnt.set(k,(cnt.get(k)||0)+1)}
+    const ol=new Path2D();for(const q of qs){for(const[a,b]of q.segs)if(cnt.get(key(a,b))===1){ol.moveTo(a[0],a[1]);ol.lineTo(b[0],b[1])}q.segs=null}for(const q of qs)q.ol=ol}}
+function edgeSeg(a,b){const e=.6;return(a[0]<e&&b[0]<e)||(a[0]>MW-e&&b[0]>MW-e)||(a[1]>MH-e&&b[1]>MH-e)||(a[1]<e&&b[1]<e)}
+const OLC=new Map();function regOutline(L,r){const key=LOD.indexOf(L)+':'+r;let o=OLC.get(key);if(o)return o;o=new Path2D();const g=L.geoms[r];
+  const polys=g.type==='Polygon'?[g.arcs]:g.type==='MultiPolygon'?g.arcs:[];
+  for(const poly of polys)for(const ring of poly)for(const ai of ring){const f=L.arcs[ai<0?~ai:ai];for(let k=0;k+3<f.length;k+=2){const a=[f[k],f[k+1]],b=[f[k+2],f[k+3]];if(edgeSeg(a,b))continue;o.moveTo(a[0],a[1]);o.lineTo(b[0],b[1])}}
+  OLC.set(key,o);return o}
 function hitSea(x,y){const[mx,my]=toMap(x,y);let b=-1,ba=1e18;
   SEA.forEach((s,i)=>{if(mx<s.b[0][0]||mx>s.b[1][0]||my<s.b[0][1]||my>s.b[1][1])return;if(s.a<ba&&hctx.isPointInPath(s.p,mx,my)){ba=s.a;b=i}});
   if(b<0){let bd=1e18;SEA.forEach((s,i)=>{if(!s.o)return;const d=(s.c[0]-mx)**2+(s.c[1]-my)**2;if(d<bd){bd=d;b=i}})}return b}
@@ -366,8 +377,8 @@ function glFrame(){const K=S0()*T.k,ww=MW*K;if(GLR.dirty)glUpload();
 
 function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
   for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;
-    if(selSea>=0&&SEA[selSea]){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.fillStyle='rgba(127,208,255,.22)';const nn=SEA[selSea].n;for(const q of SEA)if(q.n===nn)ctx.fill(q.p);ctx.restore()}
-    if(sel>=0){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(lodFor(T.k).paths[sel]);ctx.restore()}
+    if(selSea>=0&&SEA[selSea]){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2/K;ctx.strokeStyle='#7fd0ff';ctx.setLineDash([6/K,4/K]);ctx.stroke(SEA[selSea].ol);ctx.restore()}
+    if(sel>=0){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(regOutline(lodFor(T.k),sel));ctx.restore()}
     if(G)drawOffensives(K,ox);
     drawLabels(K,ox)}}
 function drawOffensives(K,ox){
