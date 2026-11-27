@@ -943,7 +943,7 @@ function fillBetween(A,B){if(!REG)return;{const d=(p,q)=>Math.hypot(p[0]-q[0],p[
   if(cells.length)queuePocket(me,cells,mine)}
 function checkFronts(){for(const f of G.fronts){if(!f.exec)continue;const ds=f.divs.map(id=>G.divs.find(d=>d.id===id)).filter(Boolean);if(ds.some(d=>d.path.length))continue;
   const pl=f.plan;fillBetween(f.line0||f.line,pl);delete f.line0;f.plan=null;f.exec=false;if(f.t!=null){const g=frontUpd(f);if(g){f.line=g.pts;sendFront(ds,g.pts)}else f.line=pl}else f.line=pl;toast('Наступление завершено');draw()}
-  const now=performance.now();for(const f of G.fronts)if(f.t!=null&&(f.v!==ctlVer||!FSEG.has(f.id))&&now-(f.tt||0)>1500){f.tt=now;frontUpd(f);draw()}}
+  const now=performance.now();for(const f of G.fronts)if(f.t!=null&&(f.v!==ctlVer||!FSEG.has(f.id))&&now-(f.tt||0)>3000){f.tt=now;frontUpd(f);draw()}}
 function setDraw(m){DRAW=DRAW===m?null:m;DRAWP=null;let ov=document.getElementById('drawov');if(!ov){ov=document.createElement('div');ov.id='drawov';document.body.appendChild(ov);let pts=null;
     let dn=null;ov.addEventListener('pointerdown',e=>{ov.setPointerCapture(e.pointerId);dn=[e.clientX,e.clientY];pts=[toMap(e.clientX,e.clientY)];});
     ov.addEventListener('pointercancel',()=>{pts=null;DRAWP=null;draw()});ov.addEventListener('pointermove',e=>{if(!pts||!DRAW)return;const q=toMap(e.clientX,e.clientY),l=pts[pts.length-1];let x=q[0];while(x-l[0]>MW/2)x-=MW;while(x-l[0]<-MW/2)x+=MW;
@@ -952,10 +952,13 @@ function setDraw(m){DRAW=DRAW===m?null:m;DRAWP=null;let ov=document.getElementBy
   ov.style.display=DRAW?'block':'none';updFtb();draw();if(DRAW)toast(DRAW==='front'?'Нажмите на страну или проведите линию фронта':'Проведите линию плана наступления')}
 let DRAWP=null;
 const natName=n=>NAT[n]?NAT[n].n:'страной';
-const FSEG=new Map(),MSQ=[[],[3,0],[0,1],[3,1],[1,2],[3,0,1,2],[0,2],[3,2],[2,3],[0,2],[0,1,2,3],[1,2],[1,3],[0,1],[3,0],[]];
+const FPATH=new Map(),FSEG=new Map(),MSQ=[[],[3,0],[0,1],[3,1],[1,2],[3,0,1,2],[0,2],[3,2],[2,3],[0,2],[0,1,2,3],[1,2],[1,3],[0,1],[3,0],[]];
 // exact border between me and nation t: ordered points (for divisions) + marching-squares segments (for drawing)
 function frontGeom(t){const me=G.player;let x0=GW,y0=GH,x1=-1,y1=-1;const B=2,bins=new Map();
-  for(let j=1;j<GH-1;j++){const row=j*GW;for(let i=1;i<GW-1;i++){const k=row+i;if(!REG[k]||ctrlOf(k)!==me)continue;
+  let X0=GW,Y0=GH,X1=0,Y1=0;const ext=r=>{const b=cellBox(r);if(b[0]<X0)X0=b[0];if(b[1]<Y0)Y0=b[1];if(b[2]>X1)X1=b[2];if(b[3]>Y1)Y1=b[3]};
+  for(let r=0;r<G.owner.length;r++)if(G.owner[r]===t)ext(r);for(const z of G.zones)if(z.o===t&&z.c>0)ext(z.r);
+  if(X1<X0)return null;X0=Math.max(1,X0-3);Y0=Math.max(1,Y0-3);X1=Math.min(GW-2,X1+3);Y1=Math.min(GH-2,Y1+3);
+  for(let j=Y0;j<=Y1;j++){const row=j*GW;for(let i=X0;i<=X1;i++){const k=row+i;if(!REG[k]||ctrlOf(k)!==me)continue;
     if((REG[k-1]&&ctrlOf(k-1)===t)||(REG[k+1]&&ctrlOf(k+1)===t)||(REG[k-GW]&&ctrlOf(k-GW)===t)||(REG[k+GW]&&ctrlOf(k+GW)===t)){
       if(i<x0)x0=i;if(i>x1)x1=i;if(j<y0)y0=j;if(j>y1)y1=j;const b=((j/B)|0)*4096+((i/B)|0);if(!bins.has(b))bins.set(b,[(i+.5)*MW/GW,(j+.5)*MH/GH])}}}
   const pt=[...bins.values()];if(!pt.length)return null;
@@ -973,11 +976,11 @@ function frontGeom(t){const me=G.player;let x0=GW,y0=GH,x1=-1,y1=-1;const B=2,bi
       const u=(.5-va)/((vb-va)||1e-6);return[(x0+ax+(bx-ax)*u+.5)*sx,(y0+ay+(by-ay)*u+.5)*sy]};
     const L=MSQ[id];for(let q=0;q<L.length;q+=2){const A=e(L[q]),Bp=e(L[q+1]);seg.push(A[0],A[1],Bp[0],Bp[1])}}
   return{pts:P.length>1?P:[P[0],P[0]],seg:new Float32Array(seg)}}
-function frontUpd(f){const g=frontGeom(f.t);f.v=ctlVer;if(!g){FSEG.delete(f.id);return null}FSEG.set(f.id,g.seg);if(!f.exec)f.line=g.pts;return g}
+function frontUpd(f){const g=frontGeom(f.t);f.v=ctlVer;if(!g){FSEG.delete(f.id);return null}FSEG.set(f.id,g.seg);FPATH.delete(f.id);if(!f.exec)f.line=g.pts;return g}
 function frontOnNation(mx,my){if(!REG){draw();return}const me=G.player;mx=((mx%MW)+MW)%MW;const k0=Math.min(GH-1,Math.max(0,(my*GH/MH)|0))*GW+Math.min(GW-1,(mx*GW/MW)|0);
   if(!REG[k0]){toast('Нажмите на страну');draw();return}const t=ctrlOf(k0);if(t===me){toast('Это ваша территория');draw();return}
   const g=frontGeom(t);if(!g){toast('Нет общей границы с '+natName(t));draw();return}
-  if(!SELS.size&&!selDiv)SELS=new Set(G.divs.map(d=>d.id));makeFront(g.pts,t);const f=G.fronts[G.fronts.length-1];if(f&&f.t===t){FSEG.set(f.id,g.seg);f.v=ctlVer}}
+  if(!SELS.size&&!selDiv)SELS=new Set(G.divs.map(d=>d.id));makeFront(g.pts,t);const f=G.fronts[G.fronts.length-1];if(f&&f.t===t){FSEG.set(f.id,g.seg);FPATH.delete(f.id);f.v=ctlVer}}
 function selAllDivs(){if(SELS.size===G.divs.length&&SELS.size){SELS.clear();selDiv=null}else{SELS=new Set(G.divs.map(d=>d.id))}updFtb();draw()}
 function updFtb(){let e=document.getElementById('ftb');if(!G||!G.divs||!G.divs.length){if(e)e.style.display='none';return}
   if(!e){e=document.createElement('div');e.id='ftb';document.body.appendChild(e)}e.style.display='flex';const n=SELS.size||(selDiv?1:0),ready=G.fronts.some(f=>f.plan&&!f.exec);
@@ -986,7 +989,7 @@ function updFtb(){let e=document.getElementById('ftb');if(!G||!G.divs||!G.divs.l
 function drawFronts(K,ox){if(!G.fronts)return;const L=(P,w,c,dash)=>{ctx.beginPath();P.forEach((p,i)=>i?ctx.lineTo(p[0]*K+ox,p[1]*K+T.y):ctx.moveTo(p[0]*K+ox,p[1]*K+T.y));ctx.lineWidth=w;ctx.strokeStyle=c;ctx.setLineDash(dash||[]);ctx.stroke();ctx.setLineDash([])};
   const arrow=(P,c)=>{const a=P[P.length-2],b=P[P.length-1],ex=b[0]*K+ox,ey=b[1]*K+T.y,ang=Math.atan2(ey-(a[1]*K+T.y),ex-(a[0]*K+ox));ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(ex+6*Math.cos(ang),ey+6*Math.sin(ang));ctx.lineTo(ex-12*Math.cos(ang-.5),ey-12*Math.sin(ang-.5));ctx.lineTo(ex-12*Math.cos(ang+.5),ey-12*Math.sin(ang+.5));ctx.fill()};
   ctx.lineCap='round';ctx.lineJoin='round';
-  for(const f of G.fronts){const sg=FSEG.get(f.id);if(sg&&f.t!=null){const SG=(w,c)=>{ctx.beginPath();for(let q=0;q<sg.length;q+=4){ctx.moveTo(sg[q]*K+ox,sg[q+1]*K+T.y);ctx.lineTo(sg[q+2]*K+ox,sg[q+3]*K+T.y)}ctx.lineWidth=w;ctx.strokeStyle=c;ctx.stroke()};SG(7,'rgba(0,0,0,.6)');SG(3.5,'#e8433a')}else{L(f.line,7,'rgba(0,0,0,.6)');L(f.line,3.5,'#e8433a')}if(f.plan){L(f.plan,7,'rgba(0,0,0,.6)');L(f.plan,3.5,f.exec?'#ffd84a':'#9cff7a',[10,6]);arrow(f.plan,f.exec?'#ffd84a':'#9cff7a')}}
+  for(const f of G.fronts){const sg=FSEG.get(f.id);if(sg&&f.t!=null){let pa=FPATH.get(f.id);if(!pa){pa=new Path2D();for(let q=0;q<sg.length;q+=4){pa.moveTo(sg[q],sg[q+1]);pa.lineTo(sg[q+2],sg[q+3])}FPATH.set(f.id,pa)}const SG=(w,c)=>{ctx.save();ctx.translate(ox,T.y);ctx.scale(K,K);ctx.lineWidth=w/K;ctx.strokeStyle=c;ctx.stroke(pa);ctx.restore()};SG(7,'rgba(0,0,0,.6)');SG(3.5,'#e8433a')}else{L(f.line,7,'rgba(0,0,0,.6)');L(f.line,3.5,'#e8433a')}if(f.plan){L(f.plan,7,'rgba(0,0,0,.6)');L(f.plan,3.5,f.exec?'#ffd84a':'#9cff7a',[10,6]);arrow(f.plan,f.exec?'#ffd84a':'#9cff7a')}}
   if(DRAWP&&DRAWP.length>1){L(DRAWP,6,'rgba(0,0,0,.6)');L(DRAWP,3,DRAW==='front'?'#e8433a':'#9cff7a')}}
 // dynamic capitals: star follows the nation's remaining cities
 let capKey='',RCN=0;
@@ -1103,15 +1106,15 @@ function randomEvent(){const me=G.player,M=G.nat[me],ev=[
   ()=>{M.army*=.96;return`${I("tornado")} Стихийное бедствие.`}];addLog(ev[Math.floor(Math.random()*ev.length)]())}
 let last=performance.now(),acc=0,lastHud=0,lastSimDraw=0;
 let lastClk='';function clockStr(){const f=Math.min(.9999,Math.max(0,acc)),m=Math.floor(f*1440);const h=Math.floor(m/60),mm=m%60;return String(h).padStart(2,'0')+':'+String(speed>=3?0:mm-mm%10).padStart(2,'0')}
-function loop(now){if(G&&G.fronts&&G.fronts.length&&now-frChk>500){frChk=now;checkFronts()}
+function loop(now){requestAnimationFrame(loop);if(G&&G.fronts&&G.fronts.length&&now-frChk>500){frChk=now;checkFronts()}
 if(G&&CHR.size&&now-zFlushT>300){zFlushT=now;zoneFlush(false)}if(G&&CUTQ.size&&now-cutT>1200){cutT=now;cutFlush()}
 if(G&&ANQ.length&&now-(window.__pk||0)>16){window.__pk=now;stepPockets();if(now-lastSimDraw>30){lastSimDraw=now;draw()}}
-const dt=Math.min(.25,(now-last)/1000);last=now;
+const dt=Math.min(1,(now-last)/1000);last=now;
   if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;const dmv=G.divs&&G.divs.length&&moveDivs(dt*SPEEDS[speed]*24);if(dmv&&now-(window.__sm||0)>300){window.__sm=now;occSmooth(G.player)}if(dmv&&now-lastSimDraw>(divOnScreen()?40:250)){lastSimDraw=now;draw()}
     while(acc>=1&&n<10){acc-=1;n++;dayTick()}
     if(n){if(now-lastHud>100){lastHud=now;updHud()}if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
   if(G){const c=clockStr();if(c!==lastClk){lastClk=c;const e=document.getElementById('clk');if(e)e.textContent=c}}
-  requestAnimationFrame(loop)}
+  }
 requestAnimationFrame(loop);
 
 // ================= UI =================
