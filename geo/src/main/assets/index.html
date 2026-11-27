@@ -646,7 +646,14 @@ function occSmoothBox(me,DB){const x0=Math.max(1,Math.floor(DB[0])-14),y0=Math.m
     let ok=true,zn=0,on=0;q.length=0;q.push(k);vis[li]=1;for(let h2=0;h2<q.length;h2++){const c=q[h2],ci=c%GW,cj=(c/GW)|0;if(ci<=x0||ci>=x1||cj<=y0||cj>=y1)ok=false;if(q.length>1500){ok=false;break}
       for(const o of[-GW,GW,-1,1]){const n2=c+o,ni=n2%GW,nj=(n2/GW)|0;if(ni<x0||ni>x1||nj<y0||nj>y1)continue;const nl=(nj-y0)*w+(ni-x0);if(vis[nl])continue;
         if(cand(n2)){vis[nl]=1;q.push(n2)}else if(REG[n2]&&!mine(n2))ok=false;else if(REG[n2]){if(CTL[n2])zn++;else on++}}}
-    if(ok&&zn>=3&&zn>=on)q.forEach(take)}}
+    if(ok&&zn>=3&&zn>=on)queuePocket(me,q.slice(),mine)}}
+// pocket fill animation: cells ordered by distance from the surrounding front, poured in over ~1.5 s
+let ANQ=[];function queuePocket(me,cells,mine){const set=new Map();cells.forEach((c,i)=>set.set(c,-1));const order=[],fr=[];
+  for(const c of cells){for(const o of[-1,1,-GW,GW])if(!set.has(c+o)&&mine(c+o)){set.set(c,0);fr.push(c);break}}
+  for(let h=0;h<fr.length;h++){const c=fr[h],d=set.get(c);order.push(c);for(const o of[-1,1,-GW,GW]){const n=c+o;if(set.get(n)===-1){set.set(n,d+1);fr.push(n)}}}
+  for(const c of cells)if(set.get(c)===-1)order.push(c);ANQ.push({me,c:order,i:0,t0:performance.now()})}
+function stepPockets(){const now=performance.now();for(const a of ANQ){const e=Math.min(a.c.length,Math.ceil(a.c.length*Math.min(1,(now-a.t0)/1200)));for(;a.i<e;a.i++){const k=a.c[a.i],rg=REG[k];if(!rg)continue;const r=rg-1,c=ctrlOf(k);if(c===a.me)continue;
+    if(G.owner[r]===a.me)setCell(k,0);else if(atWar(a.me,c))setCell(k,zoneFor(r,a.me))}}ANQ=ANQ.filter(a=>a.i<a.c.length)}
 function cellBox(r){const x0=Math.max(0,Math.floor(BB[4*r]*GW/MW)-1),x1=Math.min(GW-1,Math.ceil(BB[4*r+2]*GW/MW)+1),y0=Math.max(0,Math.floor(BB[4*r+1]*GH/MH)-1),y1=Math.min(GH-1,Math.ceil(BB[4*r+3]*GH/MH)+1);return[x0,y0,x1,y1]}
 function occClearRegion(r){if(!REG)return;const[x0,y0,x1,y1]=cellBox(r);for(let j=y0;j<=y1;j++)for(let i=j*GW+x0,e=j*GW+x1;i<=e;i++)if(CTL[i]&&REG[i]===r+1){if(isAnx(CTL[i]))ANXD=true;setCell(i,0)}}
 function zoneEcon(){ZI={};ZP={};if(!RC)return;for(const z of G.zones){if(!z.c||!RC[z.r])continue;const own=G.owner[z.r];if(own===z.o)continue;const sh=Math.min(1,z.c/RC[z.r]),g=G.gdp[z.r]*sh,p=G.pop[z.r]*sh;
@@ -928,7 +935,8 @@ function randomEvent(){const me=G.player,M=G.nat[me],ev=[
   ()=>{M.army*=.96;return`${I("tornado")} Стихийное бедствие.`}];addLog(ev[Math.floor(Math.random()*ev.length)]())}
 let last=performance.now(),acc=0,lastHud=0,lastSimDraw=0;
 let lastClk='';function clockStr(){const f=Math.min(.9999,Math.max(0,acc)),m=Math.floor(f*1440);const h=Math.floor(m/60),mm=m%60;return String(h).padStart(2,'0')+':'+String(speed>=3?0:mm-mm%10).padStart(2,'0')}
-function loop(now){const dt=Math.min(.25,(now-last)/1000);last=now;
+function loop(now){if(G&&ANQ.length&&now-(window.__pk||0)>16){window.__pk=now;stepPockets();if(now-lastSimDraw>30){lastSimDraw=now;draw()}}
+const dt=Math.min(.25,(now-last)/1000);last=now;
   if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;const dmv=G.divs&&G.divs.length&&moveDivs(dt*SPEEDS[speed]*24);if(dmv&&now-(window.__sm||0)>300){window.__sm=now;occSmooth(G.player)}if(dmv&&now-lastSimDraw>(divOnScreen()?40:250)){lastSimDraw=now;draw()}
     while(acc>=1&&n<10){acc-=1;n++;dayTick()}
     if(n){if(now-lastHud>100){lastHud=now;updHud()}if(G.offs.length&&now-lastSimDraw>66){lastSimDraw=now;draw()}if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
