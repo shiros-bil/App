@@ -59,6 +59,12 @@ button small{width:100%;font-weight:500;opacity:.75;font-size:11px}
 .off .prog{width:100%}
 #seap{position:absolute;right:8px;bottom:8px;width:min(230px,40vw);height:52px;display:none;align-items:center;gap:14px;background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.45)}
 #seap img{height:100%;width:62px;object-fit:cover}#seap h2{margin:0 0 2px;font-size:13px;line-height:1.1}#seap .tag{font-size:10px;padding:1px 6px}#seap .x{position:absolute;right:2px;top:2px;padding:3px}#seap .x .ic{width:14px;height:14px}#seap{gap:8px}
+#pc{position:fixed;inset:0;z-index:30;background:#0b1220;display:grid;grid-template-columns:minmax(0,1fr) min(320px,42vw);grid-template-rows:auto minmax(0,1fr)}
+.pcbar{grid-column:1/3;display:flex;gap:14px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}.pcbar span{display:flex;gap:6px;align-items:center}
+.pcmap{position:relative;min-width:0;min-height:0;overflow:hidden}#pccv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.pcside{overflow:auto;padding:10px;border-left:1px solid var(--line);background:var(--panel);font-size:13px}
+.pcside input,.pcside select{width:100%;box-sizing:border-box;margin:6px 0;padding:7px;border-radius:9px;border:1px solid var(--line);background:#0006;color:inherit}
+.pcside input[type=range]{width:60%;margin:0}.pct button.on{background:var(--acc)}.pcsec{margin-top:12px;font-weight:600;opacity:.85}button.mini{padding:1px 6px;font-size:11px;margin-left:4px}
 #toast{position:fixed;left:50%;top:62px;transform:translateX(-50%);z-index:6;display:none;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 12px;font-size:13px;pointer-events:none;white-space:nowrap}#seap .st{padding-right:22px;min-width:0}
 @media (max-width:1100px){.hud{gap:4px!important;padding:6px!important}.hud .chip{padding:4px 7px;gap:5px;font-size:12.5px}.hud .chip .flag{width:22px;height:16px}#inc{font-size:11px}
 .tbox{padding:2px 2px 2px 8px}.clock{gap:4px;font-size:12.5px}.spd button{padding:5px 6px}.tbox .ic,.hud .ic{width:16px;height:16px}.hud img[src="army.png"]{height:18px!important}}
@@ -80,7 +86,7 @@ button small{width:100%;font-weight:500;opacity:.75;font-size:11px}
 <script src="earcut.min.js"></script>
 <script>
 "use strict";
-const ICO={"coins": "<circle cx=\"8\" cy=\"8\" r=\"6\" /> <path d=\"M18.09 10.37A6 6 0 1 1 10.34 18\" /> <path d=\"M7 6h1v4\" /> <path d=\"m16.71 13.88.7.71-2.82 2.82\" />", "shield": "<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\" />", "calendar": "<path d=\"M8 2v4\" /> <path d=\"M16 2v4\" /> <rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\" /> <path d=\"M3 10h18\" />", "trophy": "<path d=\"M6 9H4.5a2.5 2.5 0 0 1 0-5H6\" /> <path d=\"M18 9h1.5a2.5 2.5 0 0 0 0-5H18\" /> <path d=\"M4 22h16\" /> <path d=\"M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22\" /> <path d=\"M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22\" /> <path d=\"M18 2H6v7a6 6 0 0 0 12 0V2Z\" />", "menu": "<line x1=\"4\" x2=\"20\" y1=\"12\" y2=\"12\" /> <line x1=\"4\" x2=\"20\" y1=\"6\" y2=\"6\" /> <line x1=\"4\" x2=\"20\" y1=\"18\" y2=\"18\" />", "pause": "<rect x=\"14\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\" /> <rect x=\"6\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\" />", "play": "<polygon points=\"6 3 20 12 6 21 6 3\" />", "fast-forward": "<polygon points=\"13 19 22 12 13 5 13 19\" /> <polygon points=\"2 19 11 12 2 5 2 19\" />", "chevrons-right": "<path d=\"m6 17 5-5-5-5\" /> <path d=\"m13 17 5-5-5-5\" />", "factory": "<path d=\"M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z\" /> <path d=\"M17 18h1\" /> <path d=\"M12 18h1\" /> <path d=\"M7 18h1\" />", "flask-conical": "<path d=\"M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2\" /> <path d=\"M8.5 2h7\" /> <path d=\"M7 16h10\" />", "swords": "<polyline points=\"14.5 17.5 3 6 3 3 6 3 17.5 14.5\" /> <line x1=\"13\" x2=\"19\" y1=\"19\" y2=\"13\" /> <line x1=\"16\" x2=\"20\" y1=\"16\" y2=\"20\" /> <line x1=\"19\" x2=\"21\" y1=\"21\" y2=\"19\" /> <polyline points=\"14.5 6.5 18 3 21 3 21 6 17.5 9.5\" /> <line x1=\"5\" x2=\"9\" y1=\"14\" y2=\"18\" /> <line x1=\"7\" x2=\"4\" y1=\"17\" y2=\"20\" /> <line x1=\"3\" x2=\"5\" y1=\"19\" y2=\"21\" />", "handshake": "<path d=\"m11 17 2 2a1 1 0 1 0 3-3\" /> <path d=\"m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4\" /> <path d=\"m21 3 1 11h-2\" /> <path d=\"M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3\" /> <path d=\"M3 4h8\" />", "package": "<path d=\"M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z\" /> <path d=\"M12 22V12\" /> <path d=\"m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7\" /> <path d=\"m7.5 4.27 9 5.15\" />", "ban": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"m4.9 4.9 14.2 14.2\" />", "venetian-mask": "<path d=\"M2 12a5 5 0 0 0 5 5 8 8 0 0 1 5 2 8 8 0 0 1 5-2 5 5 0 0 0 5-5V7h-5a8 8 0 0 0-5 2 8 8 0 0 0-5-2H2Z\" /> <path d=\"M6 11c1.5 0 3 .5 3 2-2 0-3 0-3-2Z\" /> <path d=\"M18 11c-1.5 0-3 .5-3 2 2 0 3 0 3-2Z\" />", "flame": "<path d=\"M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z\" />", "bird": "<path d=\"M16 7h.01\" /> <path d=\"M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20\" /> <path d=\"m20 7 2 .5-2 .5\" /> <path d=\"M10 18v3\" /> <path d=\"M14 17.75V21\" /> <path d=\"M7 18a6 6 0 0 0 3.84-10.61\" />", "zoom-in": "<circle cx=\"11\" cy=\"11\" r=\"8\" /> <line x1=\"21\" x2=\"16.65\" y1=\"21\" y2=\"16.65\" /> <line x1=\"11\" x2=\"11\" y1=\"8\" y2=\"14\" /> <line x1=\"8\" x2=\"14\" y1=\"11\" y2=\"11\" />", "map": "<path d=\"M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z\" /> <path d=\"M15 5.764v15\" /> <path d=\"M9 3.236v15\" />", "map-pin": "<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\" /> <circle cx=\"12\" cy=\"10\" r=\"3\" />", "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\" /> <path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\" /> <path d=\"M7 3v4a1 1 0 0 0 1 1h7\" />", "globe": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20\" /> <path d=\"M2 12h20\" />", "skull": "<path d=\"m12.5 17-.5-1-.5 1h1z\" /> <path d=\"M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z\" /> <circle cx=\"15\" cy=\"12\" r=\"1\" /> <circle cx=\"9\" cy=\"12\" r=\"1\" />", "crown": "<path d=\"M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z\" /> <path d=\"M5 21h14\" />", "siren": "<path d=\"M7 18v-6a5 5 0 1 1 10 0v6\" /> <path d=\"M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z\" /> <path d=\"M21 12h1\" /> <path d=\"M18.5 4.5 18 5\" /> <path d=\"M2 12h1\" /> <path d=\"M12 2v1\" /> <path d=\"m4.929 4.929.707.707\" /> <path d=\"M12 12v6\" />", "newspaper": "<path d=\"M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2\" /> <path d=\"M18 14h-8\" /> <path d=\"M15 18h-5\" /> <path d=\"M10 6h8v4h-8V6Z\" />", "lightbulb": "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\" /> <path d=\"M9 18h6\" /> <path d=\"M10 22h4\" />", "droplet": "<path d=\"M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z\" />", "megaphone": "<path d=\"m3 11 18-5v12L3 14v-3z\" /> <path d=\"M11.6 16.8a3 3 0 1 1-5.8-1.6\" />", "tornado": "<path d=\"M21 4H3\" /> <path d=\"M18 8H6\" /> <path d=\"M19 12H9\" /> <path d=\"M16 16h-6\" /> <path d=\"M11 20H9\" />", "arrow-right": "<path d=\"M5 12h14\" /> <path d=\"m12 5 7 7-7 7\" />", "arrow-left": "<path d=\"m12 19-7-7 7-7\" /> <path d=\"M19 12H5\" />", "x": "<path d=\"M18 6 6 18\" /> <path d=\"m6 6 12 12\" />", "search": "<circle cx=\"11\" cy=\"11\" r=\"8\" /> <path d=\"m21 21-4.3-4.3\" />", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\" /> <circle cx=\"9\" cy=\"7\" r=\"4\" /> <path d=\"M22 21v-2a4 4 0 0 0-3-3.87\" /> <path d=\"M16 3.13a4 4 0 0 1 0 7.75\" />", "trending-down": "<polyline points=\"22 17 13.5 8.5 8.5 13.5 2 7\" /> <polyline points=\"16 17 22 17 22 11\" />", "medal": "<path d=\"M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15\" /> <path d=\"M11 12 5.12 2.2\" /> <path d=\"m13 12 5.88-9.8\" /> <path d=\"M8 7h8\" /> <circle cx=\"12\" cy=\"17\" r=\"5\" /> <path d=\"M12 18v-2h-.5\" />", "rocket": "<path d=\"M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z\" /> <path d=\"m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z\" /> <path d=\"M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0\" /> <path d=\"M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5\" />", "target": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <circle cx=\"12\" cy=\"12\" r=\"6\" /> <circle cx=\"12\" cy=\"12\" r=\"2\" />"};
+const ICO={"brush":"<path d=\"m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08\" /> <path d=\"M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z\" />","eraser":"<path d=\"m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21\" /> <path d=\"M22 21H7\" /> <path d=\"m5 11 9 9\" />","mouse-pointer-click":"<path d=\"M14 4.1 12 6\" /> <path d=\"m5.1 8-2.9-.8\" /> <path d=\"m6 12-1.9 2\" /> <path d=\"M7.2 2.2 8 5.1\" /> <path d=\"M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z\" />","move":"<path d=\"M12 2v20\" /> <path d=\"m15 19-3 3-3-3\" /> <path d=\"m19 9 3 3-3 3\" /> <path d=\"M2 12h20\" /> <path d=\"m5 9-3 3 3 3\" /> <path d=\"m9 5 3-3 3 3\" />","check-check":"<path d=\"M18 6 7 17l-5-5\" /> <path d=\"m22 10-7.5 7.5L13 16\" />","plus":"<path d=\"M5 12h14\" /> <path d=\"M12 5v14\" />","link":"<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\" /> <path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\" />","pen-line":"<path d=\"M12 20h9\" /> <path d=\"M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z\" />","coins": "<circle cx=\"8\" cy=\"8\" r=\"6\" /> <path d=\"M18.09 10.37A6 6 0 1 1 10.34 18\" /> <path d=\"M7 6h1v4\" /> <path d=\"m16.71 13.88.7.71-2.82 2.82\" />", "shield": "<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\" />", "calendar": "<path d=\"M8 2v4\" /> <path d=\"M16 2v4\" /> <rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\" /> <path d=\"M3 10h18\" />", "trophy": "<path d=\"M6 9H4.5a2.5 2.5 0 0 1 0-5H6\" /> <path d=\"M18 9h1.5a2.5 2.5 0 0 0 0-5H18\" /> <path d=\"M4 22h16\" /> <path d=\"M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22\" /> <path d=\"M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22\" /> <path d=\"M18 2H6v7a6 6 0 0 0 12 0V2Z\" />", "menu": "<line x1=\"4\" x2=\"20\" y1=\"12\" y2=\"12\" /> <line x1=\"4\" x2=\"20\" y1=\"6\" y2=\"6\" /> <line x1=\"4\" x2=\"20\" y1=\"18\" y2=\"18\" />", "pause": "<rect x=\"14\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\" /> <rect x=\"6\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\" />", "play": "<polygon points=\"6 3 20 12 6 21 6 3\" />", "fast-forward": "<polygon points=\"13 19 22 12 13 5 13 19\" /> <polygon points=\"2 19 11 12 2 5 2 19\" />", "chevrons-right": "<path d=\"m6 17 5-5-5-5\" /> <path d=\"m13 17 5-5-5-5\" />", "factory": "<path d=\"M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z\" /> <path d=\"M17 18h1\" /> <path d=\"M12 18h1\" /> <path d=\"M7 18h1\" />", "flask-conical": "<path d=\"M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2\" /> <path d=\"M8.5 2h7\" /> <path d=\"M7 16h10\" />", "swords": "<polyline points=\"14.5 17.5 3 6 3 3 6 3 17.5 14.5\" /> <line x1=\"13\" x2=\"19\" y1=\"19\" y2=\"13\" /> <line x1=\"16\" x2=\"20\" y1=\"16\" y2=\"20\" /> <line x1=\"19\" x2=\"21\" y1=\"21\" y2=\"19\" /> <polyline points=\"14.5 6.5 18 3 21 3 21 6 17.5 9.5\" /> <line x1=\"5\" x2=\"9\" y1=\"14\" y2=\"18\" /> <line x1=\"7\" x2=\"4\" y1=\"17\" y2=\"20\" /> <line x1=\"3\" x2=\"5\" y1=\"19\" y2=\"21\" />", "handshake": "<path d=\"m11 17 2 2a1 1 0 1 0 3-3\" /> <path d=\"m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4\" /> <path d=\"m21 3 1 11h-2\" /> <path d=\"M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3\" /> <path d=\"M3 4h8\" />", "package": "<path d=\"M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z\" /> <path d=\"M12 22V12\" /> <path d=\"m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7\" /> <path d=\"m7.5 4.27 9 5.15\" />", "ban": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"m4.9 4.9 14.2 14.2\" />", "venetian-mask": "<path d=\"M2 12a5 5 0 0 0 5 5 8 8 0 0 1 5 2 8 8 0 0 1 5-2 5 5 0 0 0 5-5V7h-5a8 8 0 0 0-5 2 8 8 0 0 0-5-2H2Z\" /> <path d=\"M6 11c1.5 0 3 .5 3 2-2 0-3 0-3-2Z\" /> <path d=\"M18 11c-1.5 0-3 .5-3 2 2 0 3 0 3-2Z\" />", "flame": "<path d=\"M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z\" />", "bird": "<path d=\"M16 7h.01\" /> <path d=\"M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20\" /> <path d=\"m20 7 2 .5-2 .5\" /> <path d=\"M10 18v3\" /> <path d=\"M14 17.75V21\" /> <path d=\"M7 18a6 6 0 0 0 3.84-10.61\" />", "zoom-in": "<circle cx=\"11\" cy=\"11\" r=\"8\" /> <line x1=\"21\" x2=\"16.65\" y1=\"21\" y2=\"16.65\" /> <line x1=\"11\" x2=\"11\" y1=\"8\" y2=\"14\" /> <line x1=\"8\" x2=\"14\" y1=\"11\" y2=\"11\" />", "map": "<path d=\"M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z\" /> <path d=\"M15 5.764v15\" /> <path d=\"M9 3.236v15\" />", "map-pin": "<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\" /> <circle cx=\"12\" cy=\"10\" r=\"3\" />", "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\" /> <path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\" /> <path d=\"M7 3v4a1 1 0 0 0 1 1h7\" />", "globe": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20\" /> <path d=\"M2 12h20\" />", "skull": "<path d=\"m12.5 17-.5-1-.5 1h1z\" /> <path d=\"M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z\" /> <circle cx=\"15\" cy=\"12\" r=\"1\" /> <circle cx=\"9\" cy=\"12\" r=\"1\" />", "crown": "<path d=\"M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z\" /> <path d=\"M5 21h14\" />", "siren": "<path d=\"M7 18v-6a5 5 0 1 1 10 0v6\" /> <path d=\"M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z\" /> <path d=\"M21 12h1\" /> <path d=\"M18.5 4.5 18 5\" /> <path d=\"M2 12h1\" /> <path d=\"M12 2v1\" /> <path d=\"m4.929 4.929.707.707\" /> <path d=\"M12 12v6\" />", "newspaper": "<path d=\"M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2\" /> <path d=\"M18 14h-8\" /> <path d=\"M15 18h-5\" /> <path d=\"M10 6h8v4h-8V6Z\" />", "lightbulb": "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\" /> <path d=\"M9 18h6\" /> <path d=\"M10 22h4\" />", "droplet": "<path d=\"M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z\" />", "megaphone": "<path d=\"m3 11 18-5v12L3 14v-3z\" /> <path d=\"M11.6 16.8a3 3 0 1 1-5.8-1.6\" />", "tornado": "<path d=\"M21 4H3\" /> <path d=\"M18 8H6\" /> <path d=\"M19 12H9\" /> <path d=\"M16 16h-6\" /> <path d=\"M11 20H9\" />", "arrow-right": "<path d=\"M5 12h14\" /> <path d=\"m12 5 7 7-7 7\" />", "arrow-left": "<path d=\"m12 19-7-7 7-7\" /> <path d=\"M19 12H5\" />", "x": "<path d=\"M18 6 6 18\" /> <path d=\"m6 6 12 12\" />", "search": "<circle cx=\"11\" cy=\"11\" r=\"8\" /> <path d=\"m21 21-4.3-4.3\" />", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\" /> <circle cx=\"9\" cy=\"7\" r=\"4\" /> <path d=\"M22 21v-2a4 4 0 0 0-3-3.87\" /> <path d=\"M16 3.13a4 4 0 0 1 0 7.75\" />", "trending-down": "<polyline points=\"22 17 13.5 8.5 8.5 13.5 2 7\" /> <polyline points=\"16 17 22 17 22 11\" />", "medal": "<path d=\"M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15\" /> <path d=\"M11 12 5.12 2.2\" /> <path d=\"m13 12 5.88-9.8\" /> <path d=\"M8 7h8\" /> <circle cx=\"12\" cy=\"17\" r=\"5\" /> <path d=\"M12 18v-2h-.5\" />", "rocket": "<path d=\"M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z\" /> <path d=\"m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z\" /> <path d=\"M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0\" /> <path d=\"M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5\" />", "target": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <circle cx=\"12\" cy=\"12\" r=\"6\" /> <circle cx=\"12\" cy=\"12\" r=\"2\" />"};
 const I=(n,c='')=>`<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[n]||''}</svg>`;
 
 // ================= MAP ENGINE =================
@@ -202,7 +208,7 @@ async function init(){
   lsay('Загрузка стран…');NAT=await getJ('nations.json');
   if(GLR.ok){try{const wk=new Worker('glworker.js');wk.onmessage=e=>{glAccept(e.data);if(e.data.k==='water')wk.terminate()};wk.onerror=e=>console.error('worker',e.message);wk.postMessage(1)}catch(e){console.error(e)}}
   lsay('Загрузка карты (1/2)…');LOD[0]=buildLOD(await getJ('world_lo.json'),true);
-  lsay('Загрузка карты (2/2)…');LOD[1]=buildLOD(await getJ('world_mid.json'));
+  lsay('Загрузка карты (2/2)…');LOD[1]=buildLOD(await getJ('world_mid.json'));occLoadGrid();
   useMeta(LOD[1]);
   lsay('Загрузка морей…');await loadSeas();lsay('Загрузка озёр и рек…');await loadWater();await loadCities();
   lsay('Загрузка рельефа…');
@@ -433,8 +439,8 @@ function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
     if(selW){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.strokeStyle='#7fd0ff';ctx.lineWidth=2.5/K;ctx.setLineDash([6/K,4/K]);
       if(selW.o.p){for(const l of WAT.lakes)if(l.n===selW.n)ctx.stroke(l.p)}else{ctx.setLineDash([]);ctx.lineWidth=4/K;ctx.strokeStyle='rgba(127,208,255,.9)';ctx.beginPath();for(const v of WAT.rivers)if(v.n===selW.n)for(const l of v.ls){l.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]))}ctx.stroke()}ctx.restore()}
     if(selSea>=0&&SEA[selSea]){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2/K;ctx.strokeStyle='#7fd0ff';ctx.setLineDash([6/K,4/K]);ctx.stroke(SEA[selSea].ol);ctx.restore()}
-    if(sel>=0){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(regOutline(lodFor(T.k),sel));ctx.restore()}
-    drawCities(K,ox);
+    if(sel>=0&&!selZ){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(regOutline(lodFor(T.k),sel));ctx.restore()}
+    drawOcc(K,ox);drawCities(K,ox);
     if(T.k>=1.6&&WAT){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineCap='round';ctx.lineJoin='round';for(const v of WAT.rivers)if(v.can){for(const w of[[3.2,'rgba(0,0,0,.6)'],[1.8,'#3d8fd6']]){ctx.lineWidth=w[0]/K;ctx.strokeStyle=w[1];ctx.beginPath();v.ls[0].forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.stroke()}}ctx.restore()}
     if(G){drawOffensives(K,ox);drawDivs(K,ox)}
     drawLabels(K,ox)}}
@@ -526,14 +532,14 @@ function newGame(p){const R=RK.length;
   addLog(`${I("medal")} Вы возглавили: ${nm(p)}.`);if(G.war.length)addLog(`${I("swords")} Гражданская война! Противники: ${G.war.map(nm).join(', ')}.`);startGame();zoomToNat(p)}
 let TER={},INC={},PPN={};
 function initPop(){G.pop=Array.from(RP)}
-const popOf=o=>PPN[o]||0;
-function recalc(){GLR.dirty=true;TER={};INC={};PPN={};if(!G.pop)initPop();for(let r=0;r<RK.length;r++){const o=G.owner[r];(TER[o]||(TER[o]=[])).push(r);INC[o]=(INC[o]||0)+G.gdp[r];PPN[o]=(PPN[o]||0)+G.pop[r]}lblDirty=true}
+const popOf=o=>(PPN[o]||0)+(ZP[o]||0);
+function recalc(){GLR.dirty=true;TER={};INC={};PPN={};if(!G.pop)initPop();for(let r=0;r<RK.length;r++){const o=G.owner[r];(TER[o]||(TER[o]=[])).push(r);INC[o]=(INC[o]||0)+G.gdp[r];PPN[o]=(PPN[o]||0)+G.pop[r]}if(G.zones)zoneEcon();lblDirty=true}
 let lblDirty=true;
-const terr=o=>TER[o]||[],income=o=>INC[o]||0,power=o=>G.nat[o].army*G.nat[o].tech,nations=()=>Object.keys(TER).map(Number);
-function save(){try{localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}}
+const terr=o=>TER[o]||[],income=o=>(INC[o]||0)+(ZI[o]||0),power=o=>G.nat[o].army*G.nat[o].tech,nations=()=>Object.keys(TER).map(Number);
+function save(){try{G.ctl=occRle();localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}delete G.ctl;try{}catch(e){}}
 function dateStr(){const d=new Date(Date.UTC(2026,0,1)+G.day*864e5);return d.getUTCDate()+' '+MONTHS[d.getUTCMonth()]+' '+d.getUTCFullYear()}
 let logDirty=true;function addLog(t){G.log.unshift(`<b>${dateStr()}</b> ${t}`);G.log=G.log.slice(0,50);logDirty=true}
-function startGame(){ownVer++;recalc();divInit();hud.style.display='flex';log.style.display='block';
+function startGame(){ownVer++;occInitGame();recalc();divInit();hud.style.display='flex';log.style.display='block';
   spd.innerHTML=[I('pause'),I('play'),I('chevrons-right'),I('fast-forward')].map((s,i)=>`<button id="sp${i}" onclick="setSpeed(${i})">${s}</button>`).join('')+`<button onclick="menu()">${I('menu')}</button>`;setSpeed(0);updHud();invalidate()}
 function setSpeed(i){speed=i;for(let j=0;j<4;j++)document.getElementById('sp'+j).classList.toggle('on',j===i)}
 function updHud(){const p=G.player,n=G.nat[p];
@@ -560,12 +566,136 @@ function stepOffs(){
     if(o.p>=100){o.done=1;conquer(o.a,o.t)}
     else if(o.p<-40){o.done=1;if(o.a===G.player||def===G.player)addLog(`${I("shield")} ${nm(def)} отбила наступление: ${RN[o.t]}.`)}}
   G.offs=G.offs.filter(o=>!o.done)}
-function conquer(a,t){const o=G.owner[t];G.owner[t]=a;recalc();markRegion(t);dirty(false);
+function conquer(a,t){occClearRegion(t);const o=G.owner[t];G.owner[t]=a;recalc();markRegion(t);dirty(false);
   if(a===G.player||o===G.player)addLog(`${a===G.player?`${I("trophy")}`:`${I("target")}`} ${nm(a)} занимает: ${RN[t]} (${nm(o)}).`);
   if(!terr(o).length){G.nat[a].money+=G.nat[o].money*.3;if(NAT[o].pop>1e6||G.war.includes(o))addLog(`${I("skull")} ${nm(o)} прекратила существование.`);
     G.war=G.war.filter(w=>w!==o);G.allies=G.allies.filter(w=>w!==o);G.aiWar=G.aiWar.filter(w=>w[0]!==o&&w[1]!==o);
     G.offs=G.offs.filter(x=>x.a!==o);if(o===G.player)gameOver(false)}
   if(sel>=0&&!modalOpen())showPanel(sel)}
+
+// ================= OCCUPATION (cell painting) =================
+// REG: region index+1 per cell (from raster.js); CTL: zone id per cell (0 = controlled by the region owner).
+// zone {r:region,o:controller,k:'o' occupation | 'a' annexed,c:cells,n:name}
+const GW=4096,GH=2048,OTS=256,TX=GW/OTS;let REG=null,RC=null,CTL=new Uint16Array(GW*GH),TIL2=[],TIL3=[],OL=null,STP=null,ctlVer=0,econVer=-1,selZ=null,ZK=new Map(),ZI={},ZP={};const RGBC={};
+function rgbOf(css){if(RGBC[css])return RGBC[css];mctx.fillStyle='#000';mctx.fillStyle=css;const h=mctx.fillStyle;let v;
+  if(h[0]==='#')v=[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];else{const m=h.match(/[\d.]+/g);v=[+m[0],+m[1],+m[2]]}return RGBC[css]=v}
+function getTile(t,S=TIL2){let T2=S[t];if(!T2){const c=document.createElement('canvas');c.width=c.height=OTS;const g=c.getContext('2d');T2=S[t]={c,g,d:g.createImageData(OTS,OTS),n:0,dirty:false}}return T2}
+function paintPix(i){const z=CTL[i],x=i%GW,y=(i/GW)|0,t=((y/OTS)|0)*TX+((x/OTS)|0),p=((y%OTS)*OTS+(x%OTS))*4;
+  for(const S of[TIL2,TIL3]){const T2=S[t];if(T2&&T2.d.data[p+3]){T2.d.data[p+3]=0;T2.n--;T2.dirty=true}}
+  if(z){const Z=G.zones[z-1],T2=getTile(t,Z.k==='a'?TIL3:TIL2),D=T2.d.data,c=rgbOf(natColor(Z.o));D[p]=c[0];D[p+1]=c[1];D[p+2]=c[2];D[p+3]=Z.k==='a'?255:215;T2.n++;T2.dirty=true}}
+function setCell(i,z){const o=CTL[i];if(o===z)return;if(o)G.zones[o-1].c--;if(z)G.zones[z-1].c++;CTL[i]=z;paintPix(i);ctlVer++}
+function zoneFor(r,o){const key=r+'_'+o;let id=ZK.get(key);if(id)return id;G.zones.push({r,o,k:'o',c:0,n:''});id=G.zones.length;ZK.set(key,id);return id}
+const ctrlOf=i=>{const z=CTL[i];return z?G.zones[z-1].o:G.owner[REG[i]-1]};
+function occPaint(me,x,y){if(!REG)return;x=((x%MW)+MW)%MW;const cx=x*GW/MW,cy=y*GH/MH,ry=2.4,rx=ry/Math.max(.2,Math.cos((90-y/MH*180)*Math.PI/180));
+  for(let j=Math.max(0,Math.floor(cy-ry));j<=Math.min(GH-1,Math.ceil(cy+ry));j++){const dy=(j+.5-cy)/ry;if(dy*dy>1)continue;const hw=rx*Math.sqrt(1-dy*dy);
+    for(let ii=Math.floor(cx-hw);ii<=Math.ceil(cx+hw);ii++){const i=j*GW+((ii%GW)+GW)%GW,rg=REG[i];if(!rg)continue;const r=rg-1,own=G.owner[r],c=ctrlOf(i);if(c===me)continue;
+      if(own===me){setCell(i,0);continue}if(!atWar(me,c))continue;setCell(i,zoneFor(r,me))}}}
+function occTrail(me,ax,ay,bx,by){const n=Math.max(1,Math.ceil(Math.hypot(bx-ax,by-ay)*GW/MW/.8));for(let k=1;k<=n;k++)occPaint(me,ax+(bx-ax)*k/n,ay+(by-ay)*k/n)}
+function cellBox(r){const x0=Math.max(0,Math.floor(BB[4*r]*GW/MW)-1),x1=Math.min(GW-1,Math.ceil(BB[4*r+2]*GW/MW)+1),y0=Math.max(0,Math.floor(BB[4*r+1]*GH/MH)-1),y1=Math.min(GH-1,Math.ceil(BB[4*r+3]*GH/MH)+1);return[x0,y0,x1,y1]}
+function occClearRegion(r){if(!REG)return;const[x0,y0,x1,y1]=cellBox(r);for(let j=y0;j<=y1;j++)for(let i=j*GW+x0,e=j*GW+x1;i<=e;i++)if(CTL[i]&&REG[i]===r+1)setCell(i,0)}
+function zoneEcon(){ZI={};ZP={};if(!RC)return;for(const z of G.zones){if(!z.c||!RC[z.r])continue;const own=G.owner[z.r];if(own===z.o)continue;const sh=Math.min(1,z.c/RC[z.r]),g=G.gdp[z.r]*sh,p=G.pop[z.r]*sh;
+  ZI[own]=(ZI[own]||0)-g;ZI[z.o]=(ZI[z.o]||0)+g;ZP[own]=(ZP[own]||0)-p;ZP[z.o]=(ZP[z.o]||0)+p}econVer=ctlVer}
+const regionZoned=r=>G.zones.some(z=>z.r===r&&z.c>0);
+function zoneSum(r){let s=0;for(const z of G.zones)if(z.r===r)s+=z.c;return s}
+function occInitGame(){CTL.fill(0);TIL2=[];TIL3=[];ZK=new Map();if(!G.zones)G.zones=[];for(const z of G.zones)z.c=0;
+  G.zones.forEach((z,i)=>{if(z.k==='o')ZK.set(z.r+'_'+z.o,i+1)});
+  if(G.ctl){const a=G.ctl;for(let k=0;k<a.length;k+=3){const s=a[k],n=a[k+1],v=a[k+2];if(!G.zones[v-1])continue;for(let i=s;i<s+n;i++){CTL[i]=v;G.zones[v-1].c++;paintPix(i)}}delete G.ctl}
+  if(G.rn)for(const k in G.rn)RN[k]=G.rn[k];ctlVer++;zoneEcon()}
+function occRle(){const o=[];for(let i=0;i<CTL.length;){const v=CTL[i];if(!v){i++;continue}let j=i+1;while(j<CTL.length&&CTL[j]===v)j++;o.push(i,j-i,v);i=j}return o}
+function occLoadGrid(){try{const wk=new Worker('raster.js');wk.onmessage=e=>{REG=e.data;RC=new Uint32Array(RK.length);for(let i=0;i<REG.length;i++)if(REG[i])RC[REG[i]-1]++;wk.terminate();if(G)zoneEcon()};wk.postMessage({GW,GH})}catch(e){console.error(e)}}
+function buildSelMask(){const r=selZ.r,z=selZ.z,[x0,y0,x1,y1]=cellBox(r),w=x1-x0+1,h=y1-y0+1;const c=selZ.cv&&selZ.cv.width===w&&selZ.cv.height===h?selZ.cv:document.createElement('canvas');c.width=w;c.height=h;
+  const g=c.getContext('2d'),d=g.createImageData(w,h),D=d.data,inn=(i,j)=>i>=x0&&i<=x1&&j>=y0&&j<=y1&&REG[j*GW+i]===r+1&&CTL[j*GW+i]===z;
+  for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){if(!inn(i,j))continue;const p=((j-y0)*w+(i-x0))*4,edge=!inn(i-1,j)||!inn(i+1,j)||!inn(i,j-1)||!inn(i,j+1);
+    if(edge){D[p]=255;D[p+1]=216;D[p+2]=74;D[p+3]=255}else{D[p]=255;D[p+1]=255;D[p+2]=255;D[p+3]=70}}
+  g.putImageData(d,0,0);selZ.cv=c;selZ.x0=x0;selZ.y0=y0;selZ.ver=ctlVer;selZ.at=performance.now()}
+function occTiles(g,S,ox,s,vis){for(let t=0;t<S.length;t++){const T2=S[t];if(!T2||!T2.n)continue;const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS;
+    if(vis){const sx=ox+tx*s,sy=T.y+ty*s;if(sx>W||sx+OTS*s<0||sy>H||sy+OTS*s<0)continue}if(T2.dirty){T2.g.putImageData(T2.d,0,0);T2.dirty=false}g.drawImage(T2.c,tx,ty)}}
+const hasT=S=>S.some(t=>t&&t.n);
+function drawOcc(K,ox){if(!G)return;const s=K*MW/GW;
+  if(hasT(TIL3)){ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;occTiles(ctx,TIL3,ox,s,1);ctx.restore()}
+  if(hasT(TIL2)){if(!OL)OL=document.createElement('canvas');if(OL.width!==cv.width||OL.height!==cv.height){OL.width=cv.width;OL.height=cv.height}const g=OL.getContext('2d');
+    if(!STP){const c=document.createElement('canvas');c.width=c.height=10;const q=c.getContext('2d');q.strokeStyle='rgba(0,0,0,.6)';q.lineWidth=3.2;q.beginPath();for(let k=-10;k<=20;k+=10){q.moveTo(k,10);q.lineTo(k+10,0)}q.stroke();STP=g.createPattern(c,'repeat')}
+    g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='source-over';g.clearRect(0,0,OL.width,OL.height);g.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);g.imageSmoothingEnabled=true;occTiles(g,TIL2,ox,s,1);
+    g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='destination-out';g.fillStyle=STP;g.fillRect(0,0,OL.width,OL.height);g.globalCompositeOperation='source-over';
+    ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(OL,0,0);ctx.restore()}
+  if(selZ&&REG){if(!selZ.cv||(selZ.ver!==ctlVer&&performance.now()-selZ.at>250))buildSelMask();ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;ctx.drawImage(selZ.cv,selZ.x0,selZ.y0);ctx.restore()}}
+function showZonePanel(i){const me=G.player,z=selZ.z,Z=z?G.zones[z-1]:null,own=G.owner[i],ctl=Z?Z.o:own,cells=Z?Z.c:Math.max(0,RC[i]-zoneSum(i)),sh=RC[i]?cells/RC[i]:0;panelSig=panelState(i);
+  const tag=Z?(Z.k==='o'?`Оккупационная зона: ${nm(Z.o)} в «${RN[i]}»`:`${Z.n} · ${nm(Z.o)}`):`Под контролем ${nm(own)}: ${RN[i]}`;
+  let h=`<button class="x" onclick="closePanel()">${I("x")}</button><div style="display:flex;gap:10px;align-items:center">${flagImg(ctl,'flag big')}<div><h2>${nm(ctl)}</h2><span class="tag">${I("map-pin")} ${tag}</span></div></div>
+  <div style="margin-top:8px"><div class="row"><span>Доля региона</span><span>${(sh*100).toFixed(1)}%</span></div>
+  <div class="row"><span>Население зоны</span><span>${fmtN(G.pop[i]*sh)}</span></div><div class="row"><span>ВВП зоны</span><span>$${fmt(G.gdp[i]*sh)}</span></div>
+  <div class="row"><span>Регион</span><span>${RN[i]}</span></div><div class="row"><span>Законный владелец</span><span>${nm(own)}</span></div></div><div class="acts">`;
+  const foe=own!==me?own:ctl!==me?ctl:-1;if(foe>=0&&G.war.includes(foe))h+=`<button onclick="openPeace(${foe})">${I("bird")} Мирная конференция</button>`;
+  h+=`<button onclick="zoomToReg(${i})">${I("zoom-in")} Регион</button><button onclick="zoomToNat(${own})">${I("map")} Страна</button></div>`;panel.innerHTML=h;panel.style.display='block'}
+
+// ================= PEACE CONFERENCE =================
+let PC=null;const PCOL=[[80,200,255],[255,120,200],[140,255,120],[255,170,60],[180,140,255],[255,90,90],[90,255,220]];
+function openPeace(x){closePanel();setSpeed(0);const me=G.player,AV=[];let x0=GW,y0=GH,x1=0,y1=0;
+  if(REG)for(let i=0;i<CTL.length;i++){const z=CTL[i];if(!z)continue;const Z=G.zones[z-1];if(Z.k!=='o'||Z.o!==me||G.owner[Z.r]!==x)continue;AV.push(i);const cx=i%GW,cy=(i/GW)|0;if(cx<x0)x0=cx;if(cx>x1)x1=cx;if(cy<y0)y0=cy;if(cy>y1)y1=cy}
+  let bx0,by0,bx1,by1;if(AV.length){bx0=x0*MW/GW;bx1=(x1+1)*MW/GW;by0=y0*MH/GH;by1=(y1+1)*MH/GH}else{bx0=1e9;by0=1e9;bx1=-1e9;by1=-1e9;for(const r of terr(x)){bx0=Math.min(bx0,BB[4*r]);by0=Math.min(by0,BB[4*r+1]);bx1=Math.max(bx1,BB[4*r+2]);by1=Math.max(by1,BB[4*r+3])}x0=0;y0=0;x1=0;y1=0}
+  const PS=new Uint8Array(GW*GH),AVS=new Uint8Array(GW*GH);for(const i of AV)AVS[i]=1;
+  const plan=document.createElement('canvas');plan.width=x1-x0+1;plan.height=y1-y0+1;const pg=plan.getContext('2d');
+  const el=document.createElement('div');el.id='pc';el.innerHTML=`<div class="pcbar"><b>${I("bird")} Мирная конференция</b><span>${flagImg(me)} ${nm(me)} — ${flagImg(x)} ${nm(x)}</span></div>
+  <div class="pcmap"><canvas id="pccv"></canvas></div><div class="pcside"><div class="pcinfo" id="pcinfo"></div>
+  <div class="acts pct"><button data-t="brush" onclick="pcTool('brush')">${I("brush")} Кисть</button><button data-t="erase" onclick="pcTool('erase')">${I("eraser")} Ластик</button>
+  <button data-t="zone" onclick="pcTool('zone')">${I("mouse-pointer-click")} Зона</button><button data-t="pan" onclick="pcTool('pan')">${I("move")} Двигать</button></div>
+  <div class="row"><span>Кисть</span><input type="range" min="1" max="14" value="4" oninput="PC.br=+this.value"></div>
+  <div class="acts"><button onclick="pcAll(1)">${I("check-check")} Выбрать всё</button><button onclick="pcAll(0)">${I("x")} Снять выбор</button></div>
+  <div class="pcsec">Выделенное</div><input id="pcname" placeholder="Название нового региона" maxlength="40">
+  <div class="acts"><button onclick="pcItem('new')">${I("plus")} Новый регион</button><button onclick="pcItem('add')">${I("link")} Присоединить</button></div>
+  <select id="pcreg"></select><div class="pcsec">Условия договора</div><div id="pcitems"></div>
+  <div class="acts"><button class="p" onclick="pcSign()">${I("pen-line")} Подписать мир</button><button onclick="pcClose()">Отмена</button></div></div>`;
+  document.body.appendChild(el);
+  const cv=el.querySelector('#pccv');PC={x,AV,PS,AVS,plan,pg,pd:pg.createImageData(plan.width,plan.height),pdirty:false,x0,y0,items:[],tool:'brush',br:4,cv,g:cv.getContext('2d'),t:d3.zoomIdentity,raf:0};
+  const z=d3.zoom().scaleExtent([.5,400]).filter(e=>PC.tool==='pan'||e.type==='wheel').on('zoom',e=>{PC.t=e.transform;pcReq()});PC.zoom=z;d3.select(cv).call(z);
+  const w=cv.clientWidth,h=cv.clientHeight,pad=.15*Math.max(bx1-bx0,(by1-by0)*2),k=Math.min(w/(bx1-bx0+2*pad),h/(by1-by0+2*pad));
+  d3.select(cv).call(z.transform,d3.zoomIdentity.translate(w/2-k*(bx0+bx1)/2,h/2-k*(by0+by1)/2).scale(k));
+  let down=false;const brushAt=e=>{const r=cv.getBoundingClientRect(),t=PC.t,mx=(e.clientX-r.left-t.x)/t.k,my=(e.clientY-r.top-t.y)/t.k;pcBrush(mx*GW/MW,my*GH/MH)};
+  cv.addEventListener('pointerdown',e=>{if(PC.tool==='pan')return;down=true;cv.setPointerCapture(e.pointerId);brushAt(e)});
+  cv.addEventListener('pointermove',e=>{if(down)brushAt(e)});cv.addEventListener('pointerup',()=>{if(down){down=false;pcInfo()}});
+  pcTool('brush');pcRegs();pcInfo();pcReq()}
+function pcTool(t){PC.tool=t;document.querySelectorAll('#pc .pct button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));PC.cv.style.touchAction='none'}
+function pcPix(i){const P=PC,cx=i%GW-P.x0,cy=((i/GW)|0)-P.y0,p=(cy*P.plan.width+cx)*4,D=P.pd.data,v=P.PS[i];
+  if(!v)D[p+3]=0;else if(v===1){D[p]=255;D[p+1]=225;D[p+2]=74;D[p+3]=210}else{const c=PCOL[(v-2)%PCOL.length];D[p]=c[0];D[p+1]=c[1];D[p+2]=c[2];D[p+3]=235}P.pdirty=true}
+function pcSet(i,v){if(PC.PS[i]===v)return;PC.PS[i]=v;pcPix(i)}
+function pcBrush(cx,cy){const P=PC;if(P.tool==='zone'){const i=(cy|0)*GW+(cx|0);if(!P.AVS[i])return;const z=CTL[i];for(const j of P.AV)if(CTL[j]===z&&P.PS[j]<2)pcSet(j,1);pcReq();return}
+  const ry=P.br,rx=ry/Math.max(.2,Math.cos((90-cy/GH*180)*Math.PI/180));
+  for(let j=Math.floor(cy-ry);j<=Math.ceil(cy+ry);j++){if(j<0||j>=GH)continue;const dy=(j+.5-cy)/ry;if(dy*dy>1)continue;const hw=rx*Math.sqrt(1-dy*dy);
+    for(let ii=Math.floor(cx-hw);ii<=Math.ceil(cx+hw);ii++){if(ii<0||ii>=GW)continue;const i=j*GW+ii;if(!P.AVS[i])continue;if(P.tool==='erase'){pcSet(i,0)}else if(P.PS[i]===0)pcSet(i,1)}}
+  pcReq()}
+function pcAll(v){for(const i of PC.AV){if(v&&PC.PS[i]===0)pcSet(i,1);else if(!v&&PC.PS[i]===1)pcSet(i,0)}pcInfo();pcReq()}
+function pcStats(f){let n=0,p=0,g=0;const per=new Map();for(const i of PC.AV){if(!f(PC.PS[i]))continue;n++;const r=REG[i]-1;per.set(r,(per.get(r)||0)+1)}
+  for(const[r,c]of per){p+=G.pop[r]*c/RC[r];g+=G.gdp[r]*c/RC[r]}return{n,p,g,per}}
+function pcRegs(){const me=G.player,sel=pcStats(v=>v>=1).per,cand=new Set();for(const r of sel.keys())for(const n of NB[r])if(G.owner[n]===me)cand.add(n);
+  const list=(cand.size?[...cand]:terr(me)).filter(r=>RN[r]).sort((a,b)=>RN[a].localeCompare(RN[b],'ru'));const s=document.getElementById('pcreg');if(s)s.innerHTML=list.map(r=>`<option value="${r}">${RN[r]}</option>`).join('')}
+function pcInfo(){const P=PC,s=pcStats(v=>v===1),a=pcStats(v=>v>=1);const e=document.getElementById('pcinfo');
+  e.innerHTML=P.AV.length?`Занято вами: <b>${fmtN(pcStats(()=>1).p)}</b> чел.<br>Выделено: <b>${fmtN(s.p)}</b> чел. · $${fmt(s.g)}<br><small>Можно забрать только оккупированные земли. Неразмеченное вернётся ${nm(P.x)}.</small>`:`<small>У вас нет оккупированных земель ${nm(P.x)}. Можно подписать белый мир.</small>`;
+  document.getElementById('pcitems').innerHTML=P.items.map((it,k)=>it.dead?'':`<div class="row"><span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgb(${PCOL[k%PCOL.length]})"></i> ${it.k==='new'?'Новый регион':'К региону'} «${it.n}»</span><span>${fmtN(pcStats(v=>v===k+2).p)} <button class="mini" onclick="pcDel(${k})">✕</button></span></div>`).join('')||'<small>Пусто — подписание вернёт всё</small>';
+  pcRegs()}
+function pcItem(kind){const P=PC;if(!pcStats(v=>v===1).n){toast('Сначала выделите территорию кистью');return}let n;
+  if(kind==='new'){n=(document.getElementById('pcname').value||'').trim();if(!n){toast('Введите название региона');return}}else{const r=+document.getElementById('pcreg').value;if(isNaN(r))return;n=RN[r]}
+  P.items.push({k:kind,n,t:kind==='add'?+document.getElementById('pcreg').value:-1});const v=P.items.length+1;for(const i of P.AV)if(P.PS[i]===1)pcSet(i,v);document.getElementById('pcname').value='';pcInfo();pcReq()}
+function pcDel(k){PC.items[k].dead=1;for(const i of PC.AV)if(PC.PS[i]===k+2)pcSet(i,0);pcInfo();pcReq()}
+function pcReq(){if(!PC||PC.raf)return;PC.raf=requestAnimationFrame(()=>{PC.raf=0;pcDraw()})}
+function pcDraw(){const P=PC,c=P.cv,g=P.g,w=c.clientWidth,h=c.clientHeight;if(c.width!==Math.round(w*DPR)||c.height!==Math.round(h*DPR)){c.width=Math.round(w*DPR);c.height=Math.round(h*DPR)}
+  const t=P.t;g.setTransform(1,0,0,1,0,0);g.fillStyle='#0d1a2b';g.fillRect(0,0,c.width,c.height);g.setTransform(DPR*t.k,0,0,DPR*t.k,DPR*t.x,DPR*t.y);
+  const L=LOD[1],vx0=-t.x/t.k,vx1=(w-t.x)/t.k,vy0=-t.y/t.k,vy1=(h-t.y)/t.k;g.lineJoin='round';
+  for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;const o=G.owner[r],p=L.paths[r];
+    g.fillStyle=o===G.player||o===P.x?natColor(o):'#333b49';g.fill(p)}
+  const s=MW/GW;g.save();g.scale(s,s);g.imageSmoothingEnabled=true;
+  occTiles(g,TIL3,0,0,0);occTiles(g,TIL2,0,0,0);
+  if(P.pdirty){P.pg.putImageData(P.pd,0,0);P.pdirty=false}g.imageSmoothingEnabled=true;g.drawImage(P.plan,P.x0,P.y0);g.restore();
+  g.strokeStyle='rgba(0,0,0,.7)';g.lineWidth=.8/t.k;for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;g.stroke(L.paths[r])}}
+function pcClose(){const e=document.getElementById('pc');if(e)e.remove();PC=null;draw()}
+function pcSign(){const P=PC,me=G.player,x=P.x;let got=0,whole=0;
+  P.items.forEach((it,k)=>{if(it.dead)return;const per=new Map();for(const i of P.AV)if(P.PS[i]===k+2){const r=REG[i]-1;(per.get(r)||per.set(r,[]).get(r)).push(i)}
+    for(const[r,cells]of per){got++;if(cells.length>=RC[r]){G.owner[r]=me;occClearRegion(r);markRegion(r);whole++;if(it.k==='new'){(G.rn||(G.rn={}))[r]=it.n;RN[r]=it.n}continue}
+      G.zones.push({r,o:me,k:'a',c:0,n:it.n,m:it.t});const zid=G.zones.length;for(const i of cells)setCell(i,zid)}});
+  for(const i of P.AV){const z=CTL[i];if(z&&G.zones[z-1].k==='o'&&G.zones[z-1].o===me)setCell(i,0)}
+  G.war=G.war.filter(w=>w!==x);G.rel[x]=-20;G.offs=G.offs.filter(o=>!((o.a===me&&G.owner[o.t]===x)||(o.a===x&&G.owner[o.t]===me)));
+  for(const d of G.divs){if(canEnter(d.r))continue;let b=-1,bd=1e18;for(const r of terr(me)){const dd=(LP[2*r]-d.x)**2+(LP[2*r+1]-d.y)**2;if(dd<bd){bd=dd;b=r}}if(b>=0){d.x=LP[2*b];d.y=LP[2*b+1];d.r=b;d.path=[]}}
+  addLog(`${I("bird")} Мирный договор с ${nm(x)}${got?`: присоединено ${got} ${got%10===1&&got%100!==11?'территория':got%10>=2&&got%10<=4&&(got%100<10||got%100>=20)?'территории':'территорий'}`:' (белый мир)'}.`);
+  recalc();dirty();pcClose();save();updHud()}
 
 // ================= DIVISIONS =================
 // Free movement: the order goes to the exact tapped point; the route crosses regions only through
@@ -596,9 +726,10 @@ function newDiv(r){const N=G.nat[G.player];N.army-=10000;N.money-=divCost();G.di
   const d={id:G.divN,n:G.divN+'-я пехотная',x:LP[2*r],y:LP[2*r+1],r,str:10000,path:[]};G.divs.push(d);selDiv=d;closePanel();toast(d.n+' дивизия сформирована · нажмите куда идти');return d}
 function moveDivs(hrs){let mv=false;
   for(const d of G.divs){let left=hrs;while(left>0&&d.path.length){const q=d.path[0];if(q[2]!==d.r&&!canEnter(q[2])){d.path=[];toast(d.n+': граница закрыта');break}
-      const km=kmDist(d.x,d.y,q[0],q[1]),t=km/(INF_KMH*regSpd(d.r));mv=true;
-      if(t<=left){left-=t;d.x=q[0];d.y=q[1];d.path.shift();if(q[2]!==d.r){d.r=q[2];const o=G.owner[d.r];if(o!==G.player&&atWar(G.player,o))conquer(G.player,d.r)}}
-      else{const f=left/t;d.x+=(q[0]-d.x)*f;d.y+=(q[1]-d.y)*f;left=0}}
+      const km=kmDist(d.x,d.y,q[0],q[1]),t=km/(INF_KMH*regSpd(d.r)),sx=d.x,sy=d.y;mv=true;
+      if(t<=left){left-=t;d.x=q[0];d.y=q[1];d.path.shift();if(q[2]!==d.r){d.r=q[2];const o=G.owner[d.r];if(o!==G.player&&atWar(G.player,o)&&(!RC||RC[d.r]<4))conquer(G.player,d.r)}}
+      else{const f=left/t;d.x+=(q[0]-d.x)*f;d.y+=(q[1]-d.y)*f;left=0}
+      occTrail(G.player,sx,sy,d.x,d.y)}
     if(d.x<0||d.x>=MW){const sh=d.x<0?MW:-MW;d.x+=sh;for(const q of d.path)q[0]+=sh}}
   return mv}
 function hitDiv(cx,cy){if(!G||!G.divs||T.k<1.8)return null;const K=S0()*T.k,ww=MW*K;let b=null,bd=14;
@@ -616,7 +747,7 @@ function drawDivs(K,ox){if(!G.divs||!G.divs.length||T.k<1.8)return;const col=nat
     ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X+2,Y+1.5);ctx.lineTo(X+w-2,Y+h-1.5);ctx.moveTo(X+w-2,Y+1.5);ctx.lineTo(X+2,Y+h-1.5);ctx.stroke();
     ctx.fillStyle='#000a';ctx.fillRect(X,Y+h+1.5,w,2);ctx.fillStyle='#7dff7d';ctx.fillRect(X,Y+h+1.5,w*d.str/10000,2)}}
 let toastT=0;function toast(t){let e=document.getElementById('toast');if(!e){e=document.createElement('div');e.id='toast';document.body.appendChild(e)}e.textContent=t;e.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>e.style.display='none',2600)}
-function dayTick(){G.day++;const me=G.player,ns=nations();
+function dayTick(){G.day++;if(econVer!==ctlVer)zoneEcon();const me=G.player,ns=nations();
   for(const o of ns){const N=G.nat[o];N.money+=dailyInc(o);N.stab+=(65-N.stab)*.004;
     if(N.money<0){N.stab-=.15;N.army*=.998}if(o!==me)N.army*=1.0004}
   if(G.day%30===0){for(let r=0;r<RK.length;r++)G.pop[r]*=Math.pow(1+(NAT[RK[r]].g||0),30/365);recalc()}
@@ -656,14 +787,14 @@ requestAnimationFrame(loop);
 function modalOpen(){return !!document.getElementById('modal')}
 function onTap(r,ev){if(G&&ev){const dv=hitDiv(ev.clientX,ev.clientY);if(dv){selDiv=selDiv===dv?null:dv;if(selDiv)toast(dv.n+' дивизия · '+fmtN(dv.str)+' · нажмите куда идти');closePanel();return}
     if(selDiv&&r>=0){const[mx,my]=toMap(ev.clientX,ev.clientY);let x=mx;while(x-selDiv.x>MW/2)x-=MW;while(x-selDiv.x<-MW/2)x+=MW;orderDiv(selDiv,x,my,r);draw();return}
-    if(selDiv){selDiv=null;draw()}const w=hitWater(ev.clientX,ev.clientY);if(w){showWater(w);return}}selW=null;if(r<0){const si=ev?hitSea(ev.clientX,ev.clientY):-1;if(si>=0&&G){showSea(si);return}closePanel();return}selSea=-1;{const sp=document.getElementById('seap');if(sp)sp.style.display='none'}sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
-function closePanel(){selW=null;const sp=document.getElementById('seap');if(sp)sp.style.display='none';sel=-1;selSea=-1;panel.style.display='none';draw()}
+    if(selDiv){selDiv=null;draw()}const w=hitWater(ev.clientX,ev.clientY);if(w){showWater(w);return}}selW=null;if(r<0){const si=ev?hitSea(ev.clientX,ev.clientY):-1;if(si>=0&&G){showSea(si);return}closePanel();return}selSea=-1;{const sp=document.getElementById('seap');if(sp)sp.style.display='none'}selZ=null;if(G&&REG&&ev){const[mx,my]=toMap(ev.clientX,ev.clientY),ci=Math.min(GH-1,Math.max(0,(my*GH/MH)|0))*GW+Math.min(GW-1,(mx*GW/MW)|0),rg=REG[ci],rr=rg?rg-1:r;if(regionZoned(rr)){r=rr;selZ={r,z:CTL[ci]&&G.zones[CTL[ci]-1].r===r?CTL[ci]:0}}}sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
+function closePanel(){selW=null;selZ=null;const sp=document.getElementById('seap');if(sp)sp.style.display='none';sel=-1;selSea=-1;panel.style.display='none';draw()}
 let panelSig='';
 function refreshPanelLight(){const s=panelState(sel);if(s!==panelSig)showPanel(sel);else{const e=document.getElementById('offs');if(e)e.innerHTML=offsHtml(sel)}}
 function panelState(i){const o=G.owner[i],M=G.nat[G.player];return [o,G.war.includes(o),G.allies.includes(o),M.money>recCost(),M.money>invCost(i),M.money>techCost(),M.money>stabCost(),M.money>spyCost(),G.offs.length].join()}
 function offsHtml(i){const o=G.owner[i],P=G.player;const list=G.offs.filter(x=>(x.a===P&&G.owner[x.t]===o)||(x.a===o&&G.owner[x.t]===P)||(o===P&&(x.a===P||G.owner[x.t]===P))).slice(0,8);
   return list.map(x=>`<div class="off">${x.a===P?`${I("arrow-right")}`:`${I("arrow-left")}`} ${nm(x.a)} → ${RN[x.t]} ${x.m==='sea'?'(десант)':''}<div class="prog"><i style="width:${Math.max(0,x.p)}%"></i></div></div>`).join('')}
-function showPanel(i){panel.style.bottom="";panelSig=panelState(i);const o=G.owner[i],N=G.nat[o],me=G.player,M=G.nat[me],orig=RK[i];
+function showPanel(i){if(selZ&&REG){if(selZ.r!==i)selZ={r:i,z:0};if(regionZoned(i)){showZonePanel(i);return}selZ=null}panel.style.bottom="";panelSig=panelState(i);const o=G.owner[i],N=G.nat[o],me=G.player,M=G.nat[me],orig=RK[i];
   let h=`<button class="x" onclick="closePanel()">${I("x")}</button><div style="display:flex;gap:10px;align-items:center">${flagImg(o,'flag big')}<div><h2>${nm(o)}</h2><span class="tag">${I("map-pin")} ${RN[i]}</span></div></div>`;
   if(o!==orig)h+=`<div style="margin-top:8px" class="chip">${flagImg(orig)} Исторически: <b>${nm(orig)}</b></div>`;
   h+=`<div style="margin-top:8px">
@@ -702,7 +833,7 @@ function act(a,x){const me=G.player,M=G.nat[me];
   case'tech':{M.money-=techCost();M.tech+=.2;addLog(`${I("flask-conical")} Технологии ур. ${M.tech.toFixed(1)}.`);break}
   case'stab':{M.money-=stabCost();M.stab=Math.min(100,M.stab+8);addLog('');break}
   case'war':{G.war.push(x);G.rel[x]=-100;M.stab-=4;addLog(`${I("swords")} Вы объявили войну: ${nm(x)}!`);dirty();break}
-  case'peace':{if(G.nat[x].army<M.army*.5||Math.random()<.4){G.war=G.war.filter(w=>w!==x);G.rel[x]=-20;addLog(`${I("bird")} Мир с ${nm(x)}.`);dirty()}else addLog(`${I("x")} ${nm(x)} отвергает мир.`);break}
+  case'peace':{openPeace(x);return}
   case'ally':{const r=(G.rel[x]??0)+Math.random()*60-10+(power(me)>power(x)?20:0);if(r>45){G.allies.push(x);G.rel[x]=80;addLog(`${I("handshake")} ${nm(x)} — ваш союзник!`)}else{G.rel[x]=(G.rel[x]??0)+5;addLog(`${I("x")} ${nm(x)} отклоняет союз.`)}break}
   case'trade':{const g=Math.min(income(x),income(me))*.03;M.money+=g;G.nat[x].money+=g*.5;G.rel[x]=(G.rel[x]??0)+10;addLog(`${I("package")} Сделка с ${nm(x)}: +$${fmt(g)}.`);break}
   case'sanc':{G.nat[x].money*=.85;G.nat[x].stab-=5;G.rel[x]=(G.rel[x]??0)-30;G.allies=G.allies.filter(y=>y!==x);M.money-=income(me)*.01;addLog(`${I("ban")} Санкции против ${nm(x)}.`);break}
