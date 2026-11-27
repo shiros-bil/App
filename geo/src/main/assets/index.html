@@ -576,7 +576,7 @@ const terr=o=>TER[o]||[],income=o=>(INC[o]||0)+(ZI[o]||0),power=o=>G.nat[o].army
 let lastSave=0,rleV=-1,rleC=null;function save(){lastSave=performance.now();try{if(rleV!==ctlVer){rleC=occRle();rleV=ctlVer}G.ctl=rleC;localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}delete G.ctl;try{}catch(e){}}
 function dateStr(){const d=new Date(Date.UTC(2026,0,1)+G.day*864e5);return d.getUTCDate()+' '+MONTHS[d.getUTCMonth()]+' '+d.getUTCFullYear()}
 let logDirty=true;function addLog(t){G.log.unshift(`<b>${dateStr()}</b> ${t}`);G.log=G.log.slice(0,50);logDirty=true}
-function startGame(){ownVer++;occInitGame();recalc();divInit();if(!G.fronts)G.fronts=[];SELS=new Set();updFtb();hud.style.display='flex';log.style.display='block';
+function startGame(){ownVer++;occInitGame();recalc();divInit();if(!G.fronts)G.fronts=[];SELS=new Set();selDiv=null;DRAW=null;DRAWP=null;{const ov=document.getElementById('drawov');if(ov)ov.style.display='none'}updFtb();hud.style.display='flex';log.style.display='block';
   spd.innerHTML=[I('pause'),I('play'),I('chevrons-right'),I('fast-forward')].map((s,i)=>`<button id="sp${i}" onclick="setSpeed(${i})">${s}</button>`).join('')+`<button onclick="menu()">${I('menu')}</button>`;setSpeed(0);updHud();invalidate()}
 function setSpeed(i){speed=i;for(let j=0;j<4;j++)document.getElementById('sp'+j).classList.toggle('on',j===i)}
 function updHud(){const p=G.player,n=G.nat[p];
@@ -923,9 +923,9 @@ function selDivs(){const s=[...SELS].map(id=>G.divs.find(d=>d.id===id)).filter(B
 function sendAlong(divs,P){const C=plLen(P),n=divs.length;if(!n)return;const ord=divs.map(d=>({d,t:plProj(P,C,d.x,d.y)})).sort((a,b)=>a.t-b.t);let ok=0;
   ord.forEach((o,i)=>{const p=plAt(P,C,(i+.5)/n);let x=p[0];while(x-o.d.x>MW/2)x-=MW;while(x-o.d.x<-MW/2)x+=MW;const r=regionAt(x,p[1]);if(r>=0&&orderDiv(o.d,x,p[1],r))ok++});return ok}
 function frontOf(d){return G.fronts.find(f=>f.divs.includes(d.id))}
-function makeFront(P){const ds=selDivs();if(!ds.length){toast('Сначала выберите дивизии');return}const ids=ds.map(d=>d.id);
+function makeFront(P,tn){const ds=selDivs();if(!ds.length){toast('Сначала выберите дивизии');return}const ids=ds.map(d=>d.id);
   for(const f of G.fronts)f.divs=f.divs.filter(id=>!ids.includes(id));G.fronts=G.fronts.filter(f=>f.divs.length);
-  const f={id:(G.frN=(G.frN||0)+1),divs:ids,line:P,plan:null,exec:false};G.fronts.push(f);sendAlong(ds,P);toast(`Фронт: ${ids.length} див.`);draw()}
+  const f={id:(G.frN=(G.frN||0)+1),divs:ids,line:P,plan:null,exec:false,t:tn??null};G.fronts.push(f);sendAlong(ds,P);toast(tn!=null?`Фронт против ${natName(tn)}: ${ids.length} див.`:`Фронт: ${ids.length} див.`);draw()}
 function curFront(){const ds=selDivs();for(const d of ds){const f=frontOf(d);if(f)return f}return G.fronts[G.fronts.length-1]}
 function makePlan(P){const f=curFront();if(!f){toast('Сначала нарисуйте линию фронта');return}f.plan=P;f.exec=false;toast('План наступления готов · нажмите «Наступать»');draw()}
 function execPlans(){let n=0;for(const f of G.fronts){if(!f.plan||f.exec)continue;const ds=f.divs.map(id=>G.divs.find(d=>d.id===id)).filter(Boolean);sendAlong(ds,f.plan);f.exec=true;n++}
@@ -938,12 +938,23 @@ function fillBetween(A,B){if(!REG)return;const poly=[...A,...B.slice().reverse()
 function checkFronts(){for(const f of G.fronts){if(!f.exec)continue;const ds=f.divs.map(id=>G.divs.find(d=>d.id===id)).filter(Boolean);if(ds.some(d=>d.path.length))continue;
   fillBetween(f.line,f.plan);f.line=f.plan;f.plan=null;f.exec=false;toast('Наступление завершено');draw()}}
 function setDraw(m){DRAW=DRAW===m?null:m;let ov=document.getElementById('drawov');if(!ov){ov=document.createElement('div');ov.id='drawov';document.body.appendChild(ov);let pts=null;
-    ov.addEventListener('pointerdown',e=>{ov.setPointerCapture(e.pointerId);pts=[toMap(e.clientX,e.clientY)];});
+    let dn=null;ov.addEventListener('pointerdown',e=>{ov.setPointerCapture(e.pointerId);dn=[e.clientX,e.clientY];pts=[toMap(e.clientX,e.clientY)];});
     ov.addEventListener('pointermove',e=>{if(!pts)return;const q=toMap(e.clientX,e.clientY),l=pts[pts.length-1];let x=q[0];while(x-l[0]>MW/2)x-=MW;while(x-l[0]<-MW/2)x+=MW;
       if(Math.hypot(x-l[0],q[1]-l[1])*S0()*T.k>8){pts.push([x,q[1]]);DRAWP=pts;draw()}});
-    ov.addEventListener('pointerup',()=>{const P=pts;pts=null;DRAWP=null;const m2=DRAW;DRAW=null;updFtb();if(!P||P.length<2){draw();return}if(m2==='front')makeFront(P);else makePlan(P)})}
-  ov.style.display=DRAW?'block':'none';updFtb();if(DRAW)toast(DRAW==='front'?'Проведите линию фронта пальцем':'Проведите линию плана наступления')}
+    ov.addEventListener('pointerup',e=>{const P=pts;if(DRAW==='front'&&dn&&Math.hypot(e.clientX-dn[0],e.clientY-dn[1])<12){pts=null;DRAWP=null;const q=toMap(e.clientX,e.clientY);DRAW=null;ov.style.display='none';updFtb();frontOnNation(q[0],q[1]);return}pts=null;DRAWP=null;const m2=DRAW;DRAW=null;updFtb();if(!P||P.length<2){draw();return}if(m2==='front')makeFront(P);else makePlan(P)})}
+  ov.style.display=DRAW?'block':'none';updFtb();if(DRAW)toast(DRAW==='front'?'Нажмите на страну или проведите линию фронта':'Проведите линию плана наступления')}
 let DRAWP=null;
+const natName=n=>NAT[n]?NAT[n].n:'страной';
+function frontOnNation(mx,my){if(!REG){draw();return}const me=G.player;mx=((mx%MW)+MW)%MW;const k0=Math.min(GH-1,Math.max(0,(my*GH/MH)|0))*GW+Math.min(GW-1,(mx*GW/MW)|0);
+  if(!REG[k0]){toast('Нажмите на страну');draw();return}const t=ctrlOf(k0);if(t===me){toast('Это ваша территория');draw();return}
+  const B=4,bins=new Map();for(let j=1;j<GH-1;j++)for(let i=0;i<GW;i++){const k=j*GW+i;if(!REG[k]||ctrlOf(k)!==me)continue;
+    const l=j*GW+(i?i-1:GW-1),r=j*GW+(i<GW-1?i+1:0);let hit=false;for(const n of[l,r,k-GW,k+GW])if(REG[n]&&ctrlOf(n)===t){hit=true;break}
+    if(hit){const b=((j/B)|0)*4096+((i/B)|0);if(!bins.has(b))bins.set(b,[(i+.5)*MW/GW,(j+.5)*MH/GH])}}
+  let pt=[...bins.values()];if(!pt.length){toast('Нет общей границы с '+natName(t));draw();return}
+  let cx=0,cy=0;for(const q of pt){cx+=q[0];cy+=q[1]}cx/=pt.length;cy/=pt.length;let si=0,sd=-1;pt.forEach((q,i)=>{const d=(q[0]-cx)**2+(q[1]-cy)**2;if(d>sd){sd=d;si=i}});
+  const used=new Uint8Array(pt.length),P=[pt[si]];used[si]=1;for(let n=1;n<pt.length;n++){const a=P[P.length-1];let bi=-1,bd=1e18;for(let i=0;i<pt.length;i++)if(!used[i]){const d=(pt[i][0]-a[0])**2+(pt[i][1]-a[1])**2;if(d<bd){bd=d;bi=i}}used[bi]=1;P.push(pt[bi])}
+  const S=P.map((q,i)=>{let x=0,y=0,c=0;for(let o=-2;o<=2;o++){const z=P[i+o];if(z&&Math.abs(z[0]-q[0])<MW/4){x+=z[0];y+=z[1];c++}}return[x/c,y/c]});
+  if(!SELS.size&&!selDiv)SELS=new Set(G.divs.map(d=>d.id));makeFront(S.length>1?S:[S[0],S[0]],t)}
 function selAllDivs(){if(SELS.size===G.divs.length&&SELS.size){SELS.clear();selDiv=null}else{SELS=new Set(G.divs.map(d=>d.id))}updFtb();draw()}
 function updFtb(){let e=document.getElementById('ftb');if(!G||!G.divs||!G.divs.length){if(e)e.style.display='none';return}
   if(!e){e=document.createElement('div');e.id='ftb';document.body.appendChild(e)}e.style.display='flex';const n=SELS.size||(selDiv?1:0),ready=G.fronts.some(f=>f.plan&&!f.exec);
@@ -1118,7 +1129,7 @@ function act(a,x){const me=G.player,M=G.nat[me];
 function gameOver(win){localStorage.removeItem(SAVE);setSpeed(0);modal(`<h1>${win?`${I("globe")} Мировое господство!`:`${I("skull")} Поражение`}</h1><p>${win?'Весь мир под вашим флагом.':'Ваше государство пало.'}</p><button class="p" onclick="restart()">Новая игра</button>`)}
 function modal(h){closeModal();const m=document.createElement('div');m.className='modal';m.id='modal';m.innerHTML=`<div class="card">${h}</div>`;document.body.appendChild(m);return m}
 function closeModal(){document.getElementById('modal')?.remove()}
-function restart(){localStorage.removeItem(SAVE);G=null;ownVer++;closeModal();closePanel();hud.style.display='none';log.style.display='none';invalidate();pickScreen()}
+function restart(){localStorage.removeItem(SAVE);G=null;DRAW=null;DRAWP=null;SELS=new Set();selDiv=null;for(const id of['drawov','ftb']){const e=document.getElementById(id);if(e)e.style.display='none'}ownVer++;closeModal();closePanel();hud.style.display='none';log.style.display='none';invalidate();pickScreen()}
 function menu(){modal(`<h1>Меню</h1><p>${dateStr()}</p><div style="display:grid;gap:8px"><button class="p" onclick="closeModal()">Продолжить</button><button onclick="closeModal();zoomToNat(G.player)">К моей стране</button><button onclick="save();closeModal()">${I("save")} Сохранить</button><button class="r" onclick="restart()">Новая игра</button></div>`)}
 function showRank(){const r=nations().map(o=>({o,s:income(o)+power(o)*.05,t:terr(o).length})).sort((a,b)=>b.s-a.s).slice(0,40);
   modal(`<h1>${I("trophy")} Рейтинг держав</h1><div class="list">${r.map((x,k)=>`<div class="it" onclick="closeModal();zoomToNat(${x.o})"><b>${k+1}</b><span class="sw" style="background:${natColor(x.o)}"></span>${flagImg(x.o)}<span style="flex:1">${nm(x.o)}${x.o===G.player?' (вы)':''}</span><span class="tag">${x.t} рег.</span><span class="tag">$${fmt(income(x.o))}</span></div>`).join('')}</div><br><button onclick="closeModal()">Закрыть</button>`)}
