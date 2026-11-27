@@ -309,7 +309,7 @@ function frame(){raf=0;if(!RK.length)return;if(GLR.ok&&GLR.lods[0]){glFrame();re
     for(const[zz,x,y]of need){if(performance.now()-t0>budget&&did>0)break;renderTile(zz,x,y);did++}
     draw()}}
 // ================= WebGL2 MAP RENDERER =================
-const glc=document.getElementById('g');const gl=glc.getContext('webgl2',{antialias:false,alpha:false,premultipliedAlpha:false,powerPreference:'high-performance',preserveDrawingBuffer:false});
+const glc=document.getElementById('g');const gl=glc.getContext('webgl2',{stencil:true,antialias:false,alpha:false,premultipliedAlpha:false,powerPreference:'high-performance',preserveDrawingBuffer:false});
 const GLR={ok:!!gl,dirty:true,lods:[]};
 function glShader(t,src){const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(s);return s}
 function glProg(vs,fs){const p=gl.createProgram();gl.attachShader(p,glShader(gl.VERTEX_SHADER,vs));gl.attachShader(p,glShader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw gl.getProgramInfoLog(p);
@@ -437,7 +437,7 @@ function glUpload(){const own=G?G.owner:RK,war=G?G.war:[];const R=RK.length;let 
 let GSC=1,ftAvg=16,lastF=0;function glScale(sc){if(Math.abs(sc-GSC)<.01)return;GSC=sc;glc.width=Math.round(W*DPR*sc);glc.height=Math.round(H*DPR*sc)}
 function glFrame(){const nowF=performance.now();if(lastF)ftAvg=ftAvg*.85+Math.min(200,nowF-lastF)*.15;lastF=nowF;
   if(interacting&&ftAvg>24)glScale(Math.max(.55,GSC*.85));else if(!interacting)glScale(1);const K=S0()*T.k,ww=MW*K;if(GLR.dirty)glUpload();
-  gl.viewport(0,0,glc.width,glc.height);gl.clearColor(.05,.2,.35,1);gl.clear(gl.COLOR_BUFFER_BIT);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  gl.viewport(0,0,glc.width,glc.height);gl.clearColor(.05,.2,.35,1);gl.clearStencil(0);gl.clear(gl.COLOR_BUFFER_BIT|gl.STENCIL_BUFFER_BIT);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
   const res=[glc.width,glc.height],kd=K*DPR*GSC;let li=T.k>9?2:T.k>2.2?1:0;while(li>0&&!GLR.lods[li])li--;const L=GLR.lods[li];if(!L){ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);return}
   const useTiles=K*MW*DPR>4096*1.1;
   for(let c=0;T.x+c*ww<W;c++){const ox=T.x+c*ww;if(ox+ww<0)continue;const off=[ox*DPR*GSC,T.y*DPR*GSC];const vx0=-ox/K,vx1=(W-ox)/K,vy0=-T.y/K,vy1=(H-T.y)/K;
@@ -452,7 +452,9 @@ function glFrame(){const nowF=performance.now();if(lastF)ftAvg=ftAvg*.85+Math.mi
     gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,GLR.colT);gl.uniform1i(P.u.uCol,0);
     gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,GLR.zidT);gl.uniform1i(P.u.uZid,1);gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,GLR.zinT);gl.uniform1i(P.u.uZin,2);
     gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,GLR.zfT);gl.uniform1i(P.u.uZf,3);gl.uniform1i(P.u.uZon,GLR.zon|0);gl.activeTexture(gl.TEXTURE0);
-    drawFill(L.fill,vx0,vx1,vy0,vy1);
+    if(li>0&&GLR.lods[li-1]){gl.enable(gl.STENCIL_TEST);gl.stencilFunc(gl.ALWAYS,1,255);gl.stencilOp(gl.KEEP,gl.KEEP,gl.REPLACE);drawFill(L.fill,vx0,vx1,vy0,vy1);
+      gl.stencilFunc(gl.EQUAL,0,255);gl.stencilOp(gl.KEEP,gl.KEEP,gl.KEEP);drawFill(GLR.lods[li-1].fill,vx0,vx1,vy0,vy1);if(li>1&&GLR.lods[0]){gl.stencilOp(gl.KEEP,gl.KEEP,gl.KEEP);}gl.disable(gl.STENCIL_TEST)}
+    else drawFill(L.fill,vx0,vx1,vy0,vy1);
     // borders
     P=GLR.line;gl.useProgram(P.p);gl.uniform2fv(P.u.uRes,res);gl.uniform1f(P.u.uK,kd);gl.uniform2fv(P.u.uOff,off);
     gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,GLR.ownT);gl.uniform1i(P.u.uOwn,1);
