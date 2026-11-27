@@ -593,7 +593,7 @@ function rgbOf(css){if(RGBC[css])return RGBC[css];mctx.fillStyle='#000';mctx.fil
   if(h[0]==='#')v=[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];else{const m=h.match(/[\d.]+/g);v=[+m[0],+m[1],+m[2]]}return RGBC[css]=v}
 function getTile(t){let T2=TIL2[t];if(!T2){const c=document.createElement('canvas');c.width=c.height=OTS*OS;T2=TIL2[t]={c,g:c.getContext('2d'),c3:null,g3:null,n:0,n3:0,dr:null,t};ACT.push(T2)}return T2}
 const kindOf=z=>z?(G.zones[z-1].k==='a'?2:1):0;
-function markDr(T2,x,y){const r=T2.dr;if(!r)T2.dr=[x-2,y-2,x+2,y+2];else{if(x-2<r[0])r[0]=x-2;if(y-2<r[1])r[1]=y-2;if(x+2>r[2])r[2]=x+2;if(y+2>r[3])r[3]=y+2}}
+function markDr(T2,x,y){T2.cd=true;const r=T2.dr;if(!r)T2.dr=[x-2,y-2,x+2,y+2];else{if(x-2<r[0])r[0]=x-2;if(y-2<r[1])r[1]=y-2;if(x+2>r[2])r[2]=x+2;if(y+2>r[3])r[3]=y+2}}
 function paintPix(i,old=0){const x=i%GW,y=(i/GW)|0,t=((y/OTS)|0)*TX+((x/OTS)|0),T2=getTile(t),ko=kindOf(old),kn=kindOf(CTL[i]);
   if(ko===1)T2.n--;else if(ko===2)T2.n3--;if(kn===1)T2.n++;else if(kn===2)T2.n3++;markDr(T2,x,y);
   const lx=x%OTS,ly=y%OTS;if(lx<2||lx>OTS-3||ly<2||ly>OTS-3)for(const[dx,dy]of[[-2,0],[2,0],[0,-2],[0,2],[-2,-2],[2,2],[-2,2],[2,-2]]){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=GW||yy>=GH)continue;const tt=((yy/OTS)|0)*TX+((xx/OTS)|0);if(tt!==t&&TIL2[tt])markDr(TIL2[tt],x,y)}}
@@ -611,7 +611,7 @@ function rebuildTile(T2,t){const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS,r=T2.dr;T2.dr=n
     for(let px=0;px<wp;px++){const u=x0+(px+.5)/OS-.5-bx,i0=Math.floor(u),fu=u-i0,q=j0*cw+i0;
       const w00=(1-fu)*(1-fv),w10=fu*(1-fv),w01=(1-fu)*fv,w11=fu*fv;
       const f2=K2[q]*w00+K2[q+1]*w10+K2[q+cw]*w01+K2[q+cw+1]*w11,f1=K1[q]*w00+K1[q+1]*w10+K1[q+cw]*w01+K1[q+cw+1]*w11;
-      if(f1<.42&&f2<.42)continue;const nq=Math.round(v)*cw+Math.round(u),o=own(nq);if(o<0)continue;const c=rgbOf(natColor(o)),p=(py*wp+px)*4,D=f2>=f1?dA:dO;if(!D)continue;
+      if(f1<.5&&f2<.5)continue;const nq=Math.round(v)*cw+Math.round(u),o=own(nq);if(o<0)continue;const c=rgbOf(natColor(o)),p=(py*wp+px)*4,D=f2>=f1?dA:dO;if(!D)continue;
       D.data[p]=c[0];D.data[p+1]=c[1];D.data[p+2]=c[2];D.data[p+3]=D===dA?255:((((x0-tx)*OS+px+(y0-ty)*OS+py)&7)<3?90:215)}}
   const ox2=(x0-tx)*OS,oy2=(y0-ty)*OS;T2.g.putImageData(dO,ox2,oy2);
   if(dA){if(!T2.c3){T2.c3=document.createElement('canvas');T2.c3.width=T2.c3.height=OTS*OS;T2.g3=T2.c3.getContext('2d')}T2.g3.putImageData(dA,ox2,oy2)}}
@@ -658,10 +658,26 @@ function buildSelMask(){const r=selZ.r,z=selZ.z,[x0,y0,x1,y1]=cellBox(r),w=x1-x0
   g.putImageData(d,0,0);selZ.cv=c;selZ.x0=x0;selZ.y0=y0;selZ.ver=ctlVer;selZ.at=performance.now()}
 function occTiles(g,ann,ox,s,vis){for(const T2 of ACT){const t=T2.t;if(!(ann?T2.n3:T2.n))continue;const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS;
     if(vis){const sx=ox+tx*s,sy=T.y+ty*s;if(sx>W||sx+OTS*s<0||sy>H||sy+OTS*s<0)continue}if(T2.dr)rebuildTile(T2,t);const c=ann?T2.c3:T2.c;if(c)g.drawImage(c,tx,ty,OTS,OTS)}}
+// front line: contour of everything an occupier controls, kept only next to its occupation cells
+function occContour(T2){const tx=(T2.t%TX)*OTS,ty=((T2.t/TX)|0)*OTS,w=OTS+6,bx=tx-3,by=ty-3,os=new Set(),P=new Path2D();
+  for(let j=ty;j<ty+OTS;j++)for(let i=tx;i<tx+OTS;i++){const z=CTL[j*GW+i];if(z&&G.zones[z-1].k==='o')os.add(G.zones[z-1].o)}
+  for(const o of os){const ind=new Uint8Array(w*w),occ=new Uint8Array(w*w),F=new Float32Array(w*w);
+    for(let j=0;j<w;j++){const cj=by+j;for(let i=0;i<w;i++){const ci=bx+i,q=j*w+i;if(ci<0||cj<0||ci>=GW||cj>=GH){ind[q]=1;continue}const k=cj*GW+ci,rg=REG[k];if(!rg){ind[q]=1;continue}
+      const z=CTL[k],Z=z?G.zones[z-1]:null,c=Z?Z.o:G.owner[rg-1];if(c===o){ind[q]=1;if(Z&&Z.k==='o')occ[q]=1}}}
+    for(let j=1;j<w-1;j++)for(let i=1;i<w-1;i++){let a=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++)a+=ind[(j+dj)*w+i+di]*(di?1:2)*(dj?1:2);F[j*w+i]=a/16}
+    for(let j=3;j<OTS+3;j++)for(let i=3;i<OTS+3;i++){const q=j*w+i;if(!(occ[q]|occ[q+1]|occ[q+w]|occ[q+w+1]|occ[q-1]|occ[q-w]|occ[q+w+2]|occ[q+2*w+1]))continue;
+      const cs=[[i,j,F[q]],[i+1,j,F[q+1]],[i+1,j+1,F[q+w+1]],[i,j+1,F[q+w]]],cr=[];
+      for(let k=0;k<4;k++){const A=cs[k],B=cs[(k+1)&3];if((A[2]>=.5)!==(B[2]>=.5)){const t=(.5-A[2])/(B[2]-A[2]);cr.push([bx+A[0]+(B[0]-A[0])*t+.5,by+A[1]+(B[1]-A[1])*t+.5])}}
+      for(let k=0;k+1<cr.length;k+=2){P.moveTo(cr[k][0],cr[k][1]);P.lineTo(cr[k+1][0],cr[k+1][1])}}}
+  T2.cp=P;T2.cd=false;T2.ct=performance.now()}
 const hasT=ann=>ACT.some(t=>ann?t.n3:t.n);
 function drawOcc(K,ox){if(!G)return;const s=K*MW/GW;
   if(hasT(1)&&!(GLR.ok&&GLR.fill)){ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;occTiles(ctx,1,ox,s,1);ctx.restore()}
-  if(hasT(0)){ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;occTiles(ctx,0,ox,s,1);ctx.restore()}
+  if(hasT(0)){ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;occTiles(ctx,0,ox,s,1);
+    ctx.strokeStyle='rgba(0,0,0,.9)';ctx.lineWidth=1.5/s;ctx.lineCap='round';const now=performance.now();
+    for(const T2 of ACT){if(!T2.n)continue;const tx=(T2.t%TX)*OTS,ty=((T2.t/TX)|0)*OTS,sx=ox+tx*s,sy=T.y+ty*s;if(sx>W||sx+OTS*s<0||sy>H||sy+OTS*s<0)continue;
+      if(!T2.cp||(T2.cd&&now-(T2.ct||0)>200))occContour(T2);ctx.stroke(T2.cp)}
+    ctx.restore()}
   drawAnxBorders(K,ox);if(selZ&&REG)drawSel(K,ox)}
 function showZonePanel(i){const me=G.player,z=selZ.z,Z=z?G.zones[z-1]:null,own=G.owner[i],ctl=Z?Z.o:own,cells=Z?Z.c:Math.max(0,RC[i]-zoneSum(i)),sh=RC[i]?cells/RC[i]:0;panelSig=panelState(i);
   const tag=Z?(Z.k==='o'?`Оккупационная зона: ${nm(Z.o)} в «${RN[i]}»`:`${Z.n} · ${nm(Z.o)}`):`Под контролем ${nm(own)}: ${RN[i]}`;
