@@ -149,9 +149,12 @@ function drawCities(K,ox){const k=T.k;if(k<2.5)return;const all=k>=5,taken=[],vx
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='500 10px system-ui';ctx.lineJoin='round';
   for(const c of CITY_S){if(!c.c&&!all)continue;if(c.x<vx0||c.x>vx1||c.y<vy0||c.y>vy1)continue;const x=c.x*K+ox,y=c.y*K+T.y;const tw=c.n.length*5.6+10,bx=[x-6,y-7,x+tw,y+7];
     if(taken.some(b=>bx[0]<b[2]&&bx[2]>b[0]&&bx[1]<b[3]&&bx[3]>b[1]))continue;taken.push(bx);
-    if(c.c){ctx.save();ctx.translate(x-6,y-6);ctx.scale(.5,.5);ctx.fillStyle='#f2c14e';ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=2;ctx.fill(STAR);ctx.stroke(STAR);ctx.restore()}
-    else{ctx.beginPath();ctx.arc(x,y,2.2,0,6.283);ctx.fillStyle='rgba(255,255,255,.85)';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,.6)';ctx.stroke()}
-    ctx.lineWidth=2.5;ctx.strokeStyle='rgba(0,0,0,.45)';ctx.strokeText(c.n,x+6,y);ctx.fillStyle='rgba(255,255,255,.72)';ctx.fillText(c.n,x+6,y)}}
+    if(!c.sp)c.sp=citySprite(c);ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(c.sp,(x-8)*DPR,(y-8)*DPR,c.sp.width,c.sp.height)}ctx.setTransform(DPR,0,0,DPR,0,0)}
+function citySprite(c){const cv2=document.createElement('canvas'),g=cv2.getContext('2d');g.font='500 10px system-ui';const tw=g.measureText(c.n).width;
+  cv2.width=Math.ceil((tw+22)*DPR);cv2.height=Math.ceil(16*DPR);g.scale(DPR,DPR);g.font='500 10px system-ui';g.textBaseline='middle';g.lineJoin='round';const x=8,y=8;
+  if(c.c){g.save();g.translate(x-6,y-6);g.scale(.5,.5);g.fillStyle='#f2c14e';g.strokeStyle='rgba(0,0,0,.6)';g.lineWidth=2;g.fill(STAR);g.stroke(STAR);g.restore()}
+  else{g.beginPath();g.arc(x,y,2.2,0,6.283);g.fillStyle='rgba(255,255,255,.85)';g.fill();g.lineWidth=1;g.strokeStyle='rgba(0,0,0,.6)';g.stroke()}
+  g.lineWidth=2.5;g.strokeStyle='rgba(0,0,0,.45)';g.strokeText(c.n,x+6,y);g.fillStyle='rgba(255,255,255,.72)';g.fillText(c.n,x+6,y);return cv2}
 let SEA=[],selSea=-1,WAT=null,selW=null;
 const wRank=k=>k<1.6?1:k<2.5?3:k<4?5:k<7?7:k<12?8:10;
 async function loadWater(){const t=await getJ('water.json');const pr=d3.geoEquirectangular().fitSize([MW,MH],{type:'Sphere'});
@@ -296,7 +299,7 @@ function frame(){raf=0;if(!RK.length)return;if(GLR.ok&&GLR.lods[0]){glFrame();re
     for(const[zz,x,y]of need){if(performance.now()-t0>budget&&did>0)break;renderTile(zz,x,y);did++}
     draw()}}
 // ================= WebGL2 MAP RENDERER =================
-const glc=document.getElementById('g');const gl=glc.getContext('webgl2',{antialias:true,alpha:false,premultipliedAlpha:false});
+const glc=document.getElementById('g');const gl=glc.getContext('webgl2',{antialias:false,alpha:false,premultipliedAlpha:false,powerPreference:'high-performance',preserveDrawingBuffer:false});
 const GLR={ok:!!gl,dirty:true,lods:[]};
 function glShader(t,src){const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(s);return s}
 function glProg(vs,fs){const p=gl.createProgram();gl.attachShader(p,glShader(gl.VERTEX_SHADER,vs));gl.attachShader(p,glShader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw gl.getProgramInfoLog(p);
@@ -473,20 +476,30 @@ function layoutNation(n,rs){mctx.font="700 100px Georgia,'Times New Roman',serif
     for(let i=0;i<ch.length;i++){const sc=sAcc+ws[i]/2;sAcc+=ws[i]+sp;const tt=tc+sc,o=ca+cb*tt+cc*tt*tt,d=cb+2*cc*tt;
       C.push([ch[i],mx+tt*ux-o*uy,my+tt*uy+o*ux,Math.max(-.95,Math.min(.95,Math.atan2(uy,ux)+Math.atan(d))),ws[i]])}
     return{fs,C}}}
-function finishLabels(out){
+function finishLabels(out){LBLV++;
   out.sort((a,b)=>b.fs-a.fs);LBLS=[];const GS=20,grid=new Map();const key=(i,j)=>i*4096+j;
   const cells=b=>{const r=[];for(let i=Math.floor(b[0]/GS);i<=Math.floor(b[2]/GS);i++)for(let j=Math.floor(b[1]/GS);j<=Math.floor(b[3]/GS);j++)r.push(key(i,j));return r};
   for(const L of out){const bx=L.C.map(([c,x,y,a,w])=>[x-w/2,y-L.fs*.42,x+w/2,y+L.fs*.42]);let hit=false;
     for(const c of bx){for(const k of cells(c)){const g=grid.get(k);if(g&&g.some(b=>c[0]<b[2]&&c[2]>b[0]&&c[1]<b[3]&&c[3]>b[1])){hit=true;break}}if(hit)break}
     if(hit)continue;for(const c of bx)for(const k of cells(c)){let g=grid.get(k);if(!g){g=[];grid.set(k,g)}g.push(c)}LBLS.push(L)}}
+const SPR=new Map();let SPRV=-1;
+function labelSprite(L,bucket){let m=SPR.get(L);if(!m){m=new Map();SPR.set(L,m)}let sp=m.get(bucket);if(sp)return sp;
+  const sc=bucket*DPR,pad=L.fs*.9;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[c,x,y,a,w]of L.C){x0=Math.min(x0,x-w-pad);x1=Math.max(x1,x+w+pad);y0=Math.min(y0,y-pad);y1=Math.max(y1,y+pad)}
+  const cw=Math.ceil((x1-x0)*sc),ch=Math.ceil((y1-y0)*sc);if(cw<1||ch<1||cw*ch>4e6)return null;
+  const c=document.createElement('canvas');c.width=cw;c.height=ch;const g=c.getContext('2d');const px=L.fs*bucket;
+  g.font=`700 ${px.toFixed(1)}px Georgia,'Times New Roman',serif`;g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';g.lineWidth=Math.max(2.5,px*.12);g.strokeStyle='rgba(0,0,0,.5)';g.fillStyle='rgba(255,255,255,.92)';
+  for(const[ch2,x,y,a]of L.C){g.setTransform(DPR,0,0,DPR,(x-x0)*sc,(y-y0)*sc);g.rotate(a);g.strokeText(ch2,0,0);g.fillText(ch2,0,0)}
+  sp={c,x0,y0,b:bucket};m.set(bucket,sp);if(m.size>3)m.delete(m.keys().next().value);return sp}
 function drawLabels(K,ox){const k=T.k,fade=k<5?1:k>8?0:1-(k-5)/3;if(fade<=0)return;
-  ctx.lineJoin='round';ctx.textBaseline='middle';ctx.textAlign='center';ctx.globalAlpha=fade;
-  const vx0=-ox/K,vx1=(W-ox)/K,vy0=-T.y/K,vy1=(H-T.y)/K;
+  if(SPRV!==LBLV){SPR.clear();SPRV=LBLV}
+  const vx0=-ox/K,vx1=(W-ox)/K,vy0=-T.y/K,vy1=(H-T.y)/K;const bucket=Math.pow(2,Math.round(Math.log2(K)*2)/2);
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=fade;
   for(const L of LBLS){const px=L.fs*K;if(px<8)continue;const c0=L.C[0],c1=L.C[L.C.length-1];
     if(Math.max(c0[1],c1[1])+L.fs<vx0||Math.min(c0[1],c1[1])-L.fs>vx1||Math.max(c0[2],c1[2])+L.fs<vy0||Math.min(c0[2],c1[2])-L.fs>vy1)continue;
-    ctx.font=`700 ${px.toFixed(1)}px Georgia,'Times New Roman',serif`;ctx.lineWidth=Math.max(2.5,px*.12);ctx.strokeStyle='rgba(0,0,0,.5)';ctx.fillStyle='rgba(255,255,255,.92)';
-    for(const[c,x,y,a]of L.C){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.translate(x*K+ox,y*K+T.y);ctx.rotate(a);ctx.strokeText(c,0,0);ctx.fillText(c,0,0)}}
-  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.globalAlpha=1}
+    const sp=labelSprite(L,bucket);if(!sp)continue;const s=K/sp.b;
+    ctx.drawImage(sp.c,(sp.x0*K+ox)*DPR,(sp.y0*K+T.y)*DPR,sp.c.width*s,sp.c.height*s)}
+  ctx.globalAlpha=1;ctx.setTransform(DPR,0,0,DPR,0,0)}
+let LBLV=0;
 addEventListener('resize',resize);
 
 // ================= GAME (real time, regions) =================
