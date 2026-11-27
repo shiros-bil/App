@@ -1008,7 +1008,34 @@ function findRoute(a,b){if(a===b)return[a];const R=RK.length,dist=new Float64Arr
     for(const v of NB[u]){if(!canEnter(v))continue;
       const w=kmDist(LP[2*u],LP[2*u+1],LP[2*v],LP[2*v+1])*(1/regSpd(u)+1/regSpd(v))/2,nd=d+w;if(nd<dist[v]){dist[v]=nd;prev[v]=u;push([nd,v])}}}
   if(prev[b]<0)return null;const out=[b];let u=b;while(u!==a){u=prev[u];out.push(u)}return out.reverse()}
-function orderDiv(d,tx,ty,tr){const rt=findRoute(d.r,tr);if(!rt){toast(canEnter(tr)?'Нет сухопутного пути':'Нельзя: нет войны с '+nm(G.owner[tr]));return false}
+// free movement: straight line if land is passable, otherwise A* over a coarse land grid + string pulling (no region waypoints)
+const CGS=4,CGW=GW/CGS,CGH=GH/CGS;
+function passK(k,ce){const r=REG[k];return r&&ce(r-1)}
+function losOK(x0,y0,x1,y1,ce){const a=x0*GW/MW,b=y0*GH/MH,c=x1*GW/MW,e=y1*GH/MH,n=Math.ceil(Math.hypot(c-a,e-b)*2)+1;
+  for(let i=0;i<=n;i++){const t=i/n;let x=Math.floor(a+(c-a)*t);x=((x%GW)+GW)%GW;const y=Math.min(GH-1,Math.max(0,Math.floor(b+(e-b)*t)));if(!passK(y*GW+x,ce))return false}return true}
+function gridRoute(sx,sy,tx,ty,ce){const cc=new Map(),C=r=>{let v=cc.get(r);if(v===undefined){v=canEnter(r);cc.set(r,v)}return v};ce=C;
+  if(losOK(sx,sy,tx,ty,ce))return[[tx,ty]];
+  const pk=(i,j)=>{const x=((i%CGW)+CGW)%CGW;if(j<0||j>=CGH)return false;for(const[o,q]of[[2,2],[1,1],[3,3],[1,3],[3,1]]){if(passK((j*CGS+q)*GW+x*CGS+o,ce))return true}return false};
+  const toC=(x,y)=>[Math.floor(x*CGW/MW),Math.floor(y*CGH/MH)];let[si,sj]=toC(sx,sy),[ti,tj]=toC(tx,ty);
+  while(ti-si>CGW/2)ti-=CGW;while(ti-si<-CGW/2)ti+=CGW;
+  const N=CGW*CGH,key=(i,j)=>j*CGW+(((i%CGW)+CGW)%CGW),G2=new Float32Array(N).fill(1e30),PR=new Int32Array(N).fill(-1),PI=new Int32Array(N),CL=new Uint8Array(N);
+  const hp=[],hv=[];const push=(f,k)=>{hp.push(f);hv.push(k);let i=hp.length-1;while(i){const q=(i-1)>>1;if(hp[q]<=hp[i])break;[hp[q],hp[i]]=[hp[i],hp[q]];[hv[q],hv[i]]=[hv[i],hv[q]];i=q}};
+  const pop=()=>{const k=hv[0],lf=hp.pop(),lv=hv.pop();if(hp.length){hp[0]=lf;hv[0]=lv;let i=0;for(;;){const L=2*i+1,Rr=L+1;let m=i;if(L<hp.length&&hp[L]<hp[m])m=L;if(Rr<hp.length&&hp[Rr]<hp[m])m=Rr;if(m===i)break;[hp[m],hp[i]]=[hp[i],hp[m]];[hv[m],hv[i]]=[hv[i],hv[m]];i=m}}return k};
+  const s0=key(si,sj),t0=key(ti,tj);G2[s0]=0;PI[s0]=si;push(Math.hypot(ti-si,tj-sj),s0);let it=0,found=false;
+  while(hp.length&&it++<400000){const k=pop();if(CL[k])continue;CL[k]=1;if(k===t0){found=true;break}const ui=PI[k],uj=(k/CGW)|0,g=G2[k];
+    for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){if(!di&&!dj)continue;const vi=ui+di,vj=uj+dj;if(vj<0||vj>=CGH)continue;const v=key(vi,vj);if(CL[v])continue;if(v!==t0&&!pk(vi,vj))continue;
+      const ng=g+(di&&dj?1.4142:1);if(ng<G2[v]){G2[v]=ng;PR[v]=k;PI[v]=vi;push(ng+Math.hypot(ti-vi,tj-vj),v)}}}
+  if(!found)return null;const cells=[];for(let k=t0;k>=0&&k!==s0;k=PR[k])cells.push([(PI[k]+.5)*MW/CGW,(((k/CGW)|0)+.5)*MH/CGH]);cells.reverse();cells[cells.length-1]=[tx,ty];
+  // string pulling
+  const out=[];let cx=sx,cy=sy,i=0;while(i<cells.length){let j=cells.length-1;while(j>i&&!losOK(cx,cy,cells[j][0],cells[j][1],ce))j--;out.push(cells[j]);cx=cells[j][0];cy=cells[j][1];i=j+1}return out}
+function orderDiv(d,tx,ty,tr){if(REG){while(tx-d.x>MW/2)tx-=MW;while(tx-d.x<-MW/2)tx+=MW;if(!canEnter(tr)){toast('Нельзя: нет войны с '+nm(G.owner[tr]));return false}
+    const gp=gridRoute(d.x,d.y,tx,ty);if(gp){let P=[[d.x,d.y]].concat(gp);
+      // gentle corner rounding (only at bends)
+      if(P.length>2){for(let it=0;it<2;it++){const Q=[P[0]];for(let i=1;i<P.length-1;i++){const a=P[i-1],b=P[i],c=P[i+1];const p1=[b[0]*.75+a[0]*.25,b[1]*.75+a[1]*.25],p2=[b[0]*.75+c[0]*.25,b[1]*.75+c[1]*.25];
+        if(losOK(p1[0],p1[1],p2[0],p2[1],r=>canEnter(r))){Q.push(p1,p2)}else Q.push(b)}Q.push(P[P.length-1]);P=Q}}
+      d.path=P.slice(1).map(q=>[q[0],q[1],-1]);d.path[d.path.length-1][2]=tr;d.free=1;return true}}
+  return orderDivR(d,tx,ty,tr)}
+function orderDivR(d,tx,ty,tr){const rt=findRoute(d.r,tr);if(!rt){toast(canEnter(tr)?'Нет сухопутного пути':'Нельзя: нет войны с '+nm(G.owner[tr]));return false}
   let P=[[d.x,d.y,d.r]];for(let i=1;i<rt.length;i++){const a=rt[i-1],b=rt[i],q=BP.get(a<b?a*1e5+b:b*1e5+a);P.push(q?[q[0],q[1],b]:[LP[2*b],LP[2*b+1],b])}
   P.push([tx,ty,tr]);for(let i=1;i<P.length;i++){while(P[i][0]-P[i-1][0]>MW/2)P[i][0]-=MW;while(P[i][0]-P[i-1][0]<-MW/2)P[i][0]+=MW}
   for(let it=0;it<3;it++){const Q=[P[0]];for(let i=0;i+1<P.length;i++){const a=P[i],b=P[i+1];Q.push([a[0]*.75+b[0]*.25,a[1]*.75+b[1]*.25,b[2]],[a[0]*.25+b[0]*.75,a[1]*.25+b[1]*.75,b[2]])}Q.push(P[P.length-1]);P=Q}
@@ -1022,10 +1049,11 @@ function zonePt(r,z){if(!REG)return[LP[2*r],LP[2*r+1]];const[x0,y0,x1,y1]=cellBo
 function newDivZ(r,z){const p=zonePt(r,z);newDiv(r,p[0],p[1]);updHud();save();draw()}
 function testDivs(r,z){const p=zonePt(r,z);for(let i=0;i<10;i++)newDiv(r,p[0]+(Math.random()-.5)*1.5,p[1]+(Math.random()-.5)*1,1);toast('+10 дивизий (тест)');updHud();draw()}
 function moveDivs(hrs){let mv=false;
-  for(const d of G.divs){let left=hrs;while(left>0&&d.path.length){const q=d.path[0];if(q[2]!==d.r&&!canEnter(q[2])){d.path=[];toast(d.n+': граница закрыта');break}
-      const km=kmDist(d.x,d.y,q[0],q[1]),t=km/(INF_KMH*regSpd(d.r)),sx=d.x,sy=d.y;mv=true;
-      if(t<=left){left-=t;d.x=q[0];d.y=q[1];d.path.shift();if(q[2]!==d.r){d.r=q[2];const o=G.owner[d.r];if(o!==G.player&&atWar(G.player,o)&&(!RC||RC[d.r]<4))conquer(G.player,d.r)}}
-      else{const f=left/t;d.x+=(q[0]-d.x)*f;d.y+=(q[1]-d.y)*f;left=0}
+  for(const d of G.divs){let left=hrs;while(left>0&&d.path.length){const q=d.path[0];if(q[2]>=0&&q[2]!==d.r&&!canEnter(q[2])){d.path=[];toast(d.n+': граница закрыта');break}
+      const kmF=kmDist(d.x,d.y,q[0],q[1]),km=Math.min(kmF,15),t=km/(INF_KMH*regSpd(d.r)),sx=d.x,sy=d.y;mv=true;
+      if(t<=left){left-=t;if(km>=kmF){d.x=q[0];d.y=q[1];d.path.shift()}else{const f=km/kmF;d.x+=(q[0]-d.x)*f;d.y+=(q[1]-d.y)*f}}
+      else{const f=left/t*km/(kmF||1);d.x+=(q[0]-d.x)*f;d.y+=(q[1]-d.y)*f;left=0}
+      {let nr=regionAt(d.x,d.y);if(nr<0&&q[2]>=0&&!d.path.length)nr=q[2];if(nr>=0&&nr!==d.r){if(!canEnter(nr)){d.path=[];toast(d.n+': граница закрыта')}else{d.r=nr;const o=G.owner[nr];if(o!==G.player&&atWar(G.player,o)&&(!RC||RC[nr]<4))conquer(G.player,nr)}}}
       occTrail(G.player,sx,sy,d.x,d.y,d)}
     if(d.x<0||d.x>=MW){const sh=d.x<0?MW:-MW;d.x+=sh;for(const q of d.path)q[0]+=sh}}
   return mv}
