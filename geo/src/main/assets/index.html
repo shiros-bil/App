@@ -338,9 +338,14 @@ void main(){vec3 c=vC.rgb;
   GLR.line=glProg(hdr+`
 layout(location=0) in vec2 aT;layout(location=1) in vec4 aS;layout(location=2) in vec2 aLR;
 uniform highp usampler2D uOwn;uniform float uWC,uWR,uAR;out vec4 vC;
+uniform highp usampler2D uZid;uniform highp usampler2D uZin;uniform sampler2D uZf;uniform int uZon;
+uint effOwn(vec2 m,int reg,uint def){ivec2 ci=ivec2(clamp(m*vec2(${(GW/2000).toFixed(4)},${(GH/1000).toFixed(4)}),vec2(0.),vec2(${GW-1}.,${GH-1}.)));
+  for(int k=0;k<9;k++){ivec2 o=ivec2(k%3-1,k/3-1);uint z=texelFetch(uZid,clamp(ci+o*2,ivec2(0),ivec2(${GW-1},${GH-1})),0).r;
+    if(z>0u){uvec4 f=texelFetch(uZin,ivec2(int(z)%${TW},int(z)/${TW}),0);if(int(f.r)==reg)return texture(uZf,m/vec2(2000.,1000.)).r>.5?f.b:def;}}return def;}
 void main(){int l=int(aLR.x+.5),r=int(aLR.y+.5);uvec4 ol=texelFetch(uOwn,rid(l),0);
   bool coast=r>=65535;uvec4 orr=coast?uvec4(99999u):texelFetch(uOwn,rid(r),0);
-  bool same=!coast&&ol.r==orr.r;
+  uint oL=ol.r,oR=orr.r;if(uZon==1&&!coast){vec2 m=(aS.xy+aS.zw)*.5;oL=effOwn(m,l,oL);oR=effOwn(m,r,oR);}
+  bool same=!coast&&oL==oR;
   float hw;vec4 col;
   if(same){hw=uWR;col=vec4(0.,0.,0.,uAR);}else{hw=uWC;bool war=!coast&&(ol.g!=orr.g);col=war?vec4(1.,.27,.27,.85):vec4(0.,0.,0.,.9);}
   vec2 a=aS.xy*uK+uOff,b=aS.zw*uK+uOff;vec2 d=b-a;float L=length(d);d=L>0.?d/L:vec2(1.,0.);vec2 n=vec2(-d.y,d.x);
@@ -435,15 +440,17 @@ function glFrame(){const nowF=performance.now();if(lastF)ftAvg=ftAvg*.85+Math.mi
     gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,GLR.zidT);gl.uniform1i(P.u.uZid,1);gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,GLR.zinT);gl.uniform1i(P.u.uZin,2);
     gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,GLR.zfT);gl.uniform1i(P.u.uZf,3);gl.uniform1i(P.u.uZon,GLR.zon|0);gl.activeTexture(gl.TEXTURE0);
     drawFill(L.fill,vx0,vx1,vy0,vy1);
-    if(GLR.lakes){const mr=wRank(T.k);let P2=GLR.wline;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);
-      gl.uniform1f(P2.u.uW,Math.min(2.2,.7+T.k*.05)*DPR*GSC*.5);gl.uniform4f(P2.u.uC,.16,.42,.7,1.);GLR.RG.forEach((t,g)=>{if(g===0||GLR.RG[g-1]<mr)drawLine(GLR.rivers[g],vx0,vx1,vy0,vy1,4/K)});
-      P2=GLR.wfill;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);gl.uniform4f(P2.u.uC,.11,.33,.58,1.);GLR.RG.forEach((t,g)=>{if(g===0||GLR.RG[g-1]<mr)drawFill(GLR.lakes[g],vx0,vx1,vy0,vy1)});
-      P2=GLR.wline;gl.useProgram(P2.p);gl.uniform1f(P2.u.uW,.5*DPR*GSC);gl.uniform4f(P2.u.uC,0.,0.,0.,.55);GLR.RG.forEach((t,g)=>{if(g===0||GLR.RG[g-1]<mr)drawLine(GLR.lakeOl[g],vx0,vx1,vy0,vy1,4/K)})}
     // borders
     P=GLR.line;gl.useProgram(P.p);gl.uniform2fv(P.u.uRes,res);gl.uniform1f(P.u.uK,kd);gl.uniform2fv(P.u.uOff,off);
     gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,GLR.ownT);gl.uniform1i(P.u.uOwn,1);
     const k=T.k;gl.uniform1f(P.u.uWC,Math.min(2.4,1.0+k*.06)*DPR*GSC*.5);gl.uniform1f(P.u.uWR,k>=12?.6*DPR*GSC:0.);gl.uniform1f(P.u.uAR,Math.min(.35,(k-12)*.03+.12));
+    gl.activeTexture(gl.TEXTURE4);gl.bindTexture(gl.TEXTURE_2D,GLR.zidT);gl.uniform1i(P.u.uZid,4);gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,GLR.zinT);gl.uniform1i(P.u.uZin,2);
+    gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,GLR.zfT);gl.uniform1i(P.u.uZf,3);gl.uniform1i(P.u.uZon,GLR.zon|0);gl.activeTexture(gl.TEXTURE0);
     drawLine(L.line,vx0,vx1,vy0,vy1,4/K);if(L.line2&&(T.k>=12||GLR.conq))drawLine(L.line2,vx0,vx1,vy0,vy1,4/K);
+    if(GLR.lakes){const mr=wRank(T.k);let P2=GLR.wline;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);
+      gl.uniform1f(P2.u.uW,Math.min(2.2,.7+T.k*.05)*DPR*GSC*.5);gl.uniform4f(P2.u.uC,.16,.42,.7,1.);GLR.RG.forEach((t,g)=>{if(g===0||GLR.RG[g-1]<mr)drawLine(GLR.rivers[g],vx0,vx1,vy0,vy1,4/K)});
+      P2=GLR.wfill;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);gl.uniform4f(P2.u.uC,.11,.33,.58,1.);GLR.RG.forEach((t,g)=>{if(g===0||GLR.RG[g-1]<mr)drawFill(GLR.lakes[g],vx0,vx1,vy0,vy1)});
+      P2=GLR.wline;gl.useProgram(P2.p);gl.uniform1f(P2.u.uW,.5*DPR*GSC);gl.uniform4f(P2.u.uC,0.,0.,0.,.55);GLR.RG.forEach((t,g)=>{if(g===0||GLR.RG[g-1]<mr)drawLine(GLR.lakeOl[g],vx0,vx1,vy0,vy1,4/K)})}
     gl.bindVertexArray(null)}
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);overlay(K,ww)}
 
@@ -721,7 +728,7 @@ function annexUpload(){ANXD=false;if(!REG||!G)return;const AZ=[];G.zones.forEach
     for(let pass=0;pass<3;pass++){const add=[];for(let j=1;j<h-1;j++){const cj=by+j;if(cj<1||cj>=GH-1)continue;for(let i=1;i<w-1;i++){const ci=bx+i;if(ci<1||ci>=GW-1)continue;const k=cj*GW+ci;if(ZID[k])continue;
       for(const o of[-1,1,-GW,GW]){const z=ZID[k+o];if(z&&G.zones[z-1].r===r){add.push(k,z);break}}}}for(let q=0;q<add.length;q+=2)ZID[add[q]]=add[q+1]}}
   const zh=Math.ceil((G.zones.length+1)/TW),inf=new Uint32Array(TW*zh*4);
-  G.zones.forEach((z,i)=>{const c=cssCol(natColor(z.o)),q=4*(i+1);inf[q]=z.r;inf[q+1]=(c[0]<<16)|(c[1]<<8)|c[2]});
+  G.zones.forEach((z,i)=>{const c=cssCol(natColor(z.o)),q=4*(i+1);inf[q]=z.r;inf[q+1]=(c[0]<<16)|(c[1]<<8)|c[2];inf[q+2]=z.o});
   gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
   gl.bindTexture(gl.TEXTURE_2D,GLR.zidT);gl.texImage2D(gl.TEXTURE_2D,0,gl.R16UI,GW,GH,0,gl.RED_INTEGER,gl.UNSIGNED_SHORT,ZID);
   gl.bindTexture(gl.TEXTURE_2D,GLR.zfT);gl.texImage2D(gl.TEXTURE_2D,0,gl.R8,GW,GH,0,gl.RED,gl.UNSIGNED_BYTE,FF);
