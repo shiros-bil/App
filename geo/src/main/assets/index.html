@@ -330,9 +330,10 @@ void main(){gl_Position=toClip(aP*uK+uOff);vR=int(aR+.5);vC=texelFetch(uCol,rid(
 precision highp float;precision highp int;in vec4 vC;in vec2 vM;flat in int vR;uniform float uA;uniform int uZon;
 uniform highp usampler2D uZid;uniform highp usampler2D uZin;uniform sampler2D uZf;out vec4 o;
 void main(){vec3 c=vC.rgb;
-  if(uZon==1){ivec2 ci=ivec2(clamp(vM*vec2(${(GW/2000).toFixed(4)},${(GH/1000).toFixed(4)}),vec2(0.),vec2(${GW-1}.,${GH-1}.)));uint z=texelFetch(uZid,ci,0).r;
-    if(z>0u){uvec4 inf=texelFetch(uZin,ivec2(int(z)%${TW},int(z)/${TW}),0);
-      if(int(inf.r)==vR&&texture(uZf,vM/vec2(2000.,1000.)).r>.5){uint g=inf.g;c=vec3(float((g>>16)&255u),float((g>>8)&255u),float(g&255u))/255.;}}}
+  if(uZon==1){ivec2 ci=ivec2(clamp(vM*vec2(${(GW/2000).toFixed(4)},${(GH/1000).toFixed(4)}),vec2(0.),vec2(${GW-1}.,${GH-1}.)));uvec4 inf=uvec4(0u);bool ok=false;
+    for(int k=0;k<9;k++){ivec2 o=ivec2(k%3-1,k/3-1);if(k==0)o=ivec2(0);else if(k==4)o=ivec2(-1);
+      uint z=texelFetch(uZid,clamp(ci+o,ivec2(0),ivec2(${GW-1},${GH-1})),0).r;if(z>0u){uvec4 f=texelFetch(uZin,ivec2(int(z)%${TW},int(z)/${TW}),0);if(int(f.r)==vR){inf=f;ok=true;break;}}}
+    if(ok&&texture(uZf,vM/vec2(2000.,1000.)).r>.5){uint g=inf.g;c=vec3(float((g>>16)&255u),float((g>>8)&255u),float(g&255u))/255.;}}
   o=vec4(c,uA);}`);
   GLR.line=glProg(hdr+`
 layout(location=0) in vec2 aT;layout(location=1) in vec4 aS;layout(location=2) in vec2 aLR;
@@ -818,10 +819,16 @@ function pcPlanHi(){const P=PC,w=P.plan.width,h=P.plan.height,O=4;if(!P.hi){P.hi
     let c=v(Math.round(vx),Math.round(vy));if(!c)c=v(i0,j0)||v(i0+1,j0)||v(i0,j0+1)||v(i0+1,j0+1);if(!c)continue;const p=(py*w*O+px)*4,col=c===1?[255,225,74]:PCOL[(c-2)%PCOL.length];
     D[p]=col[0];D[p+1]=col[1];D[p+2]=col[2];D[p+3]=c===1?210:235}}g.putImageData(d,0,0)}
 function pcClose(){const e=document.getElementById('pc');if(e)e.remove();PC=null;draw()}
+function fillHoles(r,zid){const[x0,y0,x1,y1]=cellBox(r),w=x1-x0+1,h=y1-y0+1,vis=new Uint8Array(w*h),R1=r+1,q=[];
+  for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){const li=(j-y0)*w+i-x0,k=j*GW+i;if(vis[li]||REG[k]!==R1||CTL[k]===zid)continue;
+    q.length=0;q.push(k);vis[li]=1;let ok=true;for(let a=0;a<q.length;a++){const c=q[a];if(q.length>80){ok=false;break}
+      for(const o of[-1,1,-GW,GW]){const n=c+o,ni=n%GW,nj=(n/GW)|0;if(ni<x0||ni>x1||nj<y0||nj>y1){ok=false;continue}const nl=(nj-y0)*w+ni-x0;
+        if(REG[n]===R1&&CTL[n]!==zid){if(!vis[nl]){vis[nl]=1;q.push(n)}}else if(REG[n]!==R1&&!REG[n]){}}}
+    if(ok)for(const c of q)setCell(c,zid)}}
 function pcSign(){const P=PC,me=G.player,x=P.x;let got=0,whole=0;
   P.items.forEach((it,k)=>{if(it.dead)return;const gid=G.gid=(G.gid||0)+1;const per=new Map();for(const i of P.AV)if(P.PS[i]===k+2){const r=REG[i]-1;(per.get(r)||per.set(r,[]).get(r)).push(i)}
     for(const[r,cells]of per){got++;if(cells.length>=RC[r]){G.owner[r]=me;occClearRegion(r);markRegion(r);whole++;(G.rg||(G.rg={}))[r]=gid;if(it.k==='new'){(G.rn||(G.rn={}))[r]=it.n;RN[r]=it.n}continue}
-      G.zones.push({r,o:me,k:'a',c:0,n:it.n,m:it.t,g:gid});const zid=G.zones.length;for(const i of cells)setCell(i,zid)}});
+      G.zones.push({r,o:me,k:'a',c:0,n:it.n,m:it.t,g:gid});const zid=G.zones.length;for(const i of cells)setCell(i,zid);fillHoles(r,zid)}});
   for(const i of P.AV){const z=CTL[i];if(z&&G.zones[z-1].k==='o'&&G.zones[z-1].o===me)setCell(i,0)}
   G.war=G.war.filter(w=>w!==x);G.rel[x]=-20;G.offs=G.offs.filter(o=>!((o.a===me&&G.owner[o.t]===x)||(o.a===x&&G.owner[o.t]===me)));
   for(const d of G.divs){if(canEnter(d.r))continue;let b=-1,bd=1e18;for(const r of terr(me)){const dd=(LP[2*r]-d.x)**2+(LP[2*r+1]-d.y)**2;if(dd<bd){bd=dd;b=r}}if(b>=0){d.x=LP[2*b];d.y=LP[2*b+1];d.r=b;d.path=[]}}
