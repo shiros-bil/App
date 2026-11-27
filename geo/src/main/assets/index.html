@@ -880,9 +880,19 @@ function fillHoles(r,zid){const[x0,y0,x1,y1]=cellBox(r),w=x1-x0+1,h=y1-y0+1,vis=
       for(const o of[-1,1,-GW,GW]){const n=c+o,ni=n%GW,nj=(n/GW)|0;if(ni<x0||ni>x1||nj<y0||nj>y1){ok=false;continue}const nl=(nj-y0)*w+ni-x0;
         if(REG[n]===R1&&CTL[n]!==zid){if(!vis[nl]){vis[nl]=1;q.push(n)}}else if(REG[n]!==R1&&!REG[n]){}}}
     if(ok)for(const c of q)setCell(c,zid)}}
+// "Русская Луганская область", "Китайский Ташкент"...: adjective of the country agreed with the region name
+const ADJ={ru:'Русск',cn:'Китайск',us:'Американск',de:'Немецк',ua:'Украинск',fr:'Французск',gb:'Британск',tr:'Турецк',jp:'Японск',in:'Индийск',pl:'Польск',by:'Белорусск',kz:'Казахск',it:'Итальянск',es:'Испанск',ir:'Иранск',
+  br:'Бразильск',ca:'Канадск',mx:'Мексиканск',kr:'Корейск',kp:'Северокорейск',sa:'Саудовск',eg:'Египетск',il:'Израильск',ge:'Грузинск',am:'Армянск',az:'Азербайджанск',ro:'Румынск',hu:'Венгерск',fi:'Финск',se:'Шведск',no:'Норвежск',
+  pk:'Пакистанск',af:'Афганск',iq:'Иракск',sy:'Сирийск',mn:'Монгольск',vn:'Вьетнамск',th:'Тайск',id:'Индонезийск',au:'Австралийск',ar:'Аргентинск',at:'Австрийск',ch:'Швейцарск',nl:'Голландск',be:'Бельгийск',gr:'Греческ',rs:'Сербск',
+  md:'Молдавск',lt:'Литовск',lv:'Латвийск',ee:'Эстонск',cz:'Чешск',sk:'Словацк',bg:'Болгарск',uz:'Узбекск',tm:'Туркменск',kg:'Киргизск',tj:'Таджикск',dnr:'Донецк',lnr:'Луганск'};
+function autoName(o,r){const n=RN[r]||'регион',st=ADJ[NAT[o].iso];if(!st)return n+' ('+nm(o)+')';const w=n.split(' ')[0].toLowerCase(),
+  g=/(ая|яя|а|я|ь)$/.test(w)&&!/(ий|ый|ой)$/.test(w)?'ая':/(ое|ее|о|е)$/.test(w)?'ое':'ий';
+  const soft=/[кгхжшщч]$/.test(st),end=g==='ий'?(soft?'ий':'ий'):g;return st+end+' '+n}
 function pcSign(){const P=PC,me=G.player,x=P.x;let got=0,whole=0;
-  P.items.forEach((it,k)=>{if(it.dead)return;const gid=G.gid=(G.gid||0)+1;const per=new Map();for(const i of P.AV)if(P.PS[i]===k+2){const r=REG[i]-1;(per.get(r)||per.set(r,[]).get(r)).push(i)}
-    for(const[r,cells]of per){got++;if(cells.length>=RC[r]){G.owner[r]=me;occClearRegion(r);markRegion(r);whole++;(G.rg||(G.rg={}))[r]=gid;if(it.k==='new'){(G.rn||(G.rn={}))[r]=it.n;RN[r]=it.n}continue}
+  const sel1=new Map();for(const i of P.AV)if(P.PS[i]===1){const r=REG[i]-1;(sel1.get(r)||sel1.set(r,[]).get(r)).push(i)}
+  for(const[r,cells]of sel1){const n=autoName(me,r);P.items.push({k:'auto',n,t:-1});const v=P.items.length+1;for(const i of cells)P.PS[i]=v}
+  P.items.forEach((it,k)=>{if(it.dead)return;let gid=G.gid=(G.gid||0)+1;if(it.k==='add'&&it.t>=0&&G.owner[it.t]===me){G.rg=G.rg||{};if(G.rg[it.t])gid=G.rg[it.t];else G.rg[it.t]=gid}const per=new Map();for(const i of P.AV)if(P.PS[i]===k+2){const r=REG[i]-1;(per.get(r)||per.set(r,[]).get(r)).push(i)}
+    for(const[r,cells]of per){got++;if(cells.length>=RC[r]){G.owner[r]=me;occClearRegion(r);markRegion(r);whole++;if(it.k!=='add')(G.rg||(G.rg={}))[r]=gid;if(it.k==='new'){(G.rn||(G.rn={}))[r]=it.n;RN[r]=it.n}continue}
       G.zones.push({r,o:me,k:'a',c:0,n:it.n,m:it.t,g:gid});const zid=G.zones.length;for(const i of cells)setCell(i,zid);fillHoles(r,zid)}});
   for(const i of P.AV){const z=CTL[i];if(z&&G.zones[z-1].k==='o'&&G.zones[z-1].o===me)setCell(i,0)}
   G.war=G.war.filter(w=>w!==x);G.rel[x]=-20;G.offs=G.offs.filter(o=>!((o.a===me&&G.owner[o.t]===x)||(o.a===x&&G.owner[o.t]===me)));
