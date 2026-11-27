@@ -576,14 +576,34 @@ function conquer(a,t){occClearRegion(t);const o=G.owner[t];G.owner[t]=a;recalc()
 // ================= OCCUPATION (cell painting) =================
 // REG: region index+1 per cell (from raster.js); CTL: zone id per cell (0 = controlled by the region owner).
 // zone {r:region,o:controller,k:'o' occupation | 'a' annexed,c:cells,n:name}
-const GW=4096,GH=2048,OTS=256,TX=GW/OTS;let REG=null,RC=null,CTL=new Uint16Array(GW*GH),TIL2=[],TIL3=[],OL=null,STP=null,ctlVer=0,econVer=-1,selZ=null,ZK=new Map(),ZI={},ZP={};const RGBC={};
+const GW=4096,GH=2048,OTS=128,TX=GW/OTS,OS=4;let REG=null,RC=null,CTL=new Uint16Array(GW*GH),TIL2=[],TIL3=[],OL=null,STP=null,ctlVer=0,econVer=-1,selZ=null,ZK=new Map(),ZI={},ZP={};const RGBC={};
 function rgbOf(css){if(RGBC[css])return RGBC[css];mctx.fillStyle='#000';mctx.fillStyle=css;const h=mctx.fillStyle;let v;
   if(h[0]==='#')v=[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];else{const m=h.match(/[\d.]+/g);v=[+m[0],+m[1],+m[2]]}return RGBC[css]=v}
-function getTile(t,S=TIL2){let T2=S[t];if(!T2){const c=document.createElement('canvas');c.width=c.height=OTS;const g=c.getContext('2d');T2=S[t]={c,g,d:g.createImageData(OTS,OTS),n:0,dirty:false}}return T2}
-function paintPix(i){const z=CTL[i],x=i%GW,y=(i/GW)|0,t=((y/OTS)|0)*TX+((x/OTS)|0),p=((y%OTS)*OTS+(x%OTS))*4;
-  for(const S of[TIL2,TIL3]){const T2=S[t];if(T2&&T2.d.data[p+3]){T2.d.data[p+3]=0;T2.n--;T2.dirty=true}}
-  if(z){const Z=G.zones[z-1],T2=getTile(t,Z.k==='a'?TIL3:TIL2),D=T2.d.data,c=rgbOf(natColor(Z.o));D[p]=c[0];D[p+1]=c[1];D[p+2]=c[2];D[p+3]=Z.k==='a'?255:215;T2.n++;T2.dirty=true}}
-function setCell(i,z){const o=CTL[i];if(o===z)return;if(o)G.zones[o-1].c--;if(z)G.zones[z-1].c++;CTL[i]=z;paintPix(i);ctlVer++}
+function getTile(t){let T2=TIL2[t];if(!T2){const c=document.createElement('canvas');c.width=c.height=OTS*OS;T2=TIL2[t]={c,g:c.getContext('2d'),c3:null,g3:null,n:0,n3:0,dr:null}}return T2}
+const kindOf=z=>z?(G.zones[z-1].k==='a'?2:1):0;
+function markDr(T2,x,y){const r=T2.dr;if(!r)T2.dr=[x-2,y-2,x+2,y+2];else{if(x-2<r[0])r[0]=x-2;if(y-2<r[1])r[1]=y-2;if(x+2>r[2])r[2]=x+2;if(y+2>r[3])r[3]=y+2}}
+function paintPix(i,old=0){const x=i%GW,y=(i/GW)|0,t=((y/OTS)|0)*TX+((x/OTS)|0),T2=getTile(t),ko=kindOf(old),kn=kindOf(CTL[i]);
+  if(ko===1)T2.n--;else if(ko===2)T2.n3--;if(kn===1)T2.n++;else if(kn===2)T2.n3++;markDr(T2,x,y);
+  const lx=x%OTS,ly=y%OTS;if(lx<2||lx>OTS-3||ly<2||ly>OTS-3)for(const[dx,dy]of[[-2,0],[2,0],[0,-2],[0,2],[-2,-2],[2,2],[-2,2],[2,-2]]){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=GW||yy>=GH)continue;const tt=((yy/OTS)|0)*TX+((xx/OTS)|0);if(tt!==t&&TIL2[tt])markDr(TIL2[tt],x,y)}}
+// smooth field: 3x3 blurred indicator, bilinear between cell centres, hard threshold -> round crisp edges
+function rebuildTile(T2,t){const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS,r=T2.dr;T2.dr=null;
+  const x0=Math.max(tx,r[0]),y0=Math.max(ty,r[1]),x1=Math.min(tx+OTS-1,r[2]),y1=Math.min(ty+OTS-1,r[3]);if(x1<x0||y1<y0)return;
+  const cw=x1-x0+5,chh=y1-y0+5,bx=x0-2,by=y0-2,K1=new Float32Array(cw*chh),K2=new Float32Array(cw*chh),OW=new Int32Array(cw*chh).fill(-1);
+  const kAt=(i,j)=>i<0||j<0||i>=GW||j>=GH?0:kindOf(CTL[j*GW+i]);const raw=new Uint8Array((cw+2)*(chh+2));
+  for(let j=0;j<chh+2;j++)for(let i=0;i<cw+2;i++)raw[j*(cw+2)+i]=kAt(bx-1+i,by-1+j);
+  for(let j=0;j<chh;j++)for(let i=0;i<cw;i++){let a=0,b=0;for(let dj=0;dj<3;dj++)for(let di=0;di<3;di++){const w=(di===1?2:1)*(dj===1?2:1),v=raw[(j+dj)*(cw+2)+i+di];if(v===1)a+=w;else if(v===2)b+=w}
+    const q=j*cw+i;K1[q]=a/16;K2[q]=b/16;const ci=bx+i,cj=by+j;if(ci>=0&&cj>=0&&ci<GW&&cj<GH){const z=CTL[cj*GW+ci];if(z)OW[q]=G.zones[z-1].o}}
+  const own=(q)=>{if(OW[q]>=0)return OW[q];for(const o of[-1,1,-cw,cw,-cw-1,-cw+1,cw-1,cw+1]){const v=OW[q+o];if(v>=0)return v}return -1};
+  const wp=(x1-x0+1)*OS,hp=(y1-y0+1)*OS,dO=T2.g.createImageData(wp,hp),need3=T2.n3>0||T2.c3,dA=need3?T2.g.createImageData(wp,hp):null;
+  for(let py=0;py<hp;py++){const v=y0+(py+.5)/OS-.5-by,j0=Math.floor(v),fv=v-j0;
+    for(let px=0;px<wp;px++){const u=x0+(px+.5)/OS-.5-bx,i0=Math.floor(u),fu=u-i0,q=j0*cw+i0;
+      const w00=(1-fu)*(1-fv),w10=fu*(1-fv),w01=(1-fu)*fv,w11=fu*fv;
+      const f2=K2[q]*w00+K2[q+1]*w10+K2[q+cw]*w01+K2[q+cw+1]*w11,f1=K1[q]*w00+K1[q+1]*w10+K1[q+cw]*w01+K1[q+cw+1]*w11;
+      if(f1<.42&&f2<.42)continue;const nq=Math.round(v)*cw+Math.round(u),o=own(nq);if(o<0)continue;const c=rgbOf(natColor(o)),p=(py*wp+px)*4,D=f2>=f1?dA:dO;if(!D)continue;
+      D.data[p]=c[0];D.data[p+1]=c[1];D.data[p+2]=c[2];D.data[p+3]=D===dA?255:215}}
+  const ox2=(x0-tx)*OS,oy2=(y0-ty)*OS;T2.g.putImageData(dO,ox2,oy2);
+  if(dA){if(!T2.c3){T2.c3=document.createElement('canvas');T2.c3.width=T2.c3.height=OTS*OS;T2.g3=T2.c3.getContext('2d')}T2.g3.putImageData(dA,ox2,oy2)}}
+function setCell(i,z){const o=CTL[i];if(o===z)return;if(o)G.zones[o-1].c--;if(z)G.zones[z-1].c++;CTL[i]=z;paintPix(i,o);ctlVer++}
 function zoneFor(r,o){const key=r+'_'+o;let id=ZK.get(key);if(id)return id;G.zones.push({r,o,k:'o',c:0,n:''});id=G.zones.length;ZK.set(key,id);return id}
 const ctrlOf=i=>{const z=CTL[i];return z?G.zones[z-1].o:G.owner[REG[i]-1]};
 let DB=null;function occPaint(me,x,y,ry=1.5){if(!REG)return;x=((x%MW)+MW)%MW;const cx=x*GW/MW,cy=y*GH/MH;if(!DB)DB=[cx,cy,cx,cy];else{DB[0]=Math.min(DB[0],cx);DB[1]=Math.min(DB[1],cy);DB[2]=Math.max(DB[2],cx);DB[3]=Math.max(DB[3],cy)}const rx=ry/Math.max(.2,Math.cos((90-y/MH*180)*Math.PI/180));
@@ -611,7 +631,7 @@ function zoneEcon(){ZI={};ZP={};if(!RC)return;for(const z of G.zones){if(!z.c||!
   ZI[own]=(ZI[own]||0)-g;ZI[z.o]=(ZI[z.o]||0)+g;ZP[own]=(ZP[own]||0)-p;ZP[z.o]=(ZP[z.o]||0)+p}econVer=ctlVer}
 const regionZoned=r=>G.zones.some(z=>z.r===r&&z.c>0);
 function zoneSum(r){let s=0;for(const z of G.zones)if(z.r===r)s+=z.c;return s}
-function occInitGame(){CTL.fill(0);TIL2=[];TIL3=[];ZK=new Map();if(!G.zones)G.zones=[];for(const z of G.zones)z.c=0;
+function occInitGame(){CTL.fill(0);TIL2=[];ZK=new Map();if(!G.zones)G.zones=[];for(const z of G.zones)z.c=0;
   G.zones.forEach((z,i)=>{if(z.k==='o')ZK.set(z.r+'_'+z.o,i+1)});
   if(G.ctl){const a=G.ctl;for(let k=0;k<a.length;k+=3){const s=a[k],n=a[k+1],v=a[k+2];if(!G.zones[v-1])continue;for(let i=s;i<s+n;i++){CTL[i]=v;G.zones[v-1].c++;paintPix(i)}}delete G.ctl}
   if(G.rn)for(const k in G.rn)RN[k]=G.rn[k];ctlVer++;zoneEcon()}
@@ -622,14 +642,14 @@ function buildSelMask(){const r=selZ.r,z=selZ.z,[x0,y0,x1,y1]=cellBox(r),w=x1-x0
   for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){if(!inn(i,j))continue;const p=((j-y0)*w+(i-x0))*4,edge=!inn(i-1,j)||!inn(i+1,j)||!inn(i,j-1)||!inn(i,j+1);
     if(edge){D[p]=255;D[p+1]=216;D[p+2]=74;D[p+3]=255}else{D[p]=255;D[p+1]=255;D[p+2]=255;D[p+3]=70}}
   g.putImageData(d,0,0);selZ.cv=c;selZ.x0=x0;selZ.y0=y0;selZ.ver=ctlVer;selZ.at=performance.now()}
-function occTiles(g,S,ox,s,vis){for(let t=0;t<S.length;t++){const T2=S[t];if(!T2||!T2.n)continue;const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS;
-    if(vis){const sx=ox+tx*s,sy=T.y+ty*s;if(sx>W||sx+OTS*s<0||sy>H||sy+OTS*s<0)continue}if(T2.dirty){T2.g.putImageData(T2.d,0,0);T2.dirty=false}g.drawImage(T2.c,tx,ty)}}
-const hasT=S=>S.some(t=>t&&t.n);
+function occTiles(g,ann,ox,s,vis){for(let t=0;t<TIL2.length;t++){const T2=TIL2[t];if(!T2||!(ann?T2.n3:T2.n))continue;const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS;
+    if(vis){const sx=ox+tx*s,sy=T.y+ty*s;if(sx>W||sx+OTS*s<0||sy>H||sy+OTS*s<0)continue}if(T2.dr)rebuildTile(T2,t);const c=ann?T2.c3:T2.c;if(c)g.drawImage(c,tx,ty,OTS,OTS)}}
+const hasT=ann=>TIL2.some(t=>t&&(ann?t.n3:t.n));
 function drawOcc(K,ox){if(!G)return;const s=K*MW/GW;
-  if(hasT(TIL3)){ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;occTiles(ctx,TIL3,ox,s,1);ctx.restore()}
-  if(hasT(TIL2)){if(!OL)OL=document.createElement('canvas');if(OL.width!==cv.width||OL.height!==cv.height){OL.width=cv.width;OL.height=cv.height}const g=OL.getContext('2d');
+  if(hasT(1)){ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;occTiles(ctx,1,ox,s,1);ctx.restore()}
+  if(hasT(0)){if(!OL)OL=document.createElement('canvas');if(OL.width!==cv.width||OL.height!==cv.height){OL.width=cv.width;OL.height=cv.height}const g=OL.getContext('2d');
     if(!STP){const c=document.createElement('canvas');c.width=c.height=10;const q=c.getContext('2d');q.strokeStyle='rgba(0,0,0,.6)';q.lineWidth=3.2;q.beginPath();for(let k=-10;k<=20;k+=10){q.moveTo(k,10);q.lineTo(k+10,0)}q.stroke();STP=g.createPattern(c,'repeat')}
-    g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='source-over';g.clearRect(0,0,OL.width,OL.height);g.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);g.imageSmoothingEnabled=true;occTiles(g,TIL2,ox,s,1);
+    g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='source-over';g.clearRect(0,0,OL.width,OL.height);g.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);g.imageSmoothingEnabled=true;occTiles(g,0,ox,s,1);
     g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='destination-out';g.fillStyle=STP;g.fillRect(0,0,OL.width,OL.height);g.globalCompositeOperation='source-over';
     ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(OL,0,0);ctx.restore()}
   if(selZ&&REG){if(!selZ.cv||(selZ.ver!==ctlVer&&performance.now()-selZ.at>250))buildSelMask();ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;ctx.drawImage(selZ.cv,selZ.x0,selZ.y0);ctx.restore()}}
@@ -697,7 +717,7 @@ function pcDraw(){const P=PC,c=P.cv,g=P.g,w=c.clientWidth,h=c.clientHeight;if(c.
   for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;const o=G.owner[r],p=L.paths[r];
     g.fillStyle=o===G.player||o===P.x?natColor(o):'#333b49';g.fill(p)}
   const s=MW/GW;g.save();g.scale(s,s);g.imageSmoothingEnabled=true;
-  occTiles(g,TIL3,0,0,0);occTiles(g,TIL2,0,0,0);
+  occTiles(g,1,0,0,0);occTiles(g,0,0,0,0);
   if(P.pdirty){P.pg.putImageData(P.pd,0,0);P.pdirty=false}g.imageSmoothingEnabled=true;g.drawImage(P.plan,P.x0,P.y0);g.restore();
   g.strokeStyle='rgba(0,0,0,.7)';g.lineWidth=.8/t.k;for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;g.stroke(L.paths[r])}}
 function pcClose(){const e=document.getElementById('pc');if(e)e.remove();PC=null;draw()}
