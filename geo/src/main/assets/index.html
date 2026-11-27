@@ -164,12 +164,15 @@ async function loadWater(){const t=await getJ('water.json');const pr=d3.geoEquir
     return{n:f.properties.n,t:f.properties.t,r:f.properties.r,pp,p:p2,b:[x0,y0,x1,y1]}});
   const rivers=topojson.feature(t,t.objects.v).features.map(f=>{const g=f.geometry,Ls=g.type==='LineString'?[g.coordinates]:g.coordinates;const ls=Ls.map(l=>l.map(c=>pr(c)));
     let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const l of ls)for(const q of l){x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);y0=Math.min(y0,q[1]);y1=Math.max(y1,q[1])}return{n:f.properties.n,r:f.properties.r,ls,b:[x0,y0,x1,y1]}});
+  const CAN=[['Суэцкий канал',[[32.30,31.27],[32.31,31.05],[32.30,30.80],[32.28,30.60],[32.33,30.45],[32.42,30.33],[32.53,30.15],[32.56,29.95]]],
+    ['Панамский канал',[[-79.92,9.38],[-79.92,9.27],[-79.85,9.20],[-79.75,9.15],[-79.68,9.10],[-79.62,9.02],[-79.58,8.96],[-79.55,8.90]]]];
+  for(const[n,c]of CAN){const l=c.map(q=>pr(q));let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const q of l){x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);y0=Math.min(y0,q[1]);y1=Math.max(y1,q[1])}rivers.push({n,r:0,t:'Канал',can:1,ls:[l],b:[x0,y0,x1,y1]})}
   WAT={lakes,rivers}}
 function hitWater(x,y){if(!WAT)return null;const[mx,my]=toMap(x,y),mr=wRank(T.k),K=S0()*T.k;
   let best=null,ba=1e18;for(const l of WAT.lakes){if(l.r>mr)continue;const b=l.b;if(mx<b[0]||mx>b[2]||my<b[1]||my>b[3])continue;if(hctx.isPointInPath(l.p,mx,my)){const a=(b[2]-b[0])*(b[3]-b[1]);if(a<ba){ba=a;best={n:l.n,t:l.t,img:'lake',o:l}}}}
   if(best)return best;const tol=10/K;let bd=tol*tol;
   for(const v of WAT.rivers){if(v.r>mr)continue;const b=v.b;if(mx<b[0]-tol||mx>b[2]+tol||my<b[1]-tol||my>b[3]+tol)continue;
-    for(const l of v.ls)for(let i=1;i<l.length;i++){const ax=l[i-1][0],ay=l[i-1][1],bx=l[i][0],by=l[i][1],dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;let u=L2?((mx-ax)*dx+(my-ay)*dy)/L2:0;u=Math.max(0,Math.min(1,u));const ex=ax+u*dx-mx,ey=ay+u*dy-my,d=ex*ex+ey*ey;if(d<bd){bd=d;best={n:v.n,t:'Река',img:'riverv',o:v}}}}
+    for(const l of v.ls)for(let i=1;i<l.length;i++){const ax=l[i-1][0],ay=l[i-1][1],bx=l[i][0],by=l[i][1],dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;let u=L2?((mx-ax)*dx+(my-ay)*dy)/L2:0;u=Math.max(0,Math.min(1,u));const ex=ax+u*dx-mx,ey=ay+u*dy-my,d=ex*ex+ey*ey;if(d<bd){bd=d;best={n:v.n,t:v.t||'Река',img:v.can?'strait':'riverv',o:v}}}}
   return best}
 function showWater(w){selW=w;selSea=-1;sel=-1;draw();panel.style.display='none';
   let sp=document.getElementById('seap');if(!sp){sp=document.createElement('div');sp.id='seap';document.body.appendChild(sp)}
@@ -432,6 +435,7 @@ function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
     if(selSea>=0&&SEA[selSea]){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2/K;ctx.strokeStyle='#7fd0ff';ctx.setLineDash([6/K,4/K]);ctx.stroke(SEA[selSea].ol);ctx.restore()}
     if(sel>=0){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(regOutline(lodFor(T.k),sel));ctx.restore()}
     drawCities(K,ox);
+    if(T.k>=1.6&&WAT){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineCap='round';ctx.lineJoin='round';for(const v of WAT.rivers)if(v.can){for(const w of[[3.2,'rgba(0,0,0,.6)'],[1.8,'#3d8fd6']]){ctx.lineWidth=w[0]/K;ctx.strokeStyle=w[1];ctx.beginPath();v.ls[0].forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.stroke()}}ctx.restore()}
     if(G){drawOffensives(K,ox);drawDivs(K,ox)}
     drawLabels(K,ox)}}
 function drawOffensives(K,ox){
@@ -597,20 +601,20 @@ function moveDivs(hrs){let mv=false;
       else{const f=left/t;d.x+=(q[0]-d.x)*f;d.y+=(q[1]-d.y)*f;left=0}}
     if(d.x<0||d.x>=MW){const sh=d.x<0?MW:-MW;d.x+=sh;for(const q of d.path)q[0]+=sh}}
   return mv}
-function hitDiv(cx,cy){if(!G||!G.divs)return null;const K=S0()*T.k,ww=MW*K;let b=null,bd=18;
+function hitDiv(cx,cy){if(!G||!G.divs||T.k<1.8)return null;const K=S0()*T.k,ww=MW*K;let b=null,bd=14;
   for(const d of G.divs)for(let c=-1;c<=Math.ceil(W/ww)+1;c++){const x=d.x*K+T.x+c*ww,y=d.y*K+T.y,dd=Math.hypot(cx-x,cy-y);if(dd<bd){bd=dd;b=d}}return b}
-function drawDivs(K,ox){if(!G.divs||!G.divs.length)return;const col=natColor(G.player);
+function drawDivs(K,ox){if(!G.divs||!G.divs.length||T.k<1.8)return;const col=natColor(G.player);
   for(const d of G.divs){const x=d.x*K+ox,y=d.y*K+T.y;
     if(d.path.length){const P=d.path,e=P[P.length-1];ctx.lineCap='round';ctx.lineJoin='round';
       const ln=()=>{ctx.beginPath();ctx.moveTo(x,y);for(const q of P)ctx.lineTo(q[0]*K+ox,q[1]*K+T.y);ctx.stroke()};
-      ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=5;ln();ctx.strokeStyle=d===selDiv?'#ffe14a':'rgba(140,255,140,.95)';ctx.lineWidth=2.6;ln();
+      ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=4;ln();ctx.strokeStyle=d===selDiv?'#ffe14a':'rgba(140,255,140,.95)';ctx.lineWidth=2;ln();
       const p2=P.length>1?P[P.length-2]:[d.x,d.y],ex=e[0]*K+ox,ey=e[1]*K+T.y,ang=Math.atan2(ey-(p2[1]*K+T.y),ex-(p2[0]*K+ox));
       ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(ex+3*Math.cos(ang),ey+3*Math.sin(ang));ctx.lineTo(ex-9*Math.cos(ang-.45),ey-9*Math.sin(ang-.45));ctx.lineTo(ex-9*Math.cos(ang+.45),ey-9*Math.sin(ang+.45));ctx.fill()}
     if(x<-30||x>W+30||y<-30||y>H+30)continue;
-    const w=24,h=15,X=x-w/2,Y=y-h/2;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(X-1.5,Y-1.5,w+3,h+3);ctx.fillStyle=col;ctx.fillRect(X,Y,w,h);
-    ctx.strokeStyle=d===selDiv?'#ffe14a':'#fff';ctx.lineWidth=d===selDiv?2:1.2;ctx.strokeRect(X,Y,w,h);
-    ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(X+3,Y+2);ctx.lineTo(X+w-3,Y+h-2);ctx.moveTo(X+w-3,Y+2);ctx.lineTo(X+3,Y+h-2);ctx.stroke();
-    ctx.fillStyle='#000a';ctx.fillRect(X,Y+h+2,w,3);ctx.fillStyle='#7dff7d';ctx.fillRect(X,Y+h+2,w*d.str/10000,3)}}
+    const w=14,h=9,X=x-w/2,Y=y-h/2;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(X-1.5,Y-1.5,w+3,h+3);ctx.fillStyle=col;ctx.fillRect(X,Y,w,h);
+    ctx.strokeStyle=d===selDiv?'#ffe14a':'#fff';ctx.lineWidth=d===selDiv?1.6:1;ctx.strokeRect(X,Y,w,h);
+    ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X+2,Y+1.5);ctx.lineTo(X+w-2,Y+h-1.5);ctx.moveTo(X+w-2,Y+1.5);ctx.lineTo(X+2,Y+h-1.5);ctx.stroke();
+    ctx.fillStyle='#000a';ctx.fillRect(X,Y+h+1.5,w,2);ctx.fillStyle='#7dff7d';ctx.fillRect(X,Y+h+1.5,w*d.str/10000,2)}}
 let toastT=0;function toast(t){let e=document.getElementById('toast');if(!e){e=document.createElement('div');e.id='toast';document.body.appendChild(e)}e.textContent=t;e.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>e.style.display='none',2600)}
 function dayTick(){G.day++;const me=G.player,ns=nations();
   for(const o of ns){const N=G.nat[o];N.money+=dailyInc(o);N.stab+=(65-N.stab)*.004;
