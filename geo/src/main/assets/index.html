@@ -920,12 +920,18 @@ function plAt(P,C,t){const L=C[C.length-1]*t;let i=1;while(i<C.length-1&&C[i]<L)
 function plProj(P,C,x,y){let bt=0,bd=1e18;for(let i=1;i<P.length;i++){const ax=P[i-1][0],ay=P[i-1][1],dx=P[i][0]-ax,dy=P[i][1]-ay,l2=dx*dx+dy*dy||1;let u=((x-ax)*dx+(y-ay)*dy)/l2;u=Math.max(0,Math.min(1,u));
   const d=(ax+u*dx-x)**2+(ay+u*dy-y)**2;if(d<bd){bd=d;bt=(C[i-1]+u*(C[i]-C[i-1]))/(C[C.length-1]||1)}}return bt}
 function selDivs(){const s=[...SELS].map(id=>G.divs.find(d=>d.id===id)).filter(Boolean);if(!s.length&&selDiv)s.push(selDiv);return s}
+function sendFront(divs,P){const gap=3,S=[[P[0]]];for(let i=1;i<P.length;i++){if(Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1])>gap)S.push([]);S[S.length-1].push(P[i])}
+  if(S.length<2)return sendAlong(divs,P);const L=S.map(s=>{let l=0;for(let i=1;i<s.length;i++)l+=Math.hypot(s[i][0]-s[i-1][0],s[i][1]-s[i-1][1]);return l+.5});
+  const ord=S.map((s,i)=>i).sort((a,b)=>L[b]-L[a]),n=divs.length,cnt=new Array(S.length).fill(0);let left=n;for(const i of ord){if(!left)break;cnt[i]=1;left--}
+  const tot=L.reduce((a,b)=>a+b,0);while(left>0){let bi=0,bv=-1e9;for(let i=0;i<S.length;i++){const v=L[i]/tot*n-cnt[i];if(v>bv){bv=v;bi=i}}cnt[bi]++;left--}
+  const rest=divs.slice();let ok=0;for(let i=0;i<S.length;i++){if(!cnt[i])continue;const seg=S[i].length>1?S[i]:[S[i][0],S[i][0]];const c=seg.reduce((a,p)=>[a[0]+p[0],a[1]+p[1]],[0,0]).map(v=>v/seg.length);
+    rest.sort((a,b)=>Math.hypot(a.x-c[0],a.y-c[1])-Math.hypot(b.x-c[0],b.y-c[1]));ok+=sendAlong(rest.splice(0,cnt[i]),seg)||0}return ok}
 function sendAlong(divs,P){if(P.gap===undefined&&P.length>40)P.gap=3;const C=plLen(P),n=divs.length;if(!n)return;const ord=divs.map(d=>({d,t:plProj(P,C,d.x,d.y)})).sort((a,b)=>a.t-b.t);let ok=0;
   ord.forEach((o,i)=>{const p=plAt(P,C,(i+.5)/n);let x=p[0];while(x-o.d.x>MW/2)x-=MW;while(x-o.d.x<-MW/2)x+=MW;const r=regionAt(x,p[1]);if(r>=0&&orderDiv(o.d,x,p[1],r))ok++});return ok}
 function frontOf(d){return G.fronts.find(f=>f.divs.includes(d.id))}
 function makeFront(P,tn){const ds=selDivs();if(!ds.length){toast('Сначала выберите дивизии');return}const ids=ds.map(d=>d.id);
   for(const f of G.fronts)f.divs=f.divs.filter(id=>!ids.includes(id));G.fronts=G.fronts.filter(f=>f.divs.length);
-  const f={id:(G.frN=(G.frN||0)+1),divs:ids,line:P,plan:null,exec:false,t:tn??null};G.fronts.push(f);sendAlong(ds,P);toast(tn!=null?`Фронт против ${natName(tn)}: ${ids.length} див.`:`Фронт: ${ids.length} див.`);draw()}
+  const f={id:(G.frN=(G.frN||0)+1),divs:ids,line:P,plan:null,exec:false,t:tn??null};G.fronts.push(f);(tn!=null?sendFront:sendAlong)(ds,P);toast(tn!=null?`Фронт против ${natName(tn)}: ${ids.length} див.`:`Фронт: ${ids.length} див.`);draw()}
 function curFront(){const ds=selDivs();for(const d of ds){const f=frontOf(d);if(f)return f}return G.fronts[G.fronts.length-1]}
 function makePlan(P){const f=curFront();if(!f){toast('Сначала нарисуйте линию фронта');return}f.plan=P;f.exec=false;toast('План наступления готов · нажмите «Наступать»');draw()}
 function execPlans(){let n=0;for(const f of G.fronts){if(!f.plan||f.exec)continue;const ds=f.divs.map(id=>G.divs.find(d=>d.id===id)).filter(Boolean);f.line0=f.line;sendAlong(ds,f.plan);f.exec=true;n++}
@@ -936,14 +942,14 @@ function fillBetween(A,B){if(!REG)return;{const d=(p,q)=>Math.hypot(p[0]-q[0],p[
     xs.sort((a,b)=>a-b);for(let q=0;q+1<xs.length;q+=2)for(let i=Math.ceil(xs[q]-.5);i<Math.ceil(xs[q+1]-.5);i++){const ii=((i%GW)+GW)%GW,k=j*GW+ii;if(!REG[k])continue;const c=ctrlOf(k);if(c!==me&&(G.owner[REG[k]-1]===me||atWar(me,c)))cells.push(k)}}
   if(cells.length)queuePocket(me,cells,mine)}
 function checkFronts(){for(const f of G.fronts){if(!f.exec)continue;const ds=f.divs.map(id=>G.divs.find(d=>d.id===id)).filter(Boolean);if(ds.some(d=>d.path.length))continue;
-  const pl=f.plan;fillBetween(f.line0||f.line,pl);delete f.line0;f.plan=null;f.exec=false;if(f.t!=null){const g=frontUpd(f);if(g){f.line=g.pts;sendAlong(ds,g.pts)}else f.line=pl}else f.line=pl;toast('Наступление завершено');draw()}
+  const pl=f.plan;fillBetween(f.line0||f.line,pl);delete f.line0;f.plan=null;f.exec=false;if(f.t!=null){const g=frontUpd(f);if(g){f.line=g.pts;sendFront(ds,g.pts)}else f.line=pl}else f.line=pl;toast('Наступление завершено');draw()}
   const now=performance.now();for(const f of G.fronts)if(f.t!=null&&(f.v!==ctlVer||!FSEG.has(f.id))&&now-(f.tt||0)>1500){f.tt=now;frontUpd(f);draw()}}
-function setDraw(m){DRAW=DRAW===m?null:m;let ov=document.getElementById('drawov');if(!ov){ov=document.createElement('div');ov.id='drawov';document.body.appendChild(ov);let pts=null;
+function setDraw(m){DRAW=DRAW===m?null:m;DRAWP=null;let ov=document.getElementById('drawov');if(!ov){ov=document.createElement('div');ov.id='drawov';document.body.appendChild(ov);let pts=null;
     let dn=null;ov.addEventListener('pointerdown',e=>{ov.setPointerCapture(e.pointerId);dn=[e.clientX,e.clientY];pts=[toMap(e.clientX,e.clientY)];});
-    ov.addEventListener('pointermove',e=>{if(!pts)return;const q=toMap(e.clientX,e.clientY),l=pts[pts.length-1];let x=q[0];while(x-l[0]>MW/2)x-=MW;while(x-l[0]<-MW/2)x+=MW;
+    ov.addEventListener('pointercancel',()=>{pts=null;DRAWP=null;draw()});ov.addEventListener('pointermove',e=>{if(!pts||!DRAW)return;const q=toMap(e.clientX,e.clientY),l=pts[pts.length-1];let x=q[0];while(x-l[0]>MW/2)x-=MW;while(x-l[0]<-MW/2)x+=MW;
       if(Math.hypot(x-l[0],q[1]-l[1])*S0()*T.k>8){pts.push([x,q[1]]);DRAWP=pts;draw()}});
-    ov.addEventListener('pointerup',e=>{const P=pts;if(DRAW==='front'&&dn&&Math.hypot(e.clientX-dn[0],e.clientY-dn[1])<12){pts=null;DRAWP=null;const q=toMap(e.clientX,e.clientY);DRAW=null;ov.style.display='none';updFtb();frontOnNation(q[0],q[1]);return}pts=null;DRAWP=null;const m2=DRAW;DRAW=null;updFtb();if(!P||P.length<2){draw();return}if(m2==='front')makeFront(P);else makePlan(P)})}
-  ov.style.display=DRAW?'block':'none';updFtb();if(DRAW)toast(DRAW==='front'?'Нажмите на страну или проведите линию фронта':'Проведите линию плана наступления')}
+    ov.addEventListener('pointerup',e=>{const P=pts;if(!DRAW){pts=null;DRAWP=null;ov.style.display='none';draw();return}if(DRAW==='front'&&dn&&Math.hypot(e.clientX-dn[0],e.clientY-dn[1])<12){pts=null;DRAWP=null;const q=toMap(e.clientX,e.clientY);DRAW=null;ov.style.display='none';updFtb();frontOnNation(q[0],q[1]);return}pts=null;DRAWP=null;const m2=DRAW;DRAW=null;ov.style.display='none';updFtb();if(!P||P.length<2||!m2){draw();return}if(m2==='front')makeFront(P);else makePlan(P)})}
+  ov.style.display=DRAW?'block':'none';updFtb();draw();if(DRAW)toast(DRAW==='front'?'Нажмите на страну или проведите линию фронта':'Проведите линию плана наступления')}
 let DRAWP=null;
 const natName=n=>NAT[n]?NAT[n].n:'страной';
 const FSEG=new Map(),MSQ=[[],[3,0],[0,1],[3,1],[1,2],[3,0,1,2],[0,2],[3,2],[2,3],[0,2],[0,1,2,3],[1,2],[1,3],[0,1],[3,0],[]];
