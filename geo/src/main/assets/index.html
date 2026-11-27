@@ -336,7 +336,7 @@ void main(){vec3 c=vC.rgb;
     for(int k=0;k<9;k++){ivec2 o=ivec2(k%3-1,k/3-1);if(k==0)o=ivec2(0);else if(k==4)o=ivec2(-1);
       uint z=texelFetch(uZid,clamp(ci+o,ivec2(0),ivec2(${GW-1},${GH-1})),0).r&32767u;if(z>0u){uvec4 f=texelFetch(uZin,ivec2(int(z)%${TW},int(z)/${TW}),0);if(int(f.r)==vR){inf=f;ok=true;break;}}}
     if(ok&&texture(uZf,vM/vec2(2000.,1000.)).r>.5){uint g=inf.g;vec3 zc=vec3(float((g>>16)&255u),float((g>>8)&255u),float(g&255u))/255.;
-      if(inf.a>=2147483648u&&mod(gl_FragCoord.x+gl_FragCoord.y,18.)<7.)c=mix(c,zc,.4);else c=zc;}}
+      if(inf.a>=2147483648u&&mod((vM.x+vM.y)*uK,18.)<7.)c=mix(c,zc,.4);else c=zc;}}
   o=vec4(c,uA);}`);
   const ZLK=`uniform highp usampler2D uZid;uniform highp usampler2D uZin;uniform sampler2D uZf;uniform int uZon;
 uvec4 zoneNear(vec2 m,int reg,int st,bool real){ivec2 ci=ivec2(clamp(m*vec2(${(GW/2000).toFixed(4)},${(GH/1000).toFixed(4)}),vec2(0.),vec2(${GW-1}.,${GH-1}.)));
@@ -754,16 +754,17 @@ let ANX=[],ANXD=false;const isAnx=z=>z&&G.zones[z-1].k==='a';
 let ZID_A=null,FF_A=null,CHR=new Set(),ZCUT=new Map(),zFlushT=0,zAlloc=false,anxLT=0;
 function zoneRegion(r){const R1=r+1,[x0,y0,x1,y1]=cellBox(r),ids=[];G.zones.forEach((z,i)=>{if(z.r===r&&z.c>0)ids.push(i+1)});
   for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){const k=j*GW+i;if(REG[k]===R1){const z=CTL[k];ZID_A[k]=z;FF_A[k]=0}}
-  for(const id of [...ZCUT.keys()])if(G.zones[id-1].r===r)ZCUT.delete(id);
-  if(!ids.length)return[x0,y0,x1,y1];
+  if(!ids.length){CUTQ.add(r);return[x0,y0,x1,y1]}
   const{bx,by,w,h,F}=zoneField(r,k=>CTL[k]>0),hasZ=new Set(G.zones.filter(z=>z.c>0).map(z=>z.r));
   for(let j=0;j<h;j++){const cj=by+j;if(cj<0||cj>=GH)continue;for(let i=0;i<w;i++){const ci=bx+i;if(ci<0||ci>=GW)continue;const k=cj*GW+ci,rg=REG[k];
     if(rg===R1||!rg||!hasZ.has(rg-1))FF_A[k]=Math.round(F[j*w+i]*255)}}
   for(let pass=0;pass<3;pass++){const add=[];for(let j=1;j<h-1;j++){const cj=by+j;if(cj<1||cj>=GH-1)continue;for(let i=1;i<w-1;i++){const ci=bx+i;if(ci<1||ci>=GW-1)continue;const k=cj*GW+ci;
       if(ZID_A[k]&&!(ZID_A[k]&32768))continue;if(REG[k]&&REG[k]!==R1&&hasZ.has(REG[k]-1))continue;
       for(const o of[-1,1,-GW,GW]){const z=ZID_A[k+o]&32767;if(z&&G.zones[z-1].r===r){add.push(k,z);break}}}}for(let q=0;q<add.length;q+=2)ZID_A[add[q]]=add[q+1]|32768}
-  for(const id of ids){const m=maskContour(r,k=>CTL[k]===id);ZCUT.set(id,{r,line:m.line,b:m.b})}
+  CUTQ.add(r);
   return[bx,by,bx+w-1,by+h-1]}
+let CUTQ=new Set(),cutT=0;function cutFlush(){const L=CUTQ;CUTQ=new Set();for(const r of L){for(const id of [...ZCUT.keys()])if(G.zones[id-1].r===r)ZCUT.delete(id);G.zones.forEach((z,i)=>{if(z.r===r&&z.c>0){const m=maskContour(r,k=>CTL[k]===i+1);ZCUT.set(i+1,{r,line:m.line,b:m.b})}})}
+  ANX=[...ZCUT.entries()].map(([id,v])=>({id,r:v.r,line:v.line,b:v.b}));draw()}
 function zoneFlush(full){if(!REG||!G)return;if(!ZID_A){ZID_A=new Uint16Array(GW*GH);FF_A=new Uint8Array(GW*GH)}
   let regs;if(full){ZID_A.fill(0);FF_A.fill(0);ZCUT.clear();regs=new Set(G.zones.filter(z=>z.c>0).map(z=>z.r))}else regs=CHR;CHR=new Set();
   let X0=GW,Y0=GH,X1=-1,Y1=-1;for(const r of regs){const b=zoneRegion(r);X0=Math.min(X0,b[0]);Y0=Math.min(Y0,b[1]);X1=Math.max(X1,b[2]);Y1=Math.max(Y1,b[3])}
@@ -779,7 +780,7 @@ function zoneFlush(full){if(!REG||!G)return;if(!ZID_A){ZID_A=new Uint16Array(GW*
     gl.bindTexture(gl.TEXTURE_2D,GLR.zidT);gl.texSubImage2D(gl.TEXTURE_2D,0,X0,Y0,w,h,gl.RED_INTEGER,gl.UNSIGNED_SHORT,za);
     gl.bindTexture(gl.TEXTURE_2D,GLR.zfT);gl.texSubImage2D(gl.TEXTURE_2D,0,X0,Y0,w,h,gl.RED,gl.UNSIGNED_BYTE,fa)}
   gl.bindTexture(gl.TEXTURE_2D,GLR.zinT);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA32UI,TW,zh,0,gl.RGBA_INTEGER,gl.UNSIGNED_INT,inf);
-  gl.pixelStorei(gl.UNPACK_ALIGNMENT,4);GLR.ZIDA=ZID_A;const now=performance.now();if(full||now-anxLT>1000){anxLT=now;anxLines()}dirty(false);draw()}
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT,4);GLR.ZIDA=ZID_A;const now=performance.now();if(full){cutFlush();anxLT=now;anxLines()}else if(now-anxLT>6000){anxLT=now;anxLines()}draw()}
 function annexUpload(){zoneFlush(true)}
 // intra-nation borders that touch annexed land (normally hidden when zoomed out) -> small always-drawn set
 function anxLines(){if(!GLR.l2raw||!GLR.ZIDA)return;const Z=GLR.ZIDA;GLR.anxL=[];
@@ -1041,7 +1042,7 @@ function randomEvent(){const me=G.player,M=G.nat[me],ev=[
 let last=performance.now(),acc=0,lastHud=0,lastSimDraw=0;
 let lastClk='';function clockStr(){const f=Math.min(.9999,Math.max(0,acc)),m=Math.floor(f*1440);const h=Math.floor(m/60),mm=m%60;return String(h).padStart(2,'0')+':'+String(speed>=3?0:mm-mm%10).padStart(2,'0')}
 function loop(now){if(G&&G.fronts&&G.fronts.length&&now-frChk>500){frChk=now;checkFronts()}
-if(G&&CHR.size&&now-zFlushT>250){zFlushT=now;zoneFlush(false)}
+if(G&&CHR.size&&now-zFlushT>300){zFlushT=now;zoneFlush(false)}if(G&&CUTQ.size&&now-cutT>1200){cutT=now;cutFlush()}
 if(G&&ANQ.length&&now-(window.__pk||0)>16){window.__pk=now;stepPockets();if(now-lastSimDraw>30){lastSimDraw=now;draw()}}
 const dt=Math.min(.25,(now-last)/1000);last=now;
   if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;const dmv=G.divs&&G.divs.length&&moveDivs(dt*SPEEDS[speed]*24);if(dmv&&now-(window.__sm||0)>300){window.__sm=now;occSmooth(G.player)}if(dmv&&now-lastSimDraw>(divOnScreen()?40:250)){lastSimDraw=now;draw()}
