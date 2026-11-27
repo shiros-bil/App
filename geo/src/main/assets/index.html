@@ -333,7 +333,8 @@ void main(){vec3 c=vC.rgb;
   if(uZon==1){ivec2 ci=ivec2(clamp(vM*vec2(${(GW/2000).toFixed(4)},${(GH/1000).toFixed(4)}),vec2(0.),vec2(${GW-1}.,${GH-1}.)));uvec4 inf=uvec4(0u);bool ok=false;
     for(int k=0;k<9;k++){ivec2 o=ivec2(k%3-1,k/3-1);if(k==0)o=ivec2(0);else if(k==4)o=ivec2(-1);
       uint z=texelFetch(uZid,clamp(ci+o,ivec2(0),ivec2(${GW-1},${GH-1})),0).r&32767u;if(z>0u){uvec4 f=texelFetch(uZin,ivec2(int(z)%${TW},int(z)/${TW}),0);if(int(f.r)==vR){inf=f;ok=true;break;}}}
-    if(ok&&texture(uZf,vM/vec2(2000.,1000.)).r>.5){uint g=inf.g;c=vec3(float((g>>16)&255u),float((g>>8)&255u),float(g&255u))/255.;}}
+    if(ok&&texture(uZf,vM/vec2(2000.,1000.)).r>.5){uint g=inf.g;vec3 zc=vec3(float((g>>16)&255u),float((g>>8)&255u),float(g&255u))/255.;
+      if(inf.a>=2147483648u&&mod(gl_FragCoord.x+gl_FragCoord.y,18.)<7.)c=mix(c,zc,.4);else c=zc;}}
   o=vec4(c,uA);}`);
   const ZLK=`uniform highp usampler2D uZid;uniform highp usampler2D uZin;uniform sampler2D uZf;uniform int uZon;
 uvec4 zoneNear(vec2 m,int reg,int st,bool real){ivec2 ci=ivec2(clamp(m*vec2(${(GW/2000).toFixed(4)},${(GH/1000).toFixed(4)}),vec2(0.),vec2(${GW-1}.,${GH-1}.)));
@@ -361,8 +362,8 @@ in vec4 vC;in vec2 vM;flat in ivec2 vLR;flat in uvec4 vO;flat in int vMode;unifo
 `+ZLK+`
 void main(){if(vMode==0){o=vC;return;}
   uint oL=vO.x,oR=vO.y,gL=vO.z,gR=vO.w;
-  uvec4 f=zoneNear(vM,vLR.x,1,true);if(f.r!=99999u){oL=f.b;gL=f.a;}
-  f=zoneNear(vM,vLR.y,1,true);if(f.r!=99999u){oR=f.b;gR=f.a;}
+  uvec4 f=zoneNear(vM,vLR.x,1,true);if(f.r!=99999u){oL=f.b;gL=f.a&2147483647u;}
+  f=zoneNear(vM,vLR.y,1,true);if(f.r!=99999u){oR=f.b;gR=f.a&2147483647u;}
   if(gL!=0u&&gL==gR)discard;
   if(oL==oR){if(uWR<=0.)discard;o=vec4(0.,0.,0.,uAR);return;}
   o=vC;}`);
@@ -635,7 +636,7 @@ function rebuildTile(T2,t){const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS,r=T2.dr;T2.dr=n
       D.data[p]=c[0];D.data[p+1]=c[1];D.data[p+2]=c[2];D.data[p+3]=D===dA?255:((((x0-tx)*OS+px+(y0-ty)*OS+py)&7)<3?90:215)}}
   const ox2=(x0-tx)*OS,oy2=(y0-ty)*OS;T2.g.putImageData(dO,ox2,oy2);
   if(dA){if(!T2.c3){T2.c3=document.createElement('canvas');T2.c3.width=T2.c3.height=OTS*OS;T2.g3=T2.c3.getContext('2d')}T2.g3.putImageData(dA,ox2,oy2)}}
-function setCell(i,z){const o=CTL[i];if(o===z)return;if(o)G.zones[o-1].c--;if(z)G.zones[z-1].c++;CTL[i]=z;paintPix(i,o);ctlVer++}
+function setCell(i,z){const o=CTL[i];if(o===z)return;if(o)G.zones[o-1].c--;if(z)G.zones[z-1].c++;CTL[i]=z;paintPix(i,o);ctlVer++;if(REG&&REG[i])CHR.add(REG[i]-1)}
 function zoneFor(r,o){const key=r+'_'+o;let id=ZK.get(key);if(id)return id;G.zones.push({r,o,k:'o',c:0,n:''});id=G.zones.length;ZK.set(key,id);return id}
 const ctrlOf=i=>{const z=CTL[i];return z?G.zones[z-1].o:G.owner[REG[i]-1]};
 let DBL=[];function occPaint(me,x,y,ry=1.5){if(!REG)return;x=((x%MW)+MW)%MW;const cx=x*GW/MW,cy=y*GH/MH;let D=null;for(const b of DBL)if(cx>b[0]-24&&cx<b[2]+24&&cy>b[1]-24&&cy<b[3]+24&&b[2]-b[0]<120&&b[3]-b[1]<120){D=b;break}
@@ -667,7 +668,7 @@ let ANQ=[];function queuePocket(me,cells,mine){const set=new Map();cells.forEach
 function stepPockets(){const now=performance.now();for(const a of ANQ){const e=Math.min(a.c.length,Math.ceil(a.c.length*Math.min(1,(now-a.t0)/1200)));for(;a.i<e;a.i++){const k=a.c[a.i],rg=REG[k];if(!rg)continue;const r=rg-1,c=ctrlOf(k);if(c===a.me)continue;
     if(G.owner[r]===a.me)setCell(k,0);else if(atWar(a.me,c))setCell(k,zoneFor(r,a.me))}}ANQ=ANQ.filter(a=>a.i<a.c.length)}
 function cellBox(r){const x0=Math.max(0,Math.floor(BB[4*r]*GW/MW)-1),x1=Math.min(GW-1,Math.ceil(BB[4*r+2]*GW/MW)+1),y0=Math.max(0,Math.floor(BB[4*r+1]*GH/MH)-1),y1=Math.min(GH-1,Math.ceil(BB[4*r+3]*GH/MH)+1);return[x0,y0,x1,y1]}
-function occClearRegion(r){if(!REG)return;const[x0,y0,x1,y1]=cellBox(r);for(let j=y0;j<=y1;j++)for(let i=j*GW+x0,e=j*GW+x1;i<=e;i++)if(CTL[i]&&REG[i]===r+1){if(isAnx(CTL[i]))ANXD=true;setCell(i,0)}}
+function occClearRegion(r){if(!REG)return;const[x0,y0,x1,y1]=cellBox(r);for(let j=y0;j<=y1;j++)for(let i=j*GW+x0,e=j*GW+x1;i<=e;i++)if(CTL[i]&&REG[i]===r+1){setCell(i,0)}}
 function zoneEcon(){ZI={};ZP={};if(!RC)return;for(const z of G.zones){if(!z.c||!RC[z.r])continue;const own=G.owner[z.r];if(own===z.o)continue;const sh=Math.min(1,z.c/RC[z.r]),g=G.gdp[z.r]*sh,p=G.pop[z.r]*sh;
   ZI[own]=(ZI[own]||0)-g;ZI[z.o]=(ZI[z.o]||0)+g;ZP[own]=(ZP[own]||0)-p;ZP[z.o]=(ZP[z.o]||0)+p}econVer=ctlVer}
 const regionZoned=r=>G.zones.some(z=>z.r===r&&z.c>0);
@@ -678,7 +679,7 @@ function occInitGame(){CTL.fill(0);TIL2=[];ACT=[];ZK=new Map();if(!G.zones)G.zon
   if(G.rn)for(const k in G.rn)RN[k]=G.rn[k];
   {const gm={};for(const z of G.zones)if(z.k==='a'){if(z.g)gm[z.n+'|'+z.o]=z.g;}for(const z of G.zones)if(z.k==='a'&&!z.g){const key=z.n+'|'+z.o;z.g=gm[key]||(gm[key]=G.gid=(G.gid||0)+1)}
    if(G.rn)for(const k in G.rn){const key=G.rn[k]+'|'+G.owner[k];if(gm[key]&&!(G.rg&&G.rg[k]))(G.rg||(G.rg={}))[k]=gm[key]}}
-  ctlVer++;zoneEcon();ANX=[];if(GLR.ok)GLR.zon=0;if(REG)annexUpload()}
+  ctlVer++;zoneEcon();ANX=[];CHR=new Set();if(GLR.ok)GLR.zon=0;if(REG)zoneFlush(true)}
 function occRle(){const o=[];for(let i=0;i<CTL.length;){const v=CTL[i];if(!v){i++;continue}let j=i+1;while(j<CTL.length&&CTL[j]===v)j++;o.push(i,j-i,v);i=j}return o}
 function occLoadGrid(){try{const wk=new Worker('raster.js');wk.onmessage=e=>{REG=e.data;RC=new Uint32Array(RK.length);for(let i=0;i<REG.length;i++)if(REG[i])RC[REG[i]-1]++;wk.terminate();if(G){zoneEcon();annexUpload()}};wk.postMessage({GW,GH})}catch(e){console.error(e)}}
 function buildSelMask(){const r=selZ.r,z=selZ.z,[x0,y0,x1,y1]=cellBox(r),w=x1-x0+1,h=y1-y0+1;const c=selZ.cv&&selZ.cv.width===w&&selZ.cv.height===h?selZ.cv:document.createElement('canvas');c.width=w;c.height=h;
@@ -703,7 +704,7 @@ function occContour(T2){const tx=(T2.t%TX)*OTS,ty=((T2.t/TX)|0)*OTS,w=OTS+6,bx=t
 const hasT=ann=>ACT.some(t=>ann?t.n3:t.n);
 function drawOcc(K,ox){if(!G)return;const s=K*MW/GW;
   if(hasT(1)&&!(GLR.ok&&GLR.fill)){ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;occTiles(ctx,1,ox,s,1);ctx.restore()}
-  if(hasT(0)){ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;occTiles(ctx,0,ox,s,1);
+  if(hasT(0)&&!(GLR.ok&&GLR.fill)){ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;occTiles(ctx,0,ox,s,1);
     ctx.strokeStyle='rgba(0,0,0,.9)';ctx.lineWidth=1.5/s;ctx.lineCap='round';const now=performance.now();
     for(const T2 of ACT){if(!T2.n)continue;const tx=(T2.t%TX)*OTS,ty=((T2.t/TX)|0)*OTS,sx=ox+tx*s,sy=T.y+ty*s;if(sx>W||sx+OTS*s<0||sy>H||sy+OTS*s<0)continue;
       if(!T2.cp||(T2.cd&&now-(T2.ct||0)>200))occContour(T2);ctx.stroke(T2.cp)}
@@ -740,22 +741,37 @@ function maskContour(r,inZ){const{bx,by,w,h,F}=zoneField(r,inZ),sx=MW/GW,fill=ne
   return{fill,line,b:[bx*sx,by*sx,(bx+w)*sx,(by+h)*sx]}}
 // ===== annexed zones: drawn by the GL fill shader itself (identical colour), cut line drawn as a border
 let ANX=[],ANXD=false;const isAnx=z=>z&&G.zones[z-1].k==='a';
-function annexUpload(){ANXD=false;if(!REG||!G)return;const AZ=[];G.zones.forEach((z,i)=>{if(z.k==='a'&&z.c>0)AZ.push(i+1)});
-  ANX=AZ.map(id=>{const m=maskContour(G.zones[id-1].r,k=>CTL[k]===id);return{id,r:G.zones[id-1].r,line:m.line,b:m.b}});
-  if(!GLR.ok||!GLR.fill){draw();return}GLR.zon=AZ.length?1:0;if(!AZ.length){draw();return}
-  const ZID=new Uint16Array(GW*GH),FF=new Uint8Array(GW*GH),OWN=new Uint8Array(GW*GH),regs=new Set(AZ.map(id=>G.zones[id-1].r));
-  for(const r of regs){const f=zoneField(r,k=>isAnx(CTL[k])),{bx,by,w,h,F}=f;
-    for(let j=0;j<h;j++){const cj=by+j;if(cj<0||cj>=GH)continue;for(let i=0;i<w;i++){const ci=bx+i;if(ci<0||ci>=GW)continue;const k=cj*GW+ci;
-      if(REG[k]===r+1){FF[k]=Math.round(F[j*w+i]*255);OWN[k]=1}else if(!OWN[k])FF[k]=Math.round(F[j*w+i]*255);const z=CTL[k];if(REG[k]===r+1&&isAnx(z))ZID[k]=z}}
-    for(let pass=0;pass<3;pass++){const add=[];for(let j=1;j<h-1;j++){const cj=by+j;if(cj<1||cj>=GH-1)continue;for(let i=1;i<w-1;i++){const ci=bx+i;if(ci<1||ci>=GW-1)continue;const k=cj*GW+ci;if(ZID[k])continue;
-      for(const o of[-1,1,-GW,GW]){const z=ZID[k+o]&32767;if(z&&G.zones[z-1].r===r){add.push(k,z);break}}}}for(let q=0;q<add.length;q+=2)ZID[add[q]]=add[q+1]|32768}}
+// all zones (occupied 'o' striped + annexed 'a') are drawn by the GL fill shader; textures updated per changed region
+let ZID_A=null,FF_A=null,CHR=new Set(),ZCUT=new Map(),zFlushT=0,zAlloc=false,anxLT=0;
+function zoneRegion(r){const R1=r+1,[x0,y0,x1,y1]=cellBox(r),ids=[];G.zones.forEach((z,i)=>{if(z.r===r&&z.c>0)ids.push(i+1)});
+  for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){const k=j*GW+i;if(REG[k]===R1){const z=CTL[k];ZID_A[k]=z;FF_A[k]=0}}
+  for(const id of [...ZCUT.keys()])if(G.zones[id-1].r===r)ZCUT.delete(id);
+  if(!ids.length)return[x0,y0,x1,y1];
+  const{bx,by,w,h,F}=zoneField(r,k=>CTL[k]>0),hasZ=new Set(G.zones.filter(z=>z.c>0).map(z=>z.r));
+  for(let j=0;j<h;j++){const cj=by+j;if(cj<0||cj>=GH)continue;for(let i=0;i<w;i++){const ci=bx+i;if(ci<0||ci>=GW)continue;const k=cj*GW+ci,rg=REG[k];
+    if(rg===R1||!rg||!hasZ.has(rg-1))FF_A[k]=Math.round(F[j*w+i]*255)}}
+  for(let pass=0;pass<3;pass++){const add=[];for(let j=1;j<h-1;j++){const cj=by+j;if(cj<1||cj>=GH-1)continue;for(let i=1;i<w-1;i++){const ci=bx+i;if(ci<1||ci>=GW-1)continue;const k=cj*GW+ci;
+      if(ZID_A[k]&&!(ZID_A[k]&32768))continue;if(REG[k]&&REG[k]!==R1&&hasZ.has(REG[k]-1))continue;
+      for(const o of[-1,1,-GW,GW]){const z=ZID_A[k+o]&32767;if(z&&G.zones[z-1].r===r){add.push(k,z);break}}}}for(let q=0;q<add.length;q+=2)ZID_A[add[q]]=add[q+1]|32768}
+  for(const id of ids){const m=maskContour(r,k=>CTL[k]===id);ZCUT.set(id,{r,line:m.line,b:m.b})}
+  return[bx,by,bx+w-1,by+h-1]}
+function zoneFlush(full){if(!REG||!G)return;if(!ZID_A){ZID_A=new Uint16Array(GW*GH);FF_A=new Uint8Array(GW*GH)}
+  let regs;if(full){ZID_A.fill(0);FF_A.fill(0);ZCUT.clear();regs=new Set(G.zones.filter(z=>z.c>0).map(z=>z.r))}else regs=CHR;CHR=new Set();
+  let X0=GW,Y0=GH,X1=-1,Y1=-1;for(const r of regs){const b=zoneRegion(r);X0=Math.min(X0,b[0]);Y0=Math.min(Y0,b[1]);X1=Math.max(X1,b[2]);Y1=Math.max(Y1,b[3])}
+  ANX=[...ZCUT.entries()].map(([id,v])=>({id,r:v.r,line:v.line,b:v.b}));
+  if(!GLR.ok||!GLR.fill){draw();return}GLR.zon=G.zones.some(z=>z.c>0)?1:0;
   const zh=Math.ceil((G.zones.length+1)/TW),inf=new Uint32Array(TW*zh*4);
-  G.zones.forEach((z,i)=>{const c=cssCol(natColor(z.o)),q=4*(i+1);inf[q]=z.r;inf[q+1]=(c[0]<<16)|(c[1]<<8)|c[2];inf[q+2]=z.o;inf[q+3]=z.g||0});
+  G.zones.forEach((z,i)=>{const c=cssCol(natColor(z.o)),q=4*(i+1);inf[q]=z.r;inf[q+1]=(c[0]<<16)|(c[1]<<8)|c[2];inf[q+2]=z.o;inf[q+3]=((z.g||0)|(z.k==='o'?0x80000000:0))>>>0});
   gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
-  GLR.ZIDA=ZID;anxLines();  gl.bindTexture(gl.TEXTURE_2D,GLR.zidT);gl.texImage2D(gl.TEXTURE_2D,0,gl.R16UI,GW,GH,0,gl.RED_INTEGER,gl.UNSIGNED_SHORT,ZID);
-  gl.bindTexture(gl.TEXTURE_2D,GLR.zfT);gl.texImage2D(gl.TEXTURE_2D,0,gl.R8,GW,GH,0,gl.RED,gl.UNSIGNED_BYTE,FF);
+  if(full||!zAlloc){gl.bindTexture(gl.TEXTURE_2D,GLR.zidT);gl.texImage2D(gl.TEXTURE_2D,0,gl.R16UI,GW,GH,0,gl.RED_INTEGER,gl.UNSIGNED_SHORT,ZID_A);
+    gl.bindTexture(gl.TEXTURE_2D,GLR.zfT);gl.texImage2D(gl.TEXTURE_2D,0,gl.R8,GW,GH,0,gl.RED,gl.UNSIGNED_BYTE,FF_A);zAlloc=true}
+  else if(X1>=X0){X0=Math.max(0,X0);Y0=Math.max(0,Y0);X1=Math.min(GW-1,X1);Y1=Math.min(GH-1,Y1);const w=X1-X0+1,h=Y1-Y0+1,za=new Uint16Array(w*h),fa=new Uint8Array(w*h);
+    for(let j=0;j<h;j++){za.set(ZID_A.subarray((Y0+j)*GW+X0,(Y0+j)*GW+X0+w),j*w);fa.set(FF_A.subarray((Y0+j)*GW+X0,(Y0+j)*GW+X0+w),j*w)}
+    gl.bindTexture(gl.TEXTURE_2D,GLR.zidT);gl.texSubImage2D(gl.TEXTURE_2D,0,X0,Y0,w,h,gl.RED_INTEGER,gl.UNSIGNED_SHORT,za);
+    gl.bindTexture(gl.TEXTURE_2D,GLR.zfT);gl.texSubImage2D(gl.TEXTURE_2D,0,X0,Y0,w,h,gl.RED,gl.UNSIGNED_BYTE,fa)}
   gl.bindTexture(gl.TEXTURE_2D,GLR.zinT);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA32UI,TW,zh,0,gl.RGBA_INTEGER,gl.UNSIGNED_INT,inf);
-  gl.pixelStorei(gl.UNPACK_ALIGNMENT,4);dirty(false);draw()}
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT,4);GLR.ZIDA=ZID_A;const now=performance.now();if(full||now-anxLT>1000){anxLT=now;anxLines()}dirty(false);draw()}
+function annexUpload(){zoneFlush(true)}
 // intra-nation borders that touch annexed land (normally hidden when zoomed out) -> small always-drawn set
 function anxLines(){if(!GLR.l2raw||!GLR.ZIDA)return;const Z=GLR.ZIDA;GLR.anxL=[];
   GLR.l2raw.forEach((d,li)=>{if(!d)return;const S=d.S,L=d.L,ns=S.length/4,s2=[],l2=[];
@@ -930,7 +946,7 @@ function drawDivs(K,ox){if(!G.divs||!G.divs.length||T.k<1.8)return;const col=nat
     ctx.drawImage(d===selDiv?sS:sN,x-9,y-6.5,18,13);if(d.str<10000){ctx.fillStyle='#000a';ctx.fillRect(x-7,y+6,14,2);ctx.fillStyle='#7dff7d';ctx.fillRect(x-7,y+6,14*d.str/10000,2)}}
   ctx.font='700 9px system-ui';ctx.textAlign='left';ctx.textBaseline='middle';for(const c of cell.values())if(c.n>1){const t=String(c.n),w=ctx.measureText(t).width+5;ctx.fillStyle='#000c';ctx.fillRect(c.x+6,c.y-11,w,10);ctx.fillStyle='#fff';ctx.fillText(t,c.x+8.5,c.y-6)}}
 let toastT=0;function toast(t){let e=document.getElementById('toast');if(!e){e=document.createElement('div');e.id='toast';document.body.appendChild(e)}e.textContent=t;e.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>e.style.display='none',2600)}
-function dayTick(){G.day++;if(ANXD)annexUpload();if(econVer!==ctlVer)zoneEcon();const me=G.player,ns=nations();
+function dayTick(){G.day++;if(econVer!==ctlVer)zoneEcon();const me=G.player,ns=nations();
   for(const o of ns){const N=G.nat[o];N.money+=dailyInc(o);N.stab+=(65-N.stab)*.004;
     if(N.money<0){N.stab-=.15;N.army*=.998}if(o!==me)N.army*=1.0004}
   if(G.day%30===0){for(let r=0;r<RK.length;r++)G.pop[r]*=Math.pow(1+(NAT[RK[r]].g||0),30/365);recalc()}
@@ -958,7 +974,8 @@ function randomEvent(){const me=G.player,M=G.nat[me],ev=[
   ()=>{M.army*=.96;return`${I("tornado")} Стихийное бедствие.`}];addLog(ev[Math.floor(Math.random()*ev.length)]())}
 let last=performance.now(),acc=0,lastHud=0,lastSimDraw=0;
 let lastClk='';function clockStr(){const f=Math.min(.9999,Math.max(0,acc)),m=Math.floor(f*1440);const h=Math.floor(m/60),mm=m%60;return String(h).padStart(2,'0')+':'+String(speed>=3?0:mm-mm%10).padStart(2,'0')}
-function loop(now){if(G&&ANQ.length&&now-(window.__pk||0)>16){window.__pk=now;stepPockets();if(now-lastSimDraw>30){lastSimDraw=now;draw()}}
+function loop(now){if(G&&CHR.size&&now-zFlushT>250){zFlushT=now;zoneFlush(false)}
+if(G&&ANQ.length&&now-(window.__pk||0)>16){window.__pk=now;stepPockets();if(now-lastSimDraw>30){lastSimDraw=now;draw()}}
 const dt=Math.min(.25,(now-last)/1000);last=now;
   if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;const dmv=G.divs&&G.divs.length&&moveDivs(dt*SPEEDS[speed]*24);if(dmv&&now-(window.__sm||0)>300){window.__sm=now;occSmooth(G.player)}if(dmv&&now-lastSimDraw>(divOnScreen()?40:250)){lastSimDraw=now;draw()}
     while(acc>=1&&n<10){acc-=1;n++;dayTick()}
