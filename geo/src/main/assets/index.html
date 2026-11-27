@@ -59,6 +59,8 @@ button small{width:100%;font-weight:500;opacity:.75;font-size:11px}
 .off .prog{width:100%}
 #seap{position:absolute;right:8px;bottom:8px;width:min(230px,40vw);height:52px;display:none;align-items:center;gap:14px;background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.45)}
 #seap img{height:100%;width:62px;object-fit:cover}#seap h2{margin:0 0 2px;font-size:13px;line-height:1.1}#seap .tag{font-size:10px;padding:1px 6px}#seap .x{position:absolute;right:2px;top:2px;padding:3px}#seap .x .ic{width:14px;height:14px}#seap{gap:8px}
+#ftb{position:fixed;left:8px;bottom:8px;z-index:6;display:none;gap:6px;flex-wrap:wrap;max-width:calc(100vw - 16px)}#ftb button{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:7px 11px;color:inherit;display:flex;gap:6px;align-items:center;font-size:13px}
+#ftb button.on{background:var(--acc)}#ftb button.p{background:#2f9e44}#drawov{position:fixed;inset:0;z-index:4;display:none;touch-action:none;cursor:crosshair}
 #pc{position:fixed;inset:0;z-index:30;background:#0b1220;display:grid;grid-template-columns:minmax(0,1fr) min(320px,42vw);grid-template-rows:auto minmax(0,1fr)}
 .pcbar{grid-column:1/3;display:flex;gap:14px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}.pcbar span{display:flex;gap:6px;align-items:center}
 .pcmap{position:relative;min-width:0;min-height:0;overflow:hidden}#pccv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -154,12 +156,12 @@ let CITY=[];const STAR=new Path2D('M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2
 let CITY_S=[];async function loadCities(){CITY=(await getJ('cities.json')).map(([lon,lat,n,c])=>({x:(lon+180)/360*MW,y:(90-lat)/180*MH,n:n.normalize('NFD').replace(/\u0301/g,'').normalize('NFC'),c}));CITY_S=CITY.slice().sort((a,b)=>b.c-a.c)}
 function drawCities(K,ox){const k=T.k;if(k<2.5)return;const all=k>=5,taken=[],vx0=-ox/K-5,vx1=(W-ox)/K+5,vy0=-T.y/K-5,vy1=(H-T.y)/K+5;
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='500 10px system-ui';ctx.lineJoin='round';
-  for(const c of CITY_S){if(!c.c&&!all)continue;if(c.x<vx0||c.x>vx1||c.y<vy0||c.y>vy1)continue;const x=c.x*K+ox,y=c.y*K+T.y;const tw=c.n.length*5.6+10,bx=[x-6,y-7,x+tw,y+7];
+  capUpdate();for(const c of CITY_S){const cp=c.cap??c.c;if(!cp&&!all)continue;if(cp===false&&c.ctl===-2)continue;if(c.x<vx0||c.x>vx1||c.y<vy0||c.y>vy1)continue;const x=c.x*K+ox,y=c.y*K+T.y;const tw=c.n.length*5.6+10,bx=[x-6,y-7,x+tw,y+7];
     if(taken.some(b=>bx[0]<b[2]&&bx[2]>b[0]&&bx[1]<b[3]&&bx[3]>b[1]))continue;taken.push(bx);
-    if(!c.sp)c.sp=citySprite(c);ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(c.sp,(x-8)*DPR,(y-8)*DPR,c.sp.width,c.sp.height)}ctx.setTransform(DPR,0,0,DPR,0,0)}
-function citySprite(c){const cv2=document.createElement('canvas'),g=cv2.getContext('2d');g.font='500 10px system-ui';const tw=g.measureText(c.n).width;
+    if(!c.sp||c.spc!==cp){c.spc=cp;c.sp=citySprite(c,cp)}ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(c.sp,(x-8)*DPR,(y-8)*DPR,c.sp.width,c.sp.height)}ctx.setTransform(DPR,0,0,DPR,0,0)}
+function citySprite(c,cp=c.c){const cv2=document.createElement('canvas'),g=cv2.getContext('2d');g.font='500 10px system-ui';const tw=g.measureText(c.n).width;
   cv2.width=Math.ceil((tw+22)*DPR);cv2.height=Math.ceil(16*DPR);g.scale(DPR,DPR);g.font='500 10px system-ui';g.textBaseline='middle';g.lineJoin='round';const x=8,y=8;
-  if(c.c){g.save();g.translate(x-6,y-6);g.scale(.5,.5);g.fillStyle='#f2c14e';g.strokeStyle='rgba(0,0,0,.6)';g.lineWidth=2;g.fill(STAR);g.stroke(STAR);g.restore()}
+  if(cp){g.save();g.translate(x-6,y-6);g.scale(.5,.5);g.fillStyle='#f2c14e';g.strokeStyle='rgba(0,0,0,.6)';g.lineWidth=2;g.fill(STAR);g.stroke(STAR);g.restore()}
   else{g.beginPath();g.arc(x,y,2.2,0,6.283);g.fillStyle='rgba(255,255,255,.85)';g.fill();g.lineWidth=1;g.strokeStyle='rgba(0,0,0,.6)';g.stroke()}
   g.lineWidth=2.5;g.strokeStyle='rgba(0,0,0,.45)';g.strokeText(c.n,x+6,y);g.fillStyle='rgba(255,255,255,.72)';g.fillText(c.n,x+6,y);return cv2}
 let SEA=[],selSea=-1,WAT=null,selW=null;
@@ -477,7 +479,7 @@ function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
     if(sel>=0&&!selZ){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(regOutline(lodFor(T.k),sel));ctx.restore()}
     drawOcc(K,ox);drawCities(K,ox);
     if(T.k>=1.6&&WAT){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineCap='round';ctx.lineJoin='round';for(const v of WAT.rivers)if(v.can){for(const w of[[3.2,'rgba(0,0,0,.6)'],[1.8,'#3d8fd6']]){ctx.lineWidth=w[0]/K;ctx.strokeStyle=w[1];ctx.beginPath();v.ls[0].forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.stroke()}}ctx.restore()}
-    if(G){drawOffensives(K,ox);drawDivs(K,ox)}
+    if(G){drawFronts(K,ox);drawDivs(K,ox)}
     drawLabels(K,ox)}}
 function drawOffensives(K,ox){
   for(const o of G.offs){const fx=LP[2*o.from],fy=LP[2*o.from+1],tx=LP[2*o.t],ty=LP[2*o.t+1];if(Math.abs(fx-tx)>MW/2)continue;
@@ -568,13 +570,13 @@ function newGame(p){const R=RK.length;
 let TER={},INC={},PPN={};
 function initPop(){G.pop=Array.from(RP)}
 const popOf=o=>(PPN[o]||0)+(ZP[o]||0);
-function recalc(){GLR.dirty=true;TER={};INC={};PPN={};if(!G.pop)initPop();for(let r=0;r<RK.length;r++){const o=G.owner[r];(TER[o]||(TER[o]=[])).push(r);INC[o]=(INC[o]||0)+G.gdp[r];PPN[o]=(PPN[o]||0)+G.pop[r]}if(G.zones)zoneEcon();lblDirty=true}
+function recalc(){RCN++;GLR.dirty=true;TER={};INC={};PPN={};if(!G.pop)initPop();for(let r=0;r<RK.length;r++){const o=G.owner[r];(TER[o]||(TER[o]=[])).push(r);INC[o]=(INC[o]||0)+G.gdp[r];PPN[o]=(PPN[o]||0)+G.pop[r]}if(G.zones)zoneEcon();lblDirty=true}
 let lblDirty=true;
 const terr=o=>TER[o]||[],income=o=>(INC[o]||0)+(ZI[o]||0),power=o=>G.nat[o].army*G.nat[o].tech,nations=()=>Object.keys(TER).map(Number);
 let lastSave=0,rleV=-1,rleC=null;function save(){lastSave=performance.now();try{if(rleV!==ctlVer){rleC=occRle();rleV=ctlVer}G.ctl=rleC;localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}delete G.ctl;try{}catch(e){}}
 function dateStr(){const d=new Date(Date.UTC(2026,0,1)+G.day*864e5);return d.getUTCDate()+' '+MONTHS[d.getUTCMonth()]+' '+d.getUTCFullYear()}
 let logDirty=true;function addLog(t){G.log.unshift(`<b>${dateStr()}</b> ${t}`);G.log=G.log.slice(0,50);logDirty=true}
-function startGame(){ownVer++;occInitGame();recalc();divInit();hud.style.display='flex';log.style.display='block';
+function startGame(){ownVer++;occInitGame();recalc();divInit();if(!G.fronts)G.fronts=[];SELS=new Set();updFtb();hud.style.display='flex';log.style.display='block';
   spd.innerHTML=[I('pause'),I('play'),I('chevrons-right'),I('fast-forward')].map((s,i)=>`<button id="sp${i}" onclick="setSpeed(${i})">${s}</button>`).join('')+`<button onclick="menu()">${I('menu')}</button>`;setSpeed(0);updHud();invalidate()}
 function setSpeed(i){speed=i;for(let j=0;j<4;j++)document.getElementById('sp'+j).classList.toggle('on',j===i)}
 function updHud(){const p=G.player,n=G.nat[p];
@@ -718,6 +720,11 @@ function showZonePanel(i){const me=G.player,z=selZ.z,Z=z?G.zones[z-1]:null,own=G
   <div style="margin-top:8px"><div class="row"><span>Доля региона</span><span>${(sh*100).toFixed(1)}%</span></div>
   <div class="row"><span>Население зоны</span><span>${fmtN(G.pop[i]*sh)}</span></div><div class="row"><span>ВВП зоны</span><span>$${fmt(G.gdp[i]*sh)}</span></div>
   <div class="row"><span>Регион</span><span>${RN[i]}</span></div><div class="row"><span>Законный владелец</span><span>${nm(own)}</span></div></div><div class="acts">`;
+  if(ctl===me)h+=`<button class="p" onclick="act('rec')" ${G.nat[G.player].money<recCost()?'disabled':''}>${I("users")} Мобилизация<br><small>$${fmt(recCost())}</small></button>
+    <button onclick="act('inv',${i})" ${G.nat[G.player].money<invCost(i)?'disabled':''}>${I("factory")} В регион<br><small>$${fmt(invCost(i))}</small></button>
+    <button onclick="newDivZ(${i},${z})" ${G.nat[G.player].money<divCost()||G.nat[G.player].army<12000?'disabled':''}>${I("shield")} Пехотная дивизия<br><small>$${fmt(divCost())} · 10 тыс</small></button>
+    <button onclick="act('tech')" ${G.nat[G.player].money<techCost()?'disabled':''}>${I("flask-conical")} Наука<br><small>$${fmt(techCost())}</small></button>
+    <button onclick="testDivs(${i},${z})">${I("plus")} Тест: +10 дивизий</button>`;
   const foe=own!==me?own:ctl!==me?ctl:-1;if(foe>=0&&G.war.includes(foe))h+=`<button onclick="openPeace(${foe})">${I("bird")} Мирная конференция</button>`;
   h+=`<button onclick="zoomToReg(${i})">${I("zoom-in")} Регион</button><button onclick="zoomToNat(${own})">${I("map")} Страна</button></div>`;panel.innerHTML=h;panel.style.display='block'}
 
@@ -805,7 +812,11 @@ function showGroupPanel(i,g){const q=groupInfo(g);panelSig=panelState(i);
   panel.innerHTML=`<button class="x" onclick="closePanel()">${I("x")}</button><div style="display:flex;gap:10px;align-items:center">${flagImg(q.o,'flag big')}<div><h2>${nm(q.o)}</h2><span class="tag">${I("map-pin")} ${q.n}</span></div></div>
   <div style="margin-top:8px"><div class="row"><span>Население региона</span><span>${fmtN(q.p)}</span></div><div class="row"><span>ВВП региона</span><span>$${fmt(q.gd)}</span></div>
   <div class="row"><span>ВВП державы</span><span>$${fmt(income(q.o))}</span></div><div class="row"><span>Население державы</span><span>${fmtN(popOf(q.o))}</span></div></div>
-  <div class="acts"><button onclick="zoomToReg(${i})">${I("zoom-in")} Регион</button><button onclick="zoomToNat(${q.o})">${I("map")} Страна</button></div>`;panel.style.display='block'}
+  <div class="acts">${q.o===G.player?`<button class="p" onclick="act('rec')" ${G.nat[G.player].money<recCost()?'disabled':''}>${I("users")} Мобилизация<br><small>$${fmt(recCost())}</small></button>
+    <button onclick="act('inv',${i})" ${G.nat[G.player].money<invCost(i)?'disabled':''}>${I("factory")} В регион<br><small>$${fmt(invCost(i))}</small></button>
+    <button onclick="newDivZ(${i},(selZ&&selZ.z||0))" ${G.nat[G.player].money<divCost()||G.nat[G.player].army<12000?'disabled':''}>${I("shield")} Пехотная дивизия<br><small>$${fmt(divCost())} · 10 тыс</small></button>
+    <button onclick="act('tech')" ${G.nat[G.player].money<techCost()?'disabled':''}>${I("flask-conical")} Наука<br><small>$${fmt(techCost())}</small></button>
+    <button onclick="testDivs(${i},(selZ&&selZ.z||0))">${I("plus")} Тест: +10 дивизий</button>`:''}<button onclick="zoomToReg(${i})">${I("zoom-in")} Регион</button><button onclick="zoomToNat(${q.o})">${I("map")} Страна</button></div>`;panel.style.display='block'}
 
 // ================= PEACE CONFERENCE =================
 let PC=null;const PCOL=[[80,200,255],[255,120,200],[140,255,120],[255,170,60],[180,140,255],[255,90,90],[90,255,220]];
@@ -900,6 +911,55 @@ function pcSign(){const P=PC,me=G.player,x=P.x;let got=0,whole=0;
   addLog(`${I("bird")} Мирный договор с ${nm(x)}${got?`: присоединено ${got} ${got%10===1&&got%100!==11?'территория':got%10>=2&&got%10<=4&&(got%100<10||got%100>=20)?'территории':'территорий'}`:' (белый мир)'}.`);
   recalc();annexUpload();dirty();pcClose();save();updHud()}
 
+// ================= FRONTS & OFFENSIVE PLANS (HOI4-like) =================
+let SELS=new Set(),DRAW=null,frChk=0;
+function regionAt(x,y){if(!REG)return -1;x=((x%MW)+MW)%MW;const k=Math.min(GH-1,Math.max(0,(y*GH/MH)|0))*GW+Math.min(GW-1,(x*GW/MW)|0);return REG[k]?REG[k]-1:-1}
+function plLen(P){const c=[0];for(let i=1;i<P.length;i++)c.push(c[i-1]+Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]));return c}
+function plAt(P,C,t){const L=C[C.length-1]*t;let i=1;while(i<C.length-1&&C[i]<L)i++;const s=C[i]-C[i-1]||1,f=(L-C[i-1])/s;return[P[i-1][0]+(P[i][0]-P[i-1][0])*f,P[i-1][1]+(P[i][1]-P[i-1][1])*f]}
+function plProj(P,C,x,y){let bt=0,bd=1e18;for(let i=1;i<P.length;i++){const ax=P[i-1][0],ay=P[i-1][1],dx=P[i][0]-ax,dy=P[i][1]-ay,l2=dx*dx+dy*dy||1;let u=((x-ax)*dx+(y-ay)*dy)/l2;u=Math.max(0,Math.min(1,u));
+  const d=(ax+u*dx-x)**2+(ay+u*dy-y)**2;if(d<bd){bd=d;bt=(C[i-1]+u*(C[i]-C[i-1]))/(C[C.length-1]||1)}}return bt}
+function selDivs(){const s=[...SELS].map(id=>G.divs.find(d=>d.id===id)).filter(Boolean);if(!s.length&&selDiv)s.push(selDiv);return s}
+function sendAlong(divs,P){const C=plLen(P),n=divs.length;if(!n)return;const ord=divs.map(d=>({d,t:plProj(P,C,d.x,d.y)})).sort((a,b)=>a.t-b.t);let ok=0;
+  ord.forEach((o,i)=>{const p=plAt(P,C,(i+.5)/n);let x=p[0];while(x-o.d.x>MW/2)x-=MW;while(x-o.d.x<-MW/2)x+=MW;const r=regionAt(x,p[1]);if(r>=0&&orderDiv(o.d,x,p[1],r))ok++});return ok}
+function frontOf(d){return G.fronts.find(f=>f.divs.includes(d.id))}
+function makeFront(P){const ds=selDivs();if(!ds.length){toast('Сначала выберите дивизии');return}const ids=ds.map(d=>d.id);
+  for(const f of G.fronts)f.divs=f.divs.filter(id=>!ids.includes(id));G.fronts=G.fronts.filter(f=>f.divs.length);
+  const f={id:(G.frN=(G.frN||0)+1),divs:ids,line:P,plan:null,exec:false};G.fronts.push(f);sendAlong(ds,P);toast(`Фронт: ${ids.length} див.`);draw()}
+function curFront(){const ds=selDivs();for(const d of ds){const f=frontOf(d);if(f)return f}return G.fronts[G.fronts.length-1]}
+function makePlan(P){const f=curFront();if(!f){toast('Сначала нарисуйте линию фронта');return}f.plan=P;f.exec=false;toast('План наступления готов · нажмите «Наступать»');draw()}
+function execPlans(){let n=0;for(const f of G.fronts){if(!f.plan||f.exec)continue;const ds=f.divs.map(id=>G.divs.find(d=>d.id===id)).filter(Boolean);sendAlong(ds,f.plan);f.exec=true;n++}
+  toast(n?`Наступление: ${n} ${n===1?'фронт':'фронта'}`:'Нет готовых планов');if(n&&speed===0)setSpeed(1);draw()}
+function fillBetween(A,B){if(!REG)return;const poly=[...A,...B.slice().reverse()].map(p=>[p[0]*GW/MW,p[1]*GH/MH]);let y0=GH,y1=0;for(const p of poly){y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}
+  const me=G.player,cells=[],mine=i=>REG[i]&&ctrlOf(i)===me;
+  for(let j=Math.max(0,Math.floor(y0));j<=Math.min(GH-1,Math.ceil(y1));j++){const yc=j+.5,xs=[];for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length];if((a[1]>yc)!==(b[1]>yc))xs.push(a[0]+(yc-a[1])*(b[0]-a[0])/(b[1]-a[1]))}
+    xs.sort((a,b)=>a-b);for(let q=0;q+1<xs.length;q+=2)for(let i=Math.ceil(xs[q]-.5);i<Math.ceil(xs[q+1]-.5);i++){const ii=((i%GW)+GW)%GW,k=j*GW+ii;if(!REG[k])continue;const c=ctrlOf(k);if(c!==me&&(G.owner[REG[k]-1]===me||atWar(me,c)))cells.push(k)}}
+  if(cells.length)queuePocket(me,cells,mine)}
+function checkFronts(){for(const f of G.fronts){if(!f.exec)continue;const ds=f.divs.map(id=>G.divs.find(d=>d.id===id)).filter(Boolean);if(ds.some(d=>d.path.length))continue;
+  fillBetween(f.line,f.plan);f.line=f.plan;f.plan=null;f.exec=false;toast('Наступление завершено');draw()}}
+function setDraw(m){DRAW=DRAW===m?null:m;let ov=document.getElementById('drawov');if(!ov){ov=document.createElement('div');ov.id='drawov';document.body.appendChild(ov);let pts=null;
+    ov.addEventListener('pointerdown',e=>{ov.setPointerCapture(e.pointerId);pts=[toMap(e.clientX,e.clientY)];});
+    ov.addEventListener('pointermove',e=>{if(!pts)return;const q=toMap(e.clientX,e.clientY),l=pts[pts.length-1];let x=q[0];while(x-l[0]>MW/2)x-=MW;while(x-l[0]<-MW/2)x+=MW;
+      if(Math.hypot(x-l[0],q[1]-l[1])*S0()*T.k>8){pts.push([x,q[1]]);DRAWP=pts;draw()}});
+    ov.addEventListener('pointerup',()=>{const P=pts;pts=null;DRAWP=null;const m2=DRAW;DRAW=null;updFtb();if(!P||P.length<2){draw();return}if(m2==='front')makeFront(P);else makePlan(P)})}
+  ov.style.display=DRAW?'block':'none';updFtb();if(DRAW)toast(DRAW==='front'?'Проведите линию фронта пальцем':'Проведите линию плана наступления')}
+let DRAWP=null;
+function selAllDivs(){if(SELS.size===G.divs.length&&SELS.size){SELS.clear();selDiv=null}else{SELS=new Set(G.divs.map(d=>d.id))}updFtb();draw()}
+function updFtb(){let e=document.getElementById('ftb');if(!G||!G.divs||!G.divs.length){if(e)e.style.display='none';return}
+  if(!e){e=document.createElement('div');e.id='ftb';document.body.appendChild(e)}e.style.display='flex';const n=SELS.size||(selDiv?1:0),ready=G.fronts.some(f=>f.plan&&!f.exec);
+  e.innerHTML=`<button onclick="selAllDivs()" class="${SELS.size?'on':''}">${I("users")} ${n?n+' выбр.':'Все'}</button><button onclick="setDraw('front')" class="${DRAW==='front'?'on':''}">${I("shield")} Фронт</button>
+  <button onclick="setDraw('plan')" class="${DRAW==='plan'?'on':''}">${I("arrow-right")} План</button><button onclick="execPlans()" class="${ready?'p':''}">${I("swords")} Наступать</button>`}
+function drawFronts(K,ox){if(!G.fronts)return;const L=(P,w,c,dash)=>{ctx.beginPath();P.forEach((p,i)=>i?ctx.lineTo(p[0]*K+ox,p[1]*K+T.y):ctx.moveTo(p[0]*K+ox,p[1]*K+T.y));ctx.lineWidth=w;ctx.strokeStyle=c;ctx.setLineDash(dash||[]);ctx.stroke();ctx.setLineDash([])};
+  const arrow=(P,c)=>{const a=P[P.length-2],b=P[P.length-1],ex=b[0]*K+ox,ey=b[1]*K+T.y,ang=Math.atan2(ey-(a[1]*K+T.y),ex-(a[0]*K+ox));ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(ex+6*Math.cos(ang),ey+6*Math.sin(ang));ctx.lineTo(ex-12*Math.cos(ang-.5),ey-12*Math.sin(ang-.5));ctx.lineTo(ex-12*Math.cos(ang+.5),ey-12*Math.sin(ang+.5));ctx.fill()};
+  ctx.lineCap='round';ctx.lineJoin='round';
+  for(const f of G.fronts){L(f.line,7,'rgba(0,0,0,.6)');L(f.line,3.5,'#e8433a');if(f.plan){L(f.plan,7,'rgba(0,0,0,.6)');L(f.plan,3.5,f.exec?'#ffd84a':'#9cff7a',[10,6]);arrow(f.plan,f.exec?'#ffd84a':'#9cff7a')}}
+  if(DRAWP&&DRAWP.length>1){L(DRAWP,6,'rgba(0,0,0,.6)');L(DRAWP,3,DRAW==='front'?'#e8433a':'#9cff7a')}}
+// dynamic capitals: star follows the nation's remaining cities
+let capKey='',RCN=0;
+function capUpdate(){if(!G||!REG||!CITY_S)return;const key=ctlVer+'_'+RCN;if(key===capKey)return;capKey=key;
+  for(const c of CITY_S){const x=((c.x%MW)+MW)%MW,k=Math.min(GH-1,(c.y*GH/MH)|0)*GW+Math.min(GW-1,(x*GW/MW)|0);c.k=REG[k]?k:-1;if(c.on===undefined)c.on=c.k>=0?RK[REG[k]-1]:-1;c.ctl=c.k>=0?ctrlOf(c.k):-1;c.cap=false}
+  const done=new Set();for(const c of CITY_S)if(c.c&&c.ctl===c.on&&c.on>=0&&!done.has(c.on)){c.cap=true;done.add(c.on)}
+  for(const c of CITY_S)if(c.ctl>=0&&!done.has(c.ctl)&&c.on===c.ctl&&terr(c.ctl).length){c.cap=true;done.add(c.ctl)}}
+
 // ================= DIVISIONS =================
 // Free movement: the order goes to the exact tapped point; the route crosses regions only through
 // shared border points (land only, own/allied/at-war territory), then is smoothed into a curve.
@@ -925,8 +985,13 @@ function orderDiv(d,tx,ty,tr){const rt=findRoute(d.r,tr);if(!rt){toast(canEnter(
   for(let it=0;it<3;it++){const Q=[P[0]];for(let i=0;i+1<P.length;i++){const a=P[i],b=P[i+1];Q.push([a[0]*.75+b[0]*.25,a[1]*.75+b[1]*.25,b[2]],[a[0]*.25+b[0]*.75,a[1]*.25+b[1]*.75,b[2]])}Q.push(P[P.length-1]);P=Q}
   d.path=P.slice(1);return true}
 const divCost=()=>income(G.player)*.004+8;
-function newDiv(r){const N=G.nat[G.player];N.army-=10000;N.money-=divCost();G.divN++;
-  const d={id:G.divN,n:G.divN+'-я пехотная',x:LP[2*r],y:LP[2*r+1],r,str:10000,path:[]};G.divs.push(d);selDiv=d;closePanel();toast(d.n+' дивизия сформирована · нажмите куда идти');return d}
+function newDiv(r,px,py,free){const N=G.nat[G.player];if(!free){N.army-=10000;N.money-=divCost()}G.divN++;
+  const d={id:G.divN,n:G.divN+'-я пехотная',x:px??LP[2*r],y:py??LP[2*r+1],r,str:10000,path:[]};G.divs.push(d);if(!free){selDiv=d;SELS=new Set([d.id]);closePanel();toast(d.n+' дивизия сформирована · нажмите куда идти')}updFtb();return d}
+function zonePt(r,z){if(!REG)return[LP[2*r],LP[2*r+1]];const[x0,y0,x1,y1]=cellBox(r);let sx=0,sy=0,n=0,best=null;
+  for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){const k=j*GW+i;if(REG[k]===r+1&&(z?CTL[k]===z:ctrlOf(k)===G.player)){sx+=i;sy+=j;n++;if(!best)best=[i,j]}}
+  if(!n)return[LP[2*r],LP[2*r+1]];let cx=sx/n,cy=sy/n;const k=(cy|0)*GW+(cx|0);if(!(REG[k]===r+1&&(z?CTL[k]===z:true))){cx=best[0];cy=best[1]}return[(cx+.5)*MW/GW,(cy+.5)*MH/GH]}
+function newDivZ(r,z){const p=zonePt(r,z);newDiv(r,p[0],p[1]);updHud();save();draw()}
+function testDivs(r,z){const p=zonePt(r,z);for(let i=0;i<10;i++)newDiv(r,p[0]+(Math.random()-.5)*1.5,p[1]+(Math.random()-.5)*1,1);toast('+10 дивизий (тест)');updHud();draw()}
 function moveDivs(hrs){let mv=false;
   for(const d of G.divs){let left=hrs;while(left>0&&d.path.length){const q=d.path[0];if(q[2]!==d.r&&!canEnter(q[2])){d.path=[];toast(d.n+': граница закрыта');break}
       const km=kmDist(d.x,d.y,q[0],q[1]),t=km/(INF_KMH*regSpd(d.r)),sx=d.x,sy=d.y;mv=true;
@@ -954,30 +1019,19 @@ function drawDivs(K,ox){if(!G.divs||!G.divs.length||T.k<1.8)return;const col=nat
   if(sp){ctx.strokeStyle='#ffe14a';ctx.stroke(sp);ctx.fillStyle='#ffe14a';ctx.fill(sp.arr)}
   const sN=divSprite(col,''),sS=divSprite(col,'s'),cell=new Map(),cs=T.k<4?16:0;
   for(const d of G.divs){const x=d.x*K+ox,y=d.y*K+T.y;if(x<-20||x>W+20||y<-20||y>H+20)continue;
-    if(cs&&d!==selDiv){const key=((x/cs)|0)*4096+((y/cs)|0),c=cell.get(key);if(c){c.n++;continue}cell.set(key,{x,y,n:1})}
-    ctx.drawImage(d===selDiv?sS:sN,x-9,y-6.5,18,13);if(d.str<10000){ctx.fillStyle='#000a';ctx.fillRect(x-7,y+6,14,2);ctx.fillStyle='#7dff7d';ctx.fillRect(x-7,y+6,14*d.str/10000,2)}}
+    if(cs&&d!==selDiv&&!SELS.has(d.id)){const key=((x/cs)|0)*4096+((y/cs)|0),c=cell.get(key);if(c){c.n++;continue}cell.set(key,{x,y,n:1})}
+    ctx.drawImage(d===selDiv||SELS.has(d.id)?sS:sN,x-9,y-6.5,18,13);if(d.str<10000){ctx.fillStyle='#000a';ctx.fillRect(x-7,y+6,14,2);ctx.fillStyle='#7dff7d';ctx.fillRect(x-7,y+6,14*d.str/10000,2)}}
   ctx.font='700 9px system-ui';ctx.textAlign='left';ctx.textBaseline='middle';for(const c of cell.values())if(c.n>1){const t=String(c.n),w=ctx.measureText(t).width+5;ctx.fillStyle='#000c';ctx.fillRect(c.x+6,c.y-11,w,10);ctx.fillStyle='#fff';ctx.fillText(t,c.x+8.5,c.y-6)}}
 let toastT=0;function toast(t){let e=document.getElementById('toast');if(!e){e=document.createElement('div');e.id='toast';document.body.appendChild(e)}e.textContent=t;e.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>e.style.display='none',2600)}
 function dayTick(){G.day++;if(econVer!==ctlVer)zoneEcon();const me=G.player,ns=nations();
   for(const o of ns){const N=G.nat[o];N.money+=dailyInc(o);N.stab+=(65-N.stab)*.004;
     if(N.money<0){N.stab-=.15;N.army*=.998}if(o!==me)N.army*=1.0004}
   if(G.day%30===0){for(let r=0;r<RK.length;r++)G.pop[r]*=Math.pow(1+(NAT[RK[r]].g||0),30/365);recalc()}
-  stepOffs();
   for(let k=0;k<6;k++)aiThink(ns[Math.floor(Math.random()*ns.length)]);
   if(Math.random()<.004)randomEvent();
   if(performance.now()-lastSave>20000)save();
   if(ns.length===1)gameOver(true)}
-function aiThink(o){if(o===G.player||!TER[o])return;const N=G.nat[o],inc=income(o);
-  if(N.money>inc*.06){N.army*=1.06;N.money-=inc*.04}
-  const enemies=[];if(G.war.includes(o))enemies.push(G.player);for(const w of G.aiWar){if(w[0]===o)enemies.push(w[1]);if(w[1]===o)enemies.push(w[0])}
-  let cnt=G.offs.filter(x=>x.a===o).length;
-  for(const e of enemies){if(cnt>=3)break;const tg=[];for(const r of terr(e))for(const n of NB[r])if(G.owner[n]===o){tg.push(r);break}
-    if(tg.length){const t=tg[Math.floor(Math.random()*tg.length)];if(winChance(o,t,'land')>.35&&startOff(o,t))cnt++}}
-  if(enemies.length&&Math.random()<.03){const e=enemies[0];if(e!==G.player)G.aiWar=G.aiWar.filter(w=>!(w.includes(o)&&w.includes(e)))}
-  if(Math.random()<.03&&!enemies.length){const rs=terr(o),r=rs[Math.floor(Math.random()*rs.length)];const c=NB[r].map(n=>G.owner[n]).filter(t=>t!==o);
-    if(!c.length)return;const t=c[Math.floor(Math.random()*c.length)];
-    if(power(o)>power(t)*1.6){if(t===G.player){if(G.allies.includes(o))return;G.war.push(o);addLog(`${I("siren")} ${nm(o)} объявляет вам войну!`);setSpeed(0);dirty()}
-      else{if(G.allies.includes(t)&&Math.random()<.5)return;G.aiWar.push([o,t]);if(NAT[o].pop>2e7||NAT[t].pop>2e7)addLog(`${I("swords")} ${nm(o)} объявила войну: ${nm(t)}.`)}}}}
+function aiThink(o){if(o===G.player||!TER[o])return;const N=G.nat[o],inc=income(o);if(N.money>inc*.06){N.army*=1.06;N.money-=inc*.04}}
 function randomEvent(){const me=G.player,M=G.nat[me],ev=[
   ()=>{M.money+=income(me)*.02;return`${I("droplet")} Найдено месторождение нефти!`},
   ()=>{M.stab-=7;return`${I("megaphone")} Массовые протесты в столице.`},
@@ -986,25 +1040,27 @@ function randomEvent(){const me=G.player,M=G.nat[me],ev=[
   ()=>{M.army*=.96;return`${I("tornado")} Стихийное бедствие.`}];addLog(ev[Math.floor(Math.random()*ev.length)]())}
 let last=performance.now(),acc=0,lastHud=0,lastSimDraw=0;
 let lastClk='';function clockStr(){const f=Math.min(.9999,Math.max(0,acc)),m=Math.floor(f*1440);const h=Math.floor(m/60),mm=m%60;return String(h).padStart(2,'0')+':'+String(speed>=3?0:mm-mm%10).padStart(2,'0')}
-function loop(now){if(G&&CHR.size&&now-zFlushT>250){zFlushT=now;zoneFlush(false)}
+function loop(now){if(G&&G.fronts&&G.fronts.length&&now-frChk>500){frChk=now;checkFronts()}
+if(G&&CHR.size&&now-zFlushT>250){zFlushT=now;zoneFlush(false)}
 if(G&&ANQ.length&&now-(window.__pk||0)>16){window.__pk=now;stepPockets();if(now-lastSimDraw>30){lastSimDraw=now;draw()}}
 const dt=Math.min(.25,(now-last)/1000);last=now;
   if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;const dmv=G.divs&&G.divs.length&&moveDivs(dt*SPEEDS[speed]*24);if(dmv&&now-(window.__sm||0)>300){window.__sm=now;occSmooth(G.player)}if(dmv&&now-lastSimDraw>(divOnScreen()?40:250)){lastSimDraw=now;draw()}
     while(acc>=1&&n<10){acc-=1;n++;dayTick()}
-    if(n){if(now-lastHud>100){lastHud=now;updHud()}if(G.offs.length&&now-lastSimDraw>66){lastSimDraw=now;draw()}if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
+    if(n){if(now-lastHud>100){lastHud=now;updHud()}if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
   if(G){const c=clockStr();if(c!==lastClk){lastClk=c;const e=document.getElementById('clk');if(e)e.textContent=c}}
   requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 
 // ================= UI =================
 function modalOpen(){return !!document.getElementById('modal')}
-function onTap(r,ev){if(G&&ev){const dv=hitDiv(ev.clientX,ev.clientY);if(dv){selDiv=selDiv===dv?null:dv;if(selDiv)toast(dv.n+' дивизия · '+fmtN(dv.str)+' · нажмите куда идти');closePanel();return}
+function onTap(r,ev){if(G&&ev){const dv=hitDiv(ev.clientX,ev.clientY);if(dv){selDiv=selDiv===dv?null:dv;SELS=selDiv?new Set([dv.id]):new Set();updFtb();if(selDiv)toast(dv.n+' дивизия · '+fmtN(dv.str)+' · нажмите куда идти');closePanel();return}
+    if(SELS.size>1&&r>=0){const[mx,my]=toMap(ev.clientX,ev.clientY);for(const d of selDivs()){let x=mx;while(x-d.x>MW/2)x-=MW;while(x-d.x<-MW/2)x+=MW;orderDiv(d,x+(Math.random()-.5)*.8,my+(Math.random()-.5)*.5,r)}draw();return}
     if(selDiv&&r>=0){const[mx,my]=toMap(ev.clientX,ev.clientY);let x=mx;while(x-selDiv.x>MW/2)x-=MW;while(x-selDiv.x<-MW/2)x+=MW;orderDiv(selDiv,x,my,r);draw();return}
-    if(selDiv){selDiv=null;draw()}const w=hitWater(ev.clientX,ev.clientY);if(w){showWater(w);return}}selW=null;if(r<0){const si=ev?hitSea(ev.clientX,ev.clientY):-1;if(si>=0&&G){showSea(si);return}closePanel();return}selSea=-1;{const sp=document.getElementById('seap');if(sp)sp.style.display='none'}selZ=null;if(G&&REG&&ev){const[mx,my]=toMap(ev.clientX,ev.clientY),ci=Math.min(GH-1,Math.max(0,(my*GH/MH)|0))*GW+Math.min(GW-1,(mx*GW/MW)|0),rg=REG[ci],rr=rg?rg-1:r;if(regionZoned(rr)||(G.rg&&G.rg[rr])){r=rr;selZ={r,z:CTL[ci]&&G.zones[CTL[ci]-1].r===r?CTL[ci]:0}}}sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
+    if(selDiv||SELS.size){selDiv=null;SELS.clear();updFtb();draw()}const w=hitWater(ev.clientX,ev.clientY);if(w){showWater(w);return}}selW=null;if(r<0){const si=ev?hitSea(ev.clientX,ev.clientY):-1;if(si>=0&&G){showSea(si);return}closePanel();return}selSea=-1;{const sp=document.getElementById('seap');if(sp)sp.style.display='none'}selZ=null;if(G&&REG&&ev){const[mx,my]=toMap(ev.clientX,ev.clientY),ci=Math.min(GH-1,Math.max(0,(my*GH/MH)|0))*GW+Math.min(GW-1,(mx*GW/MW)|0),rg=REG[ci],rr=rg?rg-1:r;if(regionZoned(rr)||(G.rg&&G.rg[rr])){r=rr;selZ={r,z:CTL[ci]&&G.zones[CTL[ci]-1].r===r?CTL[ci]:0}}}sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
 function closePanel(){selW=null;selZ=null;const sp=document.getElementById('seap');if(sp)sp.style.display='none';sel=-1;selSea=-1;panel.style.display='none';draw()}
 let panelSig='';
 function refreshPanelLight(){const s=panelState(sel);if(s!==panelSig)showPanel(sel);else{const e=document.getElementById('offs');if(e)e.innerHTML=offsHtml(sel)}}
-function panelState(i){const o=G.owner[i],M=G.nat[G.player];return [o,G.war.includes(o),G.allies.includes(o),M.money>recCost(),M.money>invCost(i),M.money>techCost(),M.money>stabCost(),M.money>spyCost(),G.offs.length].join()}
+function panelState(i){const o=G.owner[i],M=G.nat[G.player];return [o,G.war.includes(o),G.allies.includes(o),M.money>recCost(),M.money>invCost(i),M.money>techCost(),M.money>stabCost(),M.money>spyCost(),0].join()}
 function offsHtml(i){const o=G.owner[i],P=G.player;const list=G.offs.filter(x=>(x.a===P&&G.owner[x.t]===o)||(x.a===o&&G.owner[x.t]===P)||(o===P&&(x.a===P||G.owner[x.t]===P))).slice(0,8);
   return list.map(x=>`<div class="off">${x.a===P?`${I("arrow-right")}`:`${I("arrow-left")}`} ${nm(x.a)} → ${RN[x.t]} ${x.m==='sea'?'(десант)':''}<div class="prog"><i style="width:${Math.max(0,x.p)}%"></i></div></div>`).join('')}
 function showPanel(i){if(REG&&G){let g=0;if(selZ&&selZ.r===i&&selZ.z)g=G.zones[selZ.z-1].g||0;else if(G.rg&&G.rg[i]&&G.owner[i]===G.player)g=G.rg[i];
@@ -1025,18 +1081,18 @@ function showPanel(i){if(REG&&G){let g=0;if(selZ&&selZ.r===i&&selZ.z)g=G.zones[s
     h+=`<button class="p" onclick="act('rec')" ${M.money<recCost()?'disabled':''}>${I("users")} Мобилизация<br><small>$${fmt(recCost())}</small></button>
     <button onclick="act('inv',${i})" ${M.money<invCost(i)?'disabled':''}>${I("factory")} В регион<br><small>$${fmt(invCost(i))}</small></button>
     <button onclick="act('div',${i})" ${M.money<divCost()||M.army<12000?'disabled':''}>${I("shield")} Пехотная дивизия<br><small>$${fmt(divCost())} · 10 тыс</small></button>
-    <button onclick="act('tech')" ${M.money<techCost()?'disabled':''}>${I("flask-conical")} Наука<br><small>$${fmt(techCost())}</small></button>`;
+    <button onclick="act('tech')" ${M.money<techCost()?'disabled':''}>${I("flask-conical")} Наука<br><small>$${fmt(techCost())}</small></button>
+    <button onclick="testDivs(${i},0)">${I("plus")} Тест: +10 дивизий</button>`;
   }else{
-    const ad=adjMode(me,i),war=G.war.includes(o),ally=G.allies.includes(o),going=G.offs.some(x=>x.a===me&&x.t===i);
-    if(war)h+=`<button class="r" onclick="act('atk',${i})" ${ad&&!going?'':'disabled'}>${I("swords")} Наступать<br><small>${going?'идёт':ad?Math.round(winChance(me,i,ad.m)*100)+'% · '+(ad.m==='land'?'суша':'десант'):'нет границы'}</small></button>
-      <button onclick="act('front',${o})">${I("flame")} Весь фронт</button><button onclick="act('peace',${o})">${I("bird")} Мир</button>`;
+    const war=G.war.includes(o),ally=G.allies.includes(o);
+    if(war)h+=`<button onclick="act('peace',${o})">${I("bird")} Мирная конференция</button>`;
     else h+=`<button class="r" onclick="act('war',${o})" ${ally?'disabled':''}>${I("swords")} Объявить войну</button>
       <button class="g" onclick="act('ally',${o})" ${ally?'disabled':''}>${I("handshake")} Союз</button>`;
     h+=`<button onclick="act('trade',${o})" ${war?'disabled':''}>${I("package")} Торговля</button>
     <button onclick="act('sanc',${o})">${I("ban")} Санкции</button>
     <button onclick="act('spy',${o})" ${M.money<spyCost()?'disabled':''}>${I("venetian-mask")} Переворот<br><small>$${fmt(spyCost())}</small></button>`;
   }
-  h+=`</div><div id="offs">${offsHtml(i)}</div><div class="acts"><button onclick="zoomToReg(${i})">${I("zoom-in")} Регион</button><button onclick="zoomToNat(${o})">${I("map")} Страна</button></div>`;
+  h+=`</div><div class="acts"><button onclick="zoomToReg(${i})">${I("zoom-in")} Регион</button><button onclick="zoomToNat(${o})">${I("map")} Страна</button></div>`;
   panel.innerHTML=h;panel.style.display='block'}
 function rel(o){const r=G.rel[o]??0;return G.allies.includes(o)?`${I("handshake")} Союзник`:G.war.includes(o)?`${I("swords")} Война`:r>30?`${I("handshake")} Дружба`:r<-30?`${I("ban")} Враждебность`:`${I("users")} Нейтралитет`}
 const recCost=()=>income(G.player)*.03+20,invCost=i=>G.gdp[i]*.08+5,
@@ -1054,8 +1110,8 @@ function act(a,x){const me=G.player,M=G.nat[me];
   case'sanc':{G.nat[x].money*=.85;G.nat[x].stab-=5;G.rel[x]=(G.rel[x]??0)-30;G.allies=G.allies.filter(y=>y!==x);M.money-=income(me)*.01;addLog(`${I("ban")} Санкции против ${nm(x)}.`);break}
   case'spy':{M.money-=spyCost();const N=G.nat[x];if(Math.random()<(100-N.stab)/130){N.stab-=25;N.army*=.7;addLog(`${I("venetian-mask")} Переворот в ${nm(x)} удался!`)}else{G.rel[x]=-80;addLog(`${I("siren")} Агенты раскрыты: ${nm(x)}!`)}break}
   case'div':{newDiv(x);updHud();save();draw();return}
-  case'atk':{if(startOff(me,x))addLog(`${I("arrow-right")} Наступление: ${RN[x]}.`);break}
-  case'front':{let c=0;for(const r of terr(x))for(const n of NB[r])if(G.owner[n]===me){if(startOff(me,r))c++;break}addLog(c?`${I("flame")} Наступление по всему фронту: ${c} направлений.`:'Нет общей границы.');break}
+  case'atk_old':{if(0)addLog(`${I("arrow-right")} Наступление: ${RN[x]}.`);break}
+  case'front_old':{let c=0;for(const r of terr(x))for(const n of NB[r])if(G.owner[n]===me){if(startOff(me,r))c++;break}addLog(c?`${I("flame")} Наступление по всему фронту: ${c} направлений.`:'Нет общей границы.');break}
   }
   updHud();save();draw();if(sel>=0)showPanel(sel)}
 function gameOver(win){localStorage.removeItem(SAVE);setSpeed(0);modal(`<h1>${win?`${I("globe")} Мировое господство!`:`${I("skull")} Поражение`}</h1><p>${win?'Весь мир под вашим флагом.':'Ваше государство пало.'}</p><button class="p" onclick="restart()">Новая игра</button>`)}
