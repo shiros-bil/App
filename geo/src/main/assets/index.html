@@ -599,7 +599,7 @@ requestAnimationFrame(loop);
 
 // ================= UI =================
 function modalOpen(){return !!document.getElementById('modal')}
-function onTap(r,ev){if(G&&ev){const w=hitWater(ev.clientX,ev.clientY);if(w){showWater(w);return}}selW=null;if(r<0){const si=ev?hitSea(ev.clientX,ev.clientY):-1;if(si>=0&&G){showSea(si);return}closePanel();return}selSea=-1;sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
+function onTap(r,ev){if(G&&ev){const w=hitWater(ev.clientX,ev.clientY);if(w){showWater(w);return}}selW=null;if(r<0){const si=ev?hitSea(ev.clientX,ev.clientY):-1;if(si>=0&&G){showSea(si);return}closePanel();return}selSea=-1;{const sp=document.getElementById('seap');if(sp)sp.style.display='none'}sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
 function closePanel(){selW=null;const sp=document.getElementById('seap');if(sp)sp.style.display='none';sel=-1;selSea=-1;panel.style.display='none';draw()}
 let panelSig='';
 function refreshPanelLight(){const s=panelState(sel);if(s!==panelSig)showPanel(sel);else{const e=document.getElementById('offs');if(e)e.innerHTML=offsHtml(sel)}}
