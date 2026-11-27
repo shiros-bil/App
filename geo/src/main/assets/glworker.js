@@ -22,7 +22,7 @@ function lines(seg,attr,an){const ns=seg.length/4,cellOf=new Uint16Array(ns),cnt
 const tr=o=>{const l=[];for(const k in o){const v=o[k];if(v&&v.buffer)l.push(v.buffer);else if(v&&typeof v==='object')l.push(...tr(v))}return l};
 let ARL=null,ARR=null;
 function buildRegions(topo){const arcs=decode(topo),G=topo.objects.r.geometries;
-  if(!ARL){ARL=new Int32Array(arcs.length).fill(-1);ARR=new Int32Array(arcs.length).fill(-1);
+  {ARL=new Int32Array(arcs.length).fill(-1);ARR=new Int32Array(arcs.length).fill(-1);
     G.forEach((g,r)=>{const polys=g.type==='Polygon'?[g.arcs]:g.type==='MultiPolygon'?g.arcs:[];for(const p of polys)for(const ring of p)for(const ai of ring){const a=ai<0?~ai:ai;if(ARL[a]<0)ARL[a]=r;else if(ARL[a]!==r)ARR[a]=r}})}
   const pos=new FA(Float32Array,1<<16),rid=new FA(Float32Array,1<<15),idx=new FA(Uint32Array,1<<16);let base=0;
   G.forEach((g,r)=>{const polys=g.type==='Polygon'?[g.arcs]:g.type==='MultiPolygon'?g.arcs:[];

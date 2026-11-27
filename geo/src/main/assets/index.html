@@ -332,28 +332,40 @@ uniform highp usampler2D uZid;uniform highp usampler2D uZin;uniform sampler2D uZ
 void main(){vec3 c=vC.rgb;
   if(uZon==1){ivec2 ci=ivec2(clamp(vM*vec2(${(GW/2000).toFixed(4)},${(GH/1000).toFixed(4)}),vec2(0.),vec2(${GW-1}.,${GH-1}.)));uvec4 inf=uvec4(0u);bool ok=false;
     for(int k=0;k<9;k++){ivec2 o=ivec2(k%3-1,k/3-1);if(k==0)o=ivec2(0);else if(k==4)o=ivec2(-1);
-      uint z=texelFetch(uZid,clamp(ci+o,ivec2(0),ivec2(${GW-1},${GH-1})),0).r;if(z>0u){uvec4 f=texelFetch(uZin,ivec2(int(z)%${TW},int(z)/${TW}),0);if(int(f.r)==vR){inf=f;ok=true;break;}}}
+      uint z=texelFetch(uZid,clamp(ci+o,ivec2(0),ivec2(${GW-1},${GH-1})),0).r&32767u;if(z>0u){uvec4 f=texelFetch(uZin,ivec2(int(z)%${TW},int(z)/${TW}),0);if(int(f.r)==vR){inf=f;ok=true;break;}}}
     if(ok&&texture(uZf,vM/vec2(2000.,1000.)).r>.5){uint g=inf.g;c=vec3(float((g>>16)&255u),float((g>>8)&255u),float(g&255u))/255.;}}
   o=vec4(c,uA);}`);
-  GLR.line=glProg(hdr+`
+  const ZLK=`uniform highp usampler2D uZid;uniform highp usampler2D uZin;uniform sampler2D uZf;uniform int uZon;
+uvec4 zoneNear(vec2 m,int reg,int st,bool real){ivec2 ci=ivec2(clamp(m*vec2(${(GW/2000).toFixed(4)},${(GH/1000).toFixed(4)}),vec2(0.),vec2(${GW-1}.,${GH-1}.)));
+  for(int k=0;k<9;k++){ivec2 o=ivec2(k%3-1,k/3-1);uint zr=texelFetch(uZid,clamp(ci+o*st,ivec2(0),ivec2(${GW-1},${GH-1})),0).r,z=zr&32767u;if(real&&zr>=32768u)continue;
+    if(z>0u){uvec4 f=texelFetch(uZin,ivec2(int(z)%${TW},int(z)/${TW}),0);if(int(f.r)==reg)return f;}}return uvec4(99999u);}`;
+  GLR.line=glProg(hdr+ZLK+`
 layout(location=0) in vec2 aT;layout(location=1) in vec4 aS;layout(location=2) in vec2 aLR;
-uniform highp usampler2D uOwn;uniform float uWC,uWR,uAR;out vec4 vC;
-uniform highp usampler2D uZid;uniform highp usampler2D uZin;uniform sampler2D uZf;uniform int uZon;
-uint effOwn(vec2 m,int reg,uint def){ivec2 ci=ivec2(clamp(m*vec2(${(GW/2000).toFixed(4)},${(GH/1000).toFixed(4)}),vec2(0.),vec2(${GW-1}.,${GH-1}.)));
-  for(int k=0;k<9;k++){ivec2 o=ivec2(k%3-1,k/3-1);uint z=texelFetch(uZid,clamp(ci+o*2,ivec2(0),ivec2(${GW-1},${GH-1})),0).r;
-    if(z>0u){uvec4 f=texelFetch(uZin,ivec2(int(z)%${TW},int(z)/${TW}),0);if(int(f.r)==reg)return texture(uZf,m/vec2(2000.,1000.)).r>.5?f.b:def;}}return def;}
+uniform highp usampler2D uOwn;uniform float uWC,uWR,uAR;out vec4 vC;out vec2 vM;flat out ivec2 vLR;flat out uvec4 vO;flat out int vMode;
 void main(){int l=int(aLR.x+.5),r=int(aLR.y+.5);uvec4 ol=texelFetch(uOwn,rid(l),0);
   bool coast=r>=65535;uvec4 orr=coast?uvec4(99999u):texelFetch(uOwn,rid(r),0);
-  uint oL=ol.r,oR=orr.r;if(uZon==1&&!coast){vec2 m=(aS.xy+aS.zw)*.5;oL=effOwn(m,l,oL);oR=effOwn(m,r,oR);}
-  bool same=!coast&&oL==oR;
-  float hw;vec4 col;
-  if(same){hw=uWR;col=vec4(0.,0.,0.,uAR);}else{hw=uWC;bool war=!coast&&(ol.g!=orr.g);col=war?vec4(1.,.27,.27,.85):vec4(0.,0.,0.,.9);}
+  vLR=ivec2(l,r);vO=uvec4(ol.r,orr.r,ol.b,coast?0u:orr.b);vMode=0;
+  bool same=!coast&&ol.r==orr.r,grp=!coast&&ol.b!=0u&&ol.b==orr.b;
+  bool near=false;if(uZon==1&&!coast){vec2 m=(aS.xy+aS.zw)*.5;ivec2 ci=ivec2(clamp(m*vec2(${(GW/2000).toFixed(4)},${(GH/1000).toFixed(4)}),vec2(0.),vec2(${GW-1}.,${GH-1}.)));for(int k=0;k<9;k++){ivec2 o=ivec2(k%3-1,k/3-1)*3;if(texelFetch(uZid,clamp(ci+o,ivec2(0),ivec2(${GW-1},${GH-1})),0).r>0u){near=true;break;}}}
+  float hw;vec4 col;bool war=!coast&&(ol.g!=orr.g);
+  if(near){vMode=1;hw=max(uWC,uWR);col=war?vec4(1.,.27,.27,.85):vec4(0.,0.,0.,.9);}
+  else if(grp){hw=0.;col=vec4(0.);}
+  else if(same){hw=uWR;col=vec4(0.,0.,0.,uAR);}else{hw=uWC;col=war?vec4(1.,.27,.27,.85):vec4(0.,0.,0.,.9);}
   vec2 a=aS.xy*uK+uOff,b=aS.zw*uK+uOff;vec2 d=b-a;float L=length(d);d=L>0.?d/L:vec2(1.,0.);vec2 n=vec2(-d.y,d.x);
-  vec2 p=mix(a,b,aT.x)+d*(aT.x*2.-1.)*hw*.5+n*aT.y*hw;
+  vec2 p=mix(a,b,aT.x)+d*(aT.x*2.-1.)*hw*.5+n*aT.y*hw;vM=mix(aS.xy,aS.zw,aT.x);
   if(hw<=0.)p=vec2(-9999.);
   gl_Position=toClip(p);vC=col;}`,
   `#version 300 es
-precision mediump float;in vec4 vC;out vec4 o;void main(){o=vC;}`);
+precision highp float;precision highp int;
+in vec4 vC;in vec2 vM;flat in ivec2 vLR;flat in uvec4 vO;flat in int vMode;uniform float uWR,uAR;out vec4 o;
+`+ZLK+`
+void main(){if(vMode==0){o=vC;return;}
+  uint oL=vO.x,oR=vO.y,gL=vO.z,gR=vO.w;
+  uvec4 f=zoneNear(vM,vLR.x,1,true);if(f.r!=99999u){oL=f.b;gL=f.a;}
+  f=zoneNear(vM,vLR.y,1,true);if(f.r!=99999u){oR=f.b;gR=f.a;}
+  if(gL!=0u&&gL==gR)discard;
+  if(oL==oR){if(uWR<=0.)discard;o=vec4(0.,0.,0.,uAR);return;}
+  o=vC;}`);
   GLR.img=glProg(hdr+`
 layout(location=0) in vec2 aP;uniform vec4 uRect;out vec2 vU;
 void main(){vU=aP;gl_Position=toClip((uRect.xy+aP*uRect.zw)*uK+uOff);}`,
@@ -412,13 +424,13 @@ function drawLine(Ln,vx0,vx1,vy0,vy1,pad){gl.bindVertexArray(Ln.vao);let st=-1,c
   for(let k=0;k<512;k++){const n=Ln.rg[2*k+1];if(!n)continue;const b=Ln.bb;if(b[4*k+2]+pad<vx0||b[4*k]-pad>vx1||b[4*k+3]+pad<vy0||b[4*k+1]-pad>vy1){fl();continue}
     if(st<0)st=Ln.rg[2*k];if(Ln.rg[2*k]===st+cn)cn+=n;else{fl();st=Ln.rg[2*k];cn=n}}fl()}
 const GLQ=[];function glAccept(m){if(!GLR.ok)return;if(!GLR.fill||(interacting&&GLR.lods[0])){GLQ.push(m);if(GLR.fill)setTimeout(glFlushQ,200);return}
-  if(m.k==='lod')GLR.lods[m.i]={fill:mkFill(m.d.fill,1),line:mkLine(m.d.line,2),line2:mkLine(m.d.line2,2)};
+  if(m.k==='lod'){GLR.lods[m.i]={fill:mkFill(m.d.fill,1),line:mkLine(m.d.line,2),line2:mkLine(m.d.line2,2)};(GLR.l2raw||(GLR.l2raw=[]))[m.i]=m.d.line2;if(GLR.ZIDA)anxLines()}
   else{GLR.RG=m.d.RG;GLR.lakes=m.d.fill.map(d=>mkFill(d,1));GLR.rivers=m.d.riv.map(d=>mkLine(d,1));GLR.lakeOl=m.d.ol.map(d=>mkLine(d,1))}
   draw()}
 const cssCol=(()=>{const c=document.createElement('canvas').getContext('2d');const m={};return s=>{if(m[s])return m[s];c.fillStyle='#000';c.fillStyle=s;const h=c.fillStyle;let r,g,b;
   if(h[0]==='#'){r=parseInt(h.slice(1,3),16);g=parseInt(h.slice(3,5),16);b=parseInt(h.slice(5,7),16)}else{const v=h.match(/[\d.]+/g).map(Number);[r,g,b]=v}return m[s]=[r,g,b]}})();
 function glUpload(){const own=G?G.owner:RK,war=G?G.war:[];const R=RK.length;let cq=false;for(let r=0;r<R;r++)if(own[r]!==RK[r]){cq=true;break}GLR.conq=cq;
-  for(let r=0;r<R;r++){const o=own[r],c=cssCol(natColor(o));GLR.colA.set([c[0],c[1],c[2],255],4*r);GLR.ownA[4*r]=o;GLR.ownA[4*r+1]=war.includes(o)?1:0}
+  for(let r=0;r<R;r++){const o=own[r],c=cssCol(natColor(o));GLR.colA.set([c[0],c[1],c[2],255],4*r);GLR.ownA[4*r]=o;GLR.ownA[4*r+1]=war.includes(o)?1:0;GLR.ownA[4*r+2]=G&&G.rg&&G.rg[r]?G.rg[r]:0}
   gl.bindTexture(gl.TEXTURE_2D,GLR.colT);gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,TW,GLR.th,gl.RGBA,gl.UNSIGNED_BYTE,GLR.colA);
   gl.bindTexture(gl.TEXTURE_2D,GLR.ownT);gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,TW,GLR.th,gl.RGBA_INTEGER,gl.UNSIGNED_INT,GLR.ownA);GLR.dirty=false}
 let GSC=1,ftAvg=16,lastF=0;function glScale(sc){if(Math.abs(sc-GSC)<.01)return;GSC=sc;glc.width=Math.round(W*DPR*sc);glc.height=Math.round(H*DPR*sc)}
@@ -446,7 +458,7 @@ function glFrame(){const nowF=performance.now();if(lastF)ftAvg=ftAvg*.85+Math.mi
     const k=T.k;gl.uniform1f(P.u.uWC,Math.min(2.4,1.0+k*.06)*DPR*GSC*.5);gl.uniform1f(P.u.uWR,k>=12?.6*DPR*GSC:0.);gl.uniform1f(P.u.uAR,Math.min(.35,(k-12)*.03+.12));
     gl.activeTexture(gl.TEXTURE4);gl.bindTexture(gl.TEXTURE_2D,GLR.zidT);gl.uniform1i(P.u.uZid,4);gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,GLR.zinT);gl.uniform1i(P.u.uZin,2);
     gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,GLR.zfT);gl.uniform1i(P.u.uZf,3);gl.uniform1i(P.u.uZon,GLR.zon|0);gl.activeTexture(gl.TEXTURE0);
-    drawLine(L.line,vx0,vx1,vy0,vy1,4/K);if(L.line2&&(T.k>=12||GLR.conq))drawLine(L.line2,vx0,vx1,vy0,vy1,4/K);
+    drawLine(L.line,vx0,vx1,vy0,vy1,4/K);if(L.line2&&(T.k>=12||GLR.conq))drawLine(L.line2,vx0,vx1,vy0,vy1,4/K);else if(GLR.zon&&GLR.anxL&&GLR.anxL[li])drawLine(GLR.anxL[li],vx0,vx1,vy0,vy1,4/K);
     if(GLR.lakes){const mr=wRank(T.k);let P2=GLR.wline;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);
       gl.uniform1f(P2.u.uW,Math.min(2.2,.7+T.k*.05)*DPR*GSC*.5);gl.uniform4f(P2.u.uC,.16,.42,.7,1.);GLR.RG.forEach((t,g)=>{if(g===0||GLR.RG[g-1]<mr)drawLine(GLR.rivers[g],vx0,vx1,vy0,vy1,4/K)});
       P2=GLR.wfill;gl.useProgram(P2.p);gl.uniform2fv(P2.u.uRes,res);gl.uniform1f(P2.u.uK,kd);gl.uniform2fv(P2.u.uOff,off);gl.uniform1f(P2.u.uMax,mr);gl.uniform4f(P2.u.uC,.11,.33,.58,1.);GLR.RG.forEach((t,g)=>{if(g===0||GLR.RG[g-1]<mr)drawFill(GLR.lakes[g],vx0,vx1,vy0,vy1)});
@@ -663,7 +675,10 @@ function zoneSum(r){let s=0;for(const z of G.zones)if(z.r===r)s+=z.c;return s}
 function occInitGame(){CTL.fill(0);TIL2=[];ACT=[];ZK=new Map();if(!G.zones)G.zones=[];for(const z of G.zones)z.c=0;
   G.zones.forEach((z,i)=>{if(z.k==='o')ZK.set(z.r+'_'+z.o,i+1)});
   if(G.ctl){const a=G.ctl;for(let k=0;k<a.length;k+=3){const s=a[k],n=a[k+1],v=a[k+2];if(!G.zones[v-1])continue;for(let i=s;i<s+n;i++){CTL[i]=v;G.zones[v-1].c++;paintPix(i)}}delete G.ctl}
-  if(G.rn)for(const k in G.rn)RN[k]=G.rn[k];ctlVer++;zoneEcon();ANX=[];if(GLR.ok)GLR.zon=0;if(REG)annexUpload()}
+  if(G.rn)for(const k in G.rn)RN[k]=G.rn[k];
+  {const gm={};for(const z of G.zones)if(z.k==='a'){if(z.g)gm[z.n+'|'+z.o]=z.g;}for(const z of G.zones)if(z.k==='a'&&!z.g){const key=z.n+'|'+z.o;z.g=gm[key]||(gm[key]=G.gid=(G.gid||0)+1)}
+   if(G.rn)for(const k in G.rn){const key=G.rn[k]+'|'+G.owner[k];if(gm[key]&&!(G.rg&&G.rg[k]))(G.rg||(G.rg={}))[k]=gm[key]}}
+  ctlVer++;zoneEcon();ANX=[];if(GLR.ok)GLR.zon=0;if(REG)annexUpload()}
 function occRle(){const o=[];for(let i=0;i<CTL.length;){const v=CTL[i];if(!v){i++;continue}let j=i+1;while(j<CTL.length&&CTL[j]===v)j++;o.push(i,j-i,v);i=j}return o}
 function occLoadGrid(){try{const wk=new Worker('raster.js');wk.onmessage=e=>{REG=e.data;RC=new Uint32Array(RK.length);for(let i=0;i<REG.length;i++)if(REG[i])RC[REG[i]-1]++;wk.terminate();if(G){zoneEcon();annexUpload()}};wk.postMessage({GW,GH})}catch(e){console.error(e)}}
 function buildSelMask(){const r=selZ.r,z=selZ.z,[x0,y0,x1,y1]=cellBox(r),w=x1-x0+1,h=y1-y0+1;const c=selZ.cv&&selZ.cv.width===w&&selZ.cv.height===h?selZ.cv:document.createElement('canvas');c.width=w;c.height=h;
@@ -728,19 +743,27 @@ let ANX=[],ANXD=false;const isAnx=z=>z&&G.zones[z-1].k==='a';
 function annexUpload(){ANXD=false;if(!REG||!G)return;const AZ=[];G.zones.forEach((z,i)=>{if(z.k==='a'&&z.c>0)AZ.push(i+1)});
   ANX=AZ.map(id=>{const m=maskContour(G.zones[id-1].r,k=>CTL[k]===id);return{id,r:G.zones[id-1].r,line:m.line,b:m.b}});
   if(!GLR.ok||!GLR.fill){draw();return}GLR.zon=AZ.length?1:0;if(!AZ.length){draw();return}
-  const ZID=new Uint16Array(GW*GH),FF=new Uint8Array(GW*GH).fill(255),regs=new Set(AZ.map(id=>G.zones[id-1].r));
+  const ZID=new Uint16Array(GW*GH),FF=new Uint8Array(GW*GH),OWN=new Uint8Array(GW*GH),regs=new Set(AZ.map(id=>G.zones[id-1].r));
   for(const r of regs){const f=zoneField(r,k=>isAnx(CTL[k])),{bx,by,w,h,F}=f;
     for(let j=0;j<h;j++){const cj=by+j;if(cj<0||cj>=GH)continue;for(let i=0;i<w;i++){const ci=bx+i;if(ci<0||ci>=GW)continue;const k=cj*GW+ci;
-      if(REG[k]===r+1||FF[k]===255)FF[k]=Math.round(F[j*w+i]*255);const z=CTL[k];if(REG[k]===r+1&&isAnx(z))ZID[k]=z}}
+      if(REG[k]===r+1){FF[k]=Math.round(F[j*w+i]*255);OWN[k]=1}else if(!OWN[k])FF[k]=Math.round(F[j*w+i]*255);const z=CTL[k];if(REG[k]===r+1&&isAnx(z))ZID[k]=z}}
     for(let pass=0;pass<3;pass++){const add=[];for(let j=1;j<h-1;j++){const cj=by+j;if(cj<1||cj>=GH-1)continue;for(let i=1;i<w-1;i++){const ci=bx+i;if(ci<1||ci>=GW-1)continue;const k=cj*GW+ci;if(ZID[k])continue;
-      for(const o of[-1,1,-GW,GW]){const z=ZID[k+o];if(z&&G.zones[z-1].r===r){add.push(k,z);break}}}}for(let q=0;q<add.length;q+=2)ZID[add[q]]=add[q+1]}}
+      for(const o of[-1,1,-GW,GW]){const z=ZID[k+o]&32767;if(z&&G.zones[z-1].r===r){add.push(k,z);break}}}}for(let q=0;q<add.length;q+=2)ZID[add[q]]=add[q+1]|32768}}
   const zh=Math.ceil((G.zones.length+1)/TW),inf=new Uint32Array(TW*zh*4);
-  G.zones.forEach((z,i)=>{const c=cssCol(natColor(z.o)),q=4*(i+1);inf[q]=z.r;inf[q+1]=(c[0]<<16)|(c[1]<<8)|c[2];inf[q+2]=z.o});
+  G.zones.forEach((z,i)=>{const c=cssCol(natColor(z.o)),q=4*(i+1);inf[q]=z.r;inf[q+1]=(c[0]<<16)|(c[1]<<8)|c[2];inf[q+2]=z.o;inf[q+3]=z.g||0});
   gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
-  gl.bindTexture(gl.TEXTURE_2D,GLR.zidT);gl.texImage2D(gl.TEXTURE_2D,0,gl.R16UI,GW,GH,0,gl.RED_INTEGER,gl.UNSIGNED_SHORT,ZID);
+  GLR.ZIDA=ZID;anxLines();  gl.bindTexture(gl.TEXTURE_2D,GLR.zidT);gl.texImage2D(gl.TEXTURE_2D,0,gl.R16UI,GW,GH,0,gl.RED_INTEGER,gl.UNSIGNED_SHORT,ZID);
   gl.bindTexture(gl.TEXTURE_2D,GLR.zfT);gl.texImage2D(gl.TEXTURE_2D,0,gl.R8,GW,GH,0,gl.RED,gl.UNSIGNED_BYTE,FF);
   gl.bindTexture(gl.TEXTURE_2D,GLR.zinT);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA32UI,TW,zh,0,gl.RGBA_INTEGER,gl.UNSIGNED_INT,inf);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT,4);dirty(false);draw()}
+// intra-nation borders that touch annexed land (normally hidden when zoomed out) -> small always-drawn set
+function anxLines(){if(!GLR.l2raw||!GLR.ZIDA)return;const Z=GLR.ZIDA;GLR.anxL=[];
+  GLR.l2raw.forEach((d,li)=>{if(!d)return;const S=d.S,L=d.L,ns=S.length/4,s2=[],l2=[];
+    for(let i=0;i<ns;i++){const cx=((S[4*i]+S[4*i+2])/2*GW/MW)|0,cy=((S[4*i+1]+S[4*i+3])/2*GH/MH)|0;let hit=false;
+      for(let dy=-3;dy<=3&&!hit;dy+=3)for(let dx=-3;dx<=3;dx+=3){const x=cx+dx,y=cy+dy;if(x>=0&&y>=0&&x<GW&&y<GH&&Z[y*GW+x]){hit=true;break}}
+      if(hit){for(let j=0;j<4;j++)s2.push(S[4*i+j]);l2.push(L[2*i],L[2*i+1])}}
+    if(!l2.length)return;const rg=new Uint32Array(1024),bb=new Float32Array(2048).fill(0);rg[1]=l2.length/2;bb[0]=-1e9;bb[1]=-1e9;bb[2]=1e9;bb[3]=1e9;
+    GLR.anxL[li]=mkLine({S:new Float32Array(s2),L:new Float32Array(l2),rg,bb},2)})}
 function drawAnxBorders(K,ox){if(!ANX.length)return;const vx0=-ox/K,vx1=(W-ox)/K,vy0=-T.y/K,vy1=(H-T.y)/K,L=lodFor(T.k);
   ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.strokeStyle='rgba(0,0,0,.9)';ctx.lineWidth=1.5/K;ctx.lineCap='round';
   for(const a of ANX){const b=a.b;if(b[2]<vx0||b[0]>vx1||b[3]<vy0||b[1]>vy1)continue;ctx.save();ctx.clip(L.paths[a.r]);ctx.stroke(a.line);ctx.restore()}ctx.restore()}
