@@ -734,11 +734,15 @@ function buildSel(){const S=selZ,mem=[];const add=(r,test)=>{const m=maskContour
   if(S.g){for(let id=1;id<=G.zones.length;id++){const Z=G.zones[id-1];if(Z.g===S.g&&Z.c>0)add(Z.r,k=>CTL[k]===id)}if(G.rg)for(const r in G.rg)if(G.rg[r]===S.g&&G.owner[r]===G.player)mem.push({r:+r,whole:1})}
   else if(S.z){const z=S.z;add(S.r,k=>CTL[k]===z)}else add(S.r,k=>CTL[k]===0);
   S.mem=mem;S.ver=ctlVer;S.at=performance.now()}
-function drawSel(K,ox){const S=selZ;if(!S.mem||(S.ver!==ctlVer&&performance.now()-S.at>300))buildSel();const L=lodFor(T.k);
-  ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.strokeStyle='#ffd84a';ctx.fillStyle='rgba(255,255,255,.16)';ctx.lineJoin='round';
-  for(const m of S.mem){const P=L.paths[m.r];if(m.whole){ctx.fill(P);ctx.lineWidth=2.5/K;ctx.stroke(P);continue}
-    ctx.save();ctx.clip(P);ctx.clip(m.fill);ctx.fillRect(m.b[0],m.b[1],m.b[2]-m.b[0],m.b[3]-m.b[1]);ctx.lineWidth=5/K;ctx.stroke(P);ctx.restore();
-    ctx.save();ctx.clip(P);ctx.lineWidth=2.5/K;ctx.stroke(m.line);ctx.restore()}ctx.restore()}
+let SELL=null;function drawSel(K,ox){const S=selZ;if(!S.mem||(S.ver!==ctlVer&&performance.now()-S.at>300))buildSel();const L=lodFor(T.k);
+  const shape=(g,m)=>{const P=L.paths[m.r];if(m.whole){g.fill(P);return}g.save();g.clip(P);g.clip(m.fill);g.fillRect(m.b[0],m.b[1],m.b[2]-m.b[0],m.b[3]-m.b[1]);g.restore()};
+  ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.fillStyle='rgba(255,255,255,.16)';for(const m of S.mem)shape(ctx,m);ctx.restore();
+  if(!SELL)SELL=document.createElement('canvas');if(SELL.width!==cv.width||SELL.height!==cv.height){SELL.width=cv.width;SELL.height=cv.height}const g=SELL.getContext('2d');
+  g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='source-over';g.clearRect(0,0,SELL.width,SELL.height);g.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);
+  g.strokeStyle='#ffd84a';g.lineJoin='round';g.lineCap='round';g.lineWidth=5/K;
+  for(const m of S.mem){const P=L.paths[m.r];if(m.whole){g.stroke(P);continue}g.save();g.clip(P);g.clip(m.fill);g.stroke(P);g.restore();g.save();g.clip(P);g.stroke(m.line);g.restore()}
+  g.globalCompositeOperation='destination-out';g.fillStyle='#000';for(const m of S.mem)shape(g,m);g.globalCompositeOperation='source-over';
+  ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(SELL,0,0);ctx.restore()}
 function groupInfo(g){let p=0,gd=0,n='',o=G.player;for(const Z of G.zones)if(Z.g===g&&Z.c>0&&RC[Z.r]){const sh=Math.min(1,Z.c/RC[Z.r]);p+=G.pop[Z.r]*sh;gd+=G.gdp[Z.r]*sh;n=Z.n;o=Z.o}
   if(G.rg)for(const r in G.rg)if(G.rg[r]===g&&G.owner[r]===G.player){p+=G.pop[r];gd+=G.gdp[r];if(!n)n=RN[r]}return{p,gd,n,o}}
 function showGroupPanel(i,g){const q=groupInfo(g);panelSig=panelState(i);
@@ -803,8 +807,16 @@ function pcDraw(){const P=PC,c=P.cv,g=P.g,w=c.clientWidth,h=c.clientHeight;if(c.
     g.fillStyle=o===G.player||o===P.x?natColor(o):'#333b49';g.fill(p)}
   const s=MW/GW;g.save();g.scale(s,s);g.imageSmoothingEnabled=true;
   occTiles(g,1,0,0,0);occTiles(g,0,0,0,0);
-  if(P.pdirty){P.pg.putImageData(P.pd,0,0);P.pdirty=false}g.imageSmoothingEnabled=true;g.drawImage(P.plan,P.x0,P.y0);g.restore();
+  if(P.pdirty&&performance.now()-(P.pt||0)>80){pcPlanHi();P.pdirty=false;P.pt=performance.now()}else if(P.pdirty)pcReq();g.imageSmoothingEnabled=true;if(P.hi)g.drawImage(P.hi,P.x0,P.y0,P.plan.width,P.plan.height);g.restore();
   g.strokeStyle='rgba(0,0,0,.7)';g.lineWidth=.8/t.k;for(let r=0;r<RK.length;r++){if(BB[4*r+2]<vx0||BB[4*r]>vx1||BB[4*r+3]<vy0||BB[4*r+1]>vy1)continue;g.stroke(L.paths[r])}}
+function pcPlanHi(){const P=PC,w=P.plan.width,h=P.plan.height,O=4;if(!P.hi){P.hi=document.createElement('canvas');P.hi.width=w*O;P.hi.height=h*O}
+  const v=(i,j)=>i<0||j<0||i>=w||j>=h?0:P.PS[(P.y0+j)*GW+P.x0+i],F=new Float32Array((w+2)*(h+2)),W2=w+2;
+  for(let j=-1;j<=h;j++)for(let i=-1;i<=w;i++){let a=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++)if(v(i+di,j+dj))a+=(di?1:2)*(dj?1:2);F[(j+1)*W2+i+1]=a/16}
+  const g=P.hi.getContext('2d'),d=g.createImageData(w*O,h*O),D=d.data;
+  for(let py=0;py<h*O;py++){const vy=(py+.5)/O-.5,j0=Math.floor(vy),fy=vy-j0;for(let px=0;px<w*O;px++){const vx=(px+.5)/O-.5,i0=Math.floor(vx),fx=vx-i0,q=(j0+1)*W2+i0+1;
+    const f=F[q]*(1-fx)*(1-fy)+F[q+1]*fx*(1-fy)+F[q+W2]*(1-fx)*fy+F[q+W2+1]*fx*fy;if(f<.5)continue;
+    let c=v(Math.round(vx),Math.round(vy));if(!c)c=v(i0,j0)||v(i0+1,j0)||v(i0,j0+1)||v(i0+1,j0+1);if(!c)continue;const p=(py*w*O+px)*4,col=c===1?[255,225,74]:PCOL[(c-2)%PCOL.length];
+    D[p]=col[0];D[p+1]=col[1];D[p+2]=col[2];D[p+3]=c===1?210:235}}g.putImageData(d,0,0)}
 function pcClose(){const e=document.getElementById('pc');if(e)e.remove();PC=null;draw()}
 function pcSign(){const P=PC,me=G.player,x=P.x;let got=0,whole=0;
   P.items.forEach((it,k)=>{if(it.dead)return;const gid=G.gid=(G.gid||0)+1;const per=new Map();for(const i of P.AV)if(P.PS[i]===k+2){const r=REG[i]-1;(per.get(r)||per.set(r,[]).get(r)).push(i)}
