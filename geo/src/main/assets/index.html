@@ -536,7 +536,7 @@ const popOf=o=>(PPN[o]||0)+(ZP[o]||0);
 function recalc(){GLR.dirty=true;TER={};INC={};PPN={};if(!G.pop)initPop();for(let r=0;r<RK.length;r++){const o=G.owner[r];(TER[o]||(TER[o]=[])).push(r);INC[o]=(INC[o]||0)+G.gdp[r];PPN[o]=(PPN[o]||0)+G.pop[r]}if(G.zones)zoneEcon();lblDirty=true}
 let lblDirty=true;
 const terr=o=>TER[o]||[],income=o=>(INC[o]||0)+(ZI[o]||0),power=o=>G.nat[o].army*G.nat[o].tech,nations=()=>Object.keys(TER).map(Number);
-function save(){try{G.ctl=occRle();localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}delete G.ctl;try{}catch(e){}}
+let lastSave=0,rleV=-1,rleC=null;function save(){lastSave=performance.now();try{if(rleV!==ctlVer){rleC=occRle();rleV=ctlVer}G.ctl=rleC;localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}delete G.ctl;try{}catch(e){}}
 function dateStr(){const d=new Date(Date.UTC(2026,0,1)+G.day*864e5);return d.getUTCDate()+' '+MONTHS[d.getUTCMonth()]+' '+d.getUTCFullYear()}
 let logDirty=true;function addLog(t){G.log.unshift(`<b>${dateStr()}</b> ${t}`);G.log=G.log.slice(0,50);logDirty=true}
 function startGame(){ownVer++;occInitGame();recalc();divInit();hud.style.display='flex';log.style.display='block';
@@ -576,10 +576,10 @@ function conquer(a,t){occClearRegion(t);const o=G.owner[t];G.owner[t]=a;recalc()
 // ================= OCCUPATION (cell painting) =================
 // REG: region index+1 per cell (from raster.js); CTL: zone id per cell (0 = controlled by the region owner).
 // zone {r:region,o:controller,k:'o' occupation | 'a' annexed,c:cells,n:name}
-const GW=4096,GH=2048,OTS=128,TX=GW/OTS,OS=4;let REG=null,RC=null,CTL=new Uint16Array(GW*GH),TIL2=[],TIL3=[],OL=null,STP=null,ctlVer=0,econVer=-1,selZ=null,ZK=new Map(),ZI={},ZP={};const RGBC={};
+const GW=4096,GH=2048,OTS=128,TX=GW/OTS,OS=4;let ACT=[],REG=null,RC=null,CTL=new Uint16Array(GW*GH),TIL2=[],TIL3=[],OL=null,STP=null,ctlVer=0,econVer=-1,selZ=null,ZK=new Map(),ZI={},ZP={};const RGBC={};
 function rgbOf(css){if(RGBC[css])return RGBC[css];mctx.fillStyle='#000';mctx.fillStyle=css;const h=mctx.fillStyle;let v;
   if(h[0]==='#')v=[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];else{const m=h.match(/[\d.]+/g);v=[+m[0],+m[1],+m[2]]}return RGBC[css]=v}
-function getTile(t){let T2=TIL2[t];if(!T2){const c=document.createElement('canvas');c.width=c.height=OTS*OS;T2=TIL2[t]={c,g:c.getContext('2d'),c3:null,g3:null,n:0,n3:0,dr:null}}return T2}
+function getTile(t){let T2=TIL2[t];if(!T2){const c=document.createElement('canvas');c.width=c.height=OTS*OS;T2=TIL2[t]={c,g:c.getContext('2d'),c3:null,g3:null,n:0,n3:0,dr:null,t};ACT.push(T2)}return T2}
 const kindOf=z=>z?(G.zones[z-1].k==='a'?2:1):0;
 function markDr(T2,x,y){const r=T2.dr;if(!r)T2.dr=[x-2,y-2,x+2,y+2];else{if(x-2<r[0])r[0]=x-2;if(y-2<r[1])r[1]=y-2;if(x+2>r[2])r[2]=x+2;if(y+2>r[3])r[3]=y+2}}
 function paintPix(i,old=0){const x=i%GW,y=(i/GW)|0,t=((y/OTS)|0)*TX+((x/OTS)|0),T2=getTile(t),ko=kindOf(old),kn=kindOf(CTL[i]);
@@ -600,13 +600,14 @@ function rebuildTile(T2,t){const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS,r=T2.dr;T2.dr=n
       const w00=(1-fu)*(1-fv),w10=fu*(1-fv),w01=(1-fu)*fv,w11=fu*fv;
       const f2=K2[q]*w00+K2[q+1]*w10+K2[q+cw]*w01+K2[q+cw+1]*w11,f1=K1[q]*w00+K1[q+1]*w10+K1[q+cw]*w01+K1[q+cw+1]*w11;
       if(f1<.42&&f2<.42)continue;const nq=Math.round(v)*cw+Math.round(u),o=own(nq);if(o<0)continue;const c=rgbOf(natColor(o)),p=(py*wp+px)*4,D=f2>=f1?dA:dO;if(!D)continue;
-      D.data[p]=c[0];D.data[p+1]=c[1];D.data[p+2]=c[2];D.data[p+3]=D===dA?255:215}}
+      D.data[p]=c[0];D.data[p+1]=c[1];D.data[p+2]=c[2];D.data[p+3]=D===dA?255:((((x0-tx)*OS+px+(y0-ty)*OS+py)&7)<3?90:215)}}
   const ox2=(x0-tx)*OS,oy2=(y0-ty)*OS;T2.g.putImageData(dO,ox2,oy2);
   if(dA){if(!T2.c3){T2.c3=document.createElement('canvas');T2.c3.width=T2.c3.height=OTS*OS;T2.g3=T2.c3.getContext('2d')}T2.g3.putImageData(dA,ox2,oy2)}}
 function setCell(i,z){const o=CTL[i];if(o===z)return;if(o)G.zones[o-1].c--;if(z)G.zones[z-1].c++;CTL[i]=z;paintPix(i,o);ctlVer++}
 function zoneFor(r,o){const key=r+'_'+o;let id=ZK.get(key);if(id)return id;G.zones.push({r,o,k:'o',c:0,n:''});id=G.zones.length;ZK.set(key,id);return id}
 const ctrlOf=i=>{const z=CTL[i];return z?G.zones[z-1].o:G.owner[REG[i]-1]};
-let DB=null;function occPaint(me,x,y,ry=1.5){if(!REG)return;x=((x%MW)+MW)%MW;const cx=x*GW/MW,cy=y*GH/MH;if(!DB)DB=[cx,cy,cx,cy];else{DB[0]=Math.min(DB[0],cx);DB[1]=Math.min(DB[1],cy);DB[2]=Math.max(DB[2],cx);DB[3]=Math.max(DB[3],cy)}const rx=ry/Math.max(.2,Math.cos((90-y/MH*180)*Math.PI/180));
+let DBL=[];function occPaint(me,x,y,ry=1.5){if(!REG)return;x=((x%MW)+MW)%MW;const cx=x*GW/MW,cy=y*GH/MH;let D=null;for(const b of DBL)if(cx>b[0]-24&&cx<b[2]+24&&cy>b[1]-24&&cy<b[3]+24&&b[2]-b[0]<120&&b[3]-b[1]<120){D=b;break}
+  if(!D)DBL.push([cx,cy,cx,cy]);else{if(cx<D[0])D[0]=cx;if(cy<D[1])D[1]=cy;if(cx>D[2])D[2]=cx;if(cy>D[3])D[3]=cy}const rx=ry/Math.max(.2,Math.cos((90-y/MH*180)*Math.PI/180));
   for(let j=Math.max(0,Math.floor(cy-ry));j<=Math.min(GH-1,Math.ceil(cy+ry));j++){const dy=(j+.5-cy)/ry;if(dy*dy>1)continue;const hw=rx*Math.sqrt(1-dy*dy);
     for(let ii=Math.floor(cx-hw);ii<=Math.ceil(cx+hw);ii++){const i=j*GW+((ii%GW)+GW)%GW,rg=REG[i];if(!rg)continue;const r=rg-1,own=G.owner[r],c=ctrlOf(i);if(c===me)continue;
       if(own===me){setCell(i,0);continue}if(!atWar(me,c))continue;setCell(i,zoneFor(r,me))}}}
@@ -614,14 +615,15 @@ let DB=null;function occPaint(me,x,y,ry=1.5){if(!REG)return;x=((x%MW)+MW)%MW;con
 function occTrail(me,ax,ay,bx,by,d){const L=Math.hypot(bx-ax,by-ay)*GW/MW,n=Math.max(1,Math.ceil(L/.6)),s0=d?d.dist||0:0,sd=d?d.id*7.13:0;
   for(let k=1;k<=n;k++){const t=(s0+L*k/n)/5,ry=1.25+.55*Math.sin(t*.83+sd)+.35*Math.sin(t*2.1+sd*1.7)+.2*Math.sin(t*4.7+sd*.3);occPaint(me,ax+(bx-ax)*k/n,ay+(by-ay)*k/n,Math.max(.9,ry))}
   if(d)d.dist=s0+L}
-function occSmooth(me){if(!REG||!DB)return;const x0=Math.max(1,Math.floor(DB[0])-40),y0=Math.max(1,Math.floor(DB[1])-40),x1=Math.min(GW-2,Math.ceil(DB[2])+40),y1=Math.min(GH-2,Math.ceil(DB[3])+40);DB=null;
+function occSmooth(me){if(!REG||!DBL.length)return;const L=DBL;DBL=[];for(const b of L)occSmoothBox(me,b)}
+function occSmoothBox(me,DB){const x0=Math.max(1,Math.floor(DB[0])-14),y0=Math.max(1,Math.floor(DB[1])-14),x1=Math.min(GW-2,Math.ceil(DB[2])+14),y1=Math.min(GH-2,Math.ceil(DB[3])+14);
   const mine=i=>REG[i]&&ctrlOf(i)===me,cand=i=>{if(!REG[i])return false;const c=ctrlOf(i);return c!==me&&(G.owner[REG[i]-1]===me||atWar(me,c))},
     take=i=>{const r=REG[i]-1;if(G.owner[r]===me)setCell(i,0);else setCell(i,zoneFor(r,me))};
   for(let pass=0;pass<2;pass++){const fl=[];for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){const k=j*GW+i;if(!cand(k))continue;let m=0,z=0;
       for(const o of[-GW-1,-GW,-GW+1,-1,1,GW-1,GW,GW+1])if(mine(k+o)){m++;if(CTL[k+o])z++}if(m>=5&&z)fl.push(k)}fl.forEach(take);if(!fl.length)break}
   const w=x1-x0+1,h=y1-y0+1,vis=new Uint8Array(w*h),q=[];
   for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){const li=(j-y0)*w+(i-x0),k=j*GW+i;if(vis[li]||!cand(k))continue;
-    let ok=true,zn=0,on=0;q.length=0;q.push(k);vis[li]=1;for(let h2=0;h2<q.length;h2++){const c=q[h2],ci=c%GW,cj=(c/GW)|0;if(ci<=x0||ci>=x1||cj<=y0||cj>=y1)ok=false;if(q.length>4000)ok=false;
+    let ok=true,zn=0,on=0;q.length=0;q.push(k);vis[li]=1;for(let h2=0;h2<q.length;h2++){const c=q[h2],ci=c%GW,cj=(c/GW)|0;if(ci<=x0||ci>=x1||cj<=y0||cj>=y1)ok=false;if(q.length>1500){ok=false;break}
       for(const o of[-GW,GW,-1,1]){const n2=c+o,ni=n2%GW,nj=(n2/GW)|0;if(ni<x0||ni>x1||nj<y0||nj>y1)continue;const nl=(nj-y0)*w+(ni-x0);if(vis[nl])continue;
         if(cand(n2)){vis[nl]=1;q.push(n2)}else if(REG[n2]&&!mine(n2))ok=false;else if(REG[n2]){if(CTL[n2])zn++;else on++}}}
     if(ok&&zn>=3&&zn>=on)q.forEach(take)}}
@@ -631,7 +633,7 @@ function zoneEcon(){ZI={};ZP={};if(!RC)return;for(const z of G.zones){if(!z.c||!
   ZI[own]=(ZI[own]||0)-g;ZI[z.o]=(ZI[z.o]||0)+g;ZP[own]=(ZP[own]||0)-p;ZP[z.o]=(ZP[z.o]||0)+p}econVer=ctlVer}
 const regionZoned=r=>G.zones.some(z=>z.r===r&&z.c>0);
 function zoneSum(r){let s=0;for(const z of G.zones)if(z.r===r)s+=z.c;return s}
-function occInitGame(){CTL.fill(0);TIL2=[];ZK=new Map();if(!G.zones)G.zones=[];for(const z of G.zones)z.c=0;
+function occInitGame(){CTL.fill(0);TIL2=[];ACT=[];ZK=new Map();if(!G.zones)G.zones=[];for(const z of G.zones)z.c=0;
   G.zones.forEach((z,i)=>{if(z.k==='o')ZK.set(z.r+'_'+z.o,i+1)});
   if(G.ctl){const a=G.ctl;for(let k=0;k<a.length;k+=3){const s=a[k],n=a[k+1],v=a[k+2];if(!G.zones[v-1])continue;for(let i=s;i<s+n;i++){CTL[i]=v;G.zones[v-1].c++;paintPix(i)}}delete G.ctl}
   if(G.rn)for(const k in G.rn)RN[k]=G.rn[k];ctlVer++;zoneEcon()}
@@ -642,16 +644,12 @@ function buildSelMask(){const r=selZ.r,z=selZ.z,[x0,y0,x1,y1]=cellBox(r),w=x1-x0
   for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){if(!inn(i,j))continue;const p=((j-y0)*w+(i-x0))*4,edge=!inn(i-1,j)||!inn(i+1,j)||!inn(i,j-1)||!inn(i,j+1);
     if(edge){D[p]=255;D[p+1]=216;D[p+2]=74;D[p+3]=255}else{D[p]=255;D[p+1]=255;D[p+2]=255;D[p+3]=70}}
   g.putImageData(d,0,0);selZ.cv=c;selZ.x0=x0;selZ.y0=y0;selZ.ver=ctlVer;selZ.at=performance.now()}
-function occTiles(g,ann,ox,s,vis){for(let t=0;t<TIL2.length;t++){const T2=TIL2[t];if(!T2||!(ann?T2.n3:T2.n))continue;const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS;
+function occTiles(g,ann,ox,s,vis){for(const T2 of ACT){const t=T2.t;if(!(ann?T2.n3:T2.n))continue;const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS;
     if(vis){const sx=ox+tx*s,sy=T.y+ty*s;if(sx>W||sx+OTS*s<0||sy>H||sy+OTS*s<0)continue}if(T2.dr)rebuildTile(T2,t);const c=ann?T2.c3:T2.c;if(c)g.drawImage(c,tx,ty,OTS,OTS)}}
-const hasT=ann=>TIL2.some(t=>t&&(ann?t.n3:t.n));
+const hasT=ann=>ACT.some(t=>ann?t.n3:t.n);
 function drawOcc(K,ox){if(!G)return;const s=K*MW/GW;
   if(hasT(1)){ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;occTiles(ctx,1,ox,s,1);ctx.restore()}
-  if(hasT(0)){if(!OL)OL=document.createElement('canvas');if(OL.width!==cv.width||OL.height!==cv.height){OL.width=cv.width;OL.height=cv.height}const g=OL.getContext('2d');
-    if(!STP){const c=document.createElement('canvas');c.width=c.height=10;const q=c.getContext('2d');q.strokeStyle='rgba(0,0,0,.6)';q.lineWidth=3.2;q.beginPath();for(let k=-10;k<=20;k+=10){q.moveTo(k,10);q.lineTo(k+10,0)}q.stroke();STP=g.createPattern(c,'repeat')}
-    g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='source-over';g.clearRect(0,0,OL.width,OL.height);g.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);g.imageSmoothingEnabled=true;occTiles(g,0,ox,s,1);
-    g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='destination-out';g.fillStyle=STP;g.fillRect(0,0,OL.width,OL.height);g.globalCompositeOperation='source-over';
-    ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(OL,0,0);ctx.restore()}
+  if(hasT(0)){ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;occTiles(ctx,0,ox,s,1);ctx.restore()}
   if(selZ&&REG){if(!selZ.cv||(selZ.ver!==ctlVer&&performance.now()-selZ.at>250))buildSelMask();ctx.save();ctx.setTransform(DPR*s,0,0,DPR*s,DPR*ox,DPR*T.y);ctx.imageSmoothingEnabled=true;ctx.drawImage(selZ.cv,selZ.x0,selZ.y0);ctx.restore()}}
 function showZonePanel(i){const me=G.player,z=selZ.z,Z=z?G.zones[z-1]:null,own=G.owner[i],ctl=Z?Z.o:own,cells=Z?Z.c:Math.max(0,RC[i]-zoneSum(i)),sh=RC[i]?cells/RC[i]:0;panelSig=panelState(i);
   const tag=Z?(Z.k==='o'?`Оккупационная зона: ${nm(Z.o)} в «${RN[i]}»`:`${Z.n} · ${nm(Z.o)}`):`Под контролем ${nm(own)}: ${RN[i]}`;
@@ -766,20 +764,28 @@ function moveDivs(hrs){let mv=false;
       occTrail(G.player,sx,sy,d.x,d.y,d)}
     if(d.x<0||d.x>=MW){const sh=d.x<0?MW:-MW;d.x+=sh;for(const q of d.path)q[0]+=sh}}
   return mv}
+function divOnScreen(){if(T.k<1.8)return false;const K=S0()*T.k,ww=MW*K;for(const d of G.divs){if(!d.path.length)continue;let x=((d.x*K+T.x)%ww+ww)%ww;const y=d.y*K+T.y;if(y>-40&&y<H+40&&(x<W+40||x-ww>-40))return true}return false}
 function hitDiv(cx,cy){if(!G||!G.divs||T.k<1.8)return null;const K=S0()*T.k,ww=MW*K;let b=null,bd=14;
   for(const d of G.divs)for(let c=-1;c<=Math.ceil(W/ww)+1;c++){const x=d.x*K+T.x+c*ww,y=d.y*K+T.y,dd=Math.hypot(cx-x,cy-y);if(dd<bd){bd=dd;b=d}}return b}
-function drawDivs(K,ox){if(!G.divs||!G.divs.length||T.k<1.8)return;const col=natColor(G.player);
-  for(const d of G.divs){const x=d.x*K+ox,y=d.y*K+T.y;
-    if(d.path.length){const P=d.path,e=P[P.length-1];ctx.lineCap='round';ctx.lineJoin='round';
-      const ln=()=>{ctx.beginPath();ctx.moveTo(x,y);for(const q of P)ctx.lineTo(q[0]*K+ox,q[1]*K+T.y);ctx.stroke()};
-      ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=4;ln();ctx.strokeStyle=d===selDiv?'#ffe14a':'rgba(140,255,140,.95)';ctx.lineWidth=2;ln();
-      const p2=P.length>1?P[P.length-2]:[d.x,d.y],ex=e[0]*K+ox,ey=e[1]*K+T.y,ang=Math.atan2(ey-(p2[1]*K+T.y),ex-(p2[0]*K+ox));
-      ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(ex+3*Math.cos(ang),ey+3*Math.sin(ang));ctx.lineTo(ex-9*Math.cos(ang-.45),ey-9*Math.sin(ang-.45));ctx.lineTo(ex-9*Math.cos(ang+.45),ey-9*Math.sin(ang+.45));ctx.fill()}
-    if(x<-30||x>W+30||y<-30||y>H+30)continue;
-    const w=14,h=9,X=x-w/2,Y=y-h/2;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(X-1.5,Y-1.5,w+3,h+3);ctx.fillStyle=col;ctx.fillRect(X,Y,w,h);
-    ctx.strokeStyle=d===selDiv?'#ffe14a':'#fff';ctx.lineWidth=d===selDiv?1.6:1;ctx.strokeRect(X,Y,w,h);
-    ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X+2,Y+1.5);ctx.lineTo(X+w-2,Y+h-1.5);ctx.moveTo(X+w-2,Y+1.5);ctx.lineTo(X+2,Y+h-1.5);ctx.stroke();
-    ctx.fillStyle='#000a';ctx.fillRect(X,Y+h+1.5,w,2);ctx.fillStyle='#7dff7d';ctx.fillRect(X,Y+h+1.5,w*d.str/10000,2)}}
+const DSPR={};function divSprite(col,sel){const k=col+sel;if(DSPR[k])return DSPR[k];const c=document.createElement('canvas'),w=14,h=9;c.width=(w+4)*DPR;c.height=(h+4)*DPR;const g=c.getContext('2d');g.scale(DPR,DPR);
+  const X=2,Y=2;g.fillStyle='rgba(0,0,0,.6)';g.fillRect(X-1.5,Y-1.5,w+3,h+3);g.fillStyle=col;g.fillRect(X,Y,w,h);g.strokeStyle=sel?'#ffe14a':'#fff';g.lineWidth=sel?1.6:1;g.strokeRect(X,Y,w,h);
+  g.strokeStyle='rgba(0,0,0,.85)';g.lineWidth=1;g.beginPath();g.moveTo(X+2,Y+1.5);g.lineTo(X+w-2,Y+h-1.5);g.moveTo(X+w-2,Y+1.5);g.lineTo(X+2,Y+h-1.5);g.stroke();return DSPR[k]=c}
+function pathBox(d){let a=d.x,b=d.y,c=d.x,e=d.y;for(const q of d.path){if(q[0]<a)a=q[0];if(q[0]>c)c=q[0];if(q[1]<b)b=q[1];if(q[1]>e)e=q[1]}d.pb=[a,b,c,e]}
+function drawDivs(K,ox){if(!G.divs||!G.divs.length||T.k<1.8)return;const col=natColor(G.player),vx0=-ox/K-2,vx1=(W-ox)/K+2,vy0=-T.y/K-2,vy1=(H-T.y)/K+2,many=G.divs.length>60;
+  const bk=new Path2D(),gr=new Path2D(),ar=new Path2D();let sp=null;
+  for(const d of G.divs){if(!d.path.length)continue;const isS=d===selDiv;if(many&&!isS&&T.k<4)continue;if(!d.pb||d.pbv!==d.path.length){pathBox(d);d.pbv=d.path.length}
+    const b=d.pb;if(b[2]<vx0||b[0]>vx1||b[3]<vy0||b[1]>vy1)continue;const P=d.path,pp=new Path2D();pp.moveTo(d.x*K+ox,d.y*K+T.y);
+    const st=Math.max(1,Math.floor(P.length/Math.max(8,(b[2]-b[0]+b[3]-b[1])*K/4)));for(let i=st-1;i<P.length;i+=st)pp.lineTo(P[i][0]*K+ox,P[i][1]*K+T.y);const e=P[P.length-1];pp.lineTo(e[0]*K+ox,e[1]*K+T.y);
+    bk.addPath(pp);if(isS)sp=pp;else gr.addPath(pp);
+    const p2=P.length>1?P[P.length-2]:[d.x,d.y],ex=e[0]*K+ox,ey=e[1]*K+T.y,ang=Math.atan2(ey-(p2[1]*K+T.y),ex-(p2[0]*K+ox)),A=isS?new Path2D():ar;
+    A.moveTo(ex+3*Math.cos(ang),ey+3*Math.sin(ang));A.lineTo(ex-9*Math.cos(ang-.45),ey-9*Math.sin(ang-.45));A.lineTo(ex-9*Math.cos(ang+.45),ey-9*Math.sin(ang+.45));A.closePath();if(isS)sp.arr=A}
+  ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=4;ctx.stroke(bk);ctx.strokeStyle='rgba(140,255,140,.95)';ctx.lineWidth=2;ctx.stroke(gr);ctx.fillStyle='rgba(140,255,140,.95)';ctx.fill(ar);
+  if(sp){ctx.strokeStyle='#ffe14a';ctx.stroke(sp);ctx.fillStyle='#ffe14a';ctx.fill(sp.arr)}
+  const sN=divSprite(col,''),sS=divSprite(col,'s'),cell=new Map(),cs=T.k<4?16:0;
+  for(const d of G.divs){const x=d.x*K+ox,y=d.y*K+T.y;if(x<-20||x>W+20||y<-20||y>H+20)continue;
+    if(cs&&d!==selDiv){const key=((x/cs)|0)*4096+((y/cs)|0),c=cell.get(key);if(c){c.n++;continue}cell.set(key,{x,y,n:1})}
+    ctx.drawImage(d===selDiv?sS:sN,x-9,y-6.5,18,13);if(d.str<10000){ctx.fillStyle='#000a';ctx.fillRect(x-7,y+6,14,2);ctx.fillStyle='#7dff7d';ctx.fillRect(x-7,y+6,14*d.str/10000,2)}}
+  ctx.font='700 9px system-ui';ctx.textAlign='left';ctx.textBaseline='middle';for(const c of cell.values())if(c.n>1){const t=String(c.n),w=ctx.measureText(t).width+5;ctx.fillStyle='#000c';ctx.fillRect(c.x+6,c.y-11,w,10);ctx.fillStyle='#fff';ctx.fillText(t,c.x+8.5,c.y-6)}}
 let toastT=0;function toast(t){let e=document.getElementById('toast');if(!e){e=document.createElement('div');e.id='toast';document.body.appendChild(e)}e.textContent=t;e.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>e.style.display='none',2600)}
 function dayTick(){G.day++;if(econVer!==ctlVer)zoneEcon();const me=G.player,ns=nations();
   for(const o of ns){const N=G.nat[o];N.money+=dailyInc(o);N.stab+=(65-N.stab)*.004;
@@ -788,7 +794,7 @@ function dayTick(){G.day++;if(econVer!==ctlVer)zoneEcon();const me=G.player,ns=n
   stepOffs();
   for(let k=0;k<6;k++)aiThink(ns[Math.floor(Math.random()*ns.length)]);
   if(Math.random()<.004)randomEvent();
-  if(G.day%15===0)save();
+  if(performance.now()-lastSave>20000)save();
   if(ns.length===1)gameOver(true)}
 function aiThink(o){if(o===G.player||!TER[o])return;const N=G.nat[o],inc=income(o);
   if(N.money>inc*.06){N.army*=1.06;N.money-=inc*.04}
@@ -810,7 +816,7 @@ function randomEvent(){const me=G.player,M=G.nat[me],ev=[
 let last=performance.now(),acc=0,lastHud=0,lastSimDraw=0;
 let lastClk='';function clockStr(){const f=Math.min(.9999,Math.max(0,acc)),m=Math.floor(f*1440);const h=Math.floor(m/60),mm=m%60;return String(h).padStart(2,'0')+':'+String(speed>=3?0:mm-mm%10).padStart(2,'0')}
 function loop(now){const dt=Math.min(.25,(now-last)/1000);last=now;
-  if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;const dmv=G.divs&&G.divs.length&&moveDivs(dt*SPEEDS[speed]*24);if(dmv&&now-(window.__sm||0)>300){window.__sm=now;occSmooth(G.player)}if(dmv&&now-lastSimDraw>33){lastSimDraw=now;draw()}
+  if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;const dmv=G.divs&&G.divs.length&&moveDivs(dt*SPEEDS[speed]*24);if(dmv&&now-(window.__sm||0)>300){window.__sm=now;occSmooth(G.player)}if(dmv&&now-lastSimDraw>(divOnScreen()?40:250)){lastSimDraw=now;draw()}
     while(acc>=1&&n<10){acc-=1;n++;dayTick()}
     if(n){if(now-lastHud>100){lastHud=now;updHud()}if(G.offs.length&&now-lastSimDraw>66){lastSimDraw=now;draw()}if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
   if(G){const c=clockStr();if(c!==lastClk){lastClk=c;const e=document.getElementById('clk');if(e)e.textContent=c}}
