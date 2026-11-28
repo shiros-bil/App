@@ -133,16 +133,16 @@ class MainActivity : Activity() {
 
     private fun buildHud() {
         meChip = u.chip()
-        moneyT = u.text("", 14f, C.TXT, true); incT = u.text("", 12f, C.GOOD)
-        popT = u.text("", 14f, C.TXT, true); armyT = u.text("", 14f, C.TXT, true)
+        moneyT = u.text("", 12.5f, C.TXT, true); incT = u.text("", 11f, C.GOOD)
+        popT = u.text("", 12.5f, C.TXT, true); armyT = u.text("", 12.5f, C.TXT, true)
         val army = ImageView(this).apply {
             try { setImageBitmap(assets.open("army.png").use { BitmapFactory.decodeStream(it) }) } catch (_: Throwable) {}
-            layoutParams = LinearLayout.LayoutParams(u.dp(28), u.dp(20))
+            layoutParams = LinearLayout.LayoutParams(u.dp(24), u.dp(17))
         }
-        hud = u.row(meChip, u.chip(u.icon("coins", C.GOLD), moneyT, incT), u.chip(u.icon("users", C.GOLD), popT), u.chip(army, armyT), gap = 6)
+        hud = u.row(meChip, u.chip(u.icon("coins", C.GOLD, 16), moneyT, incT), u.chip(u.icon("users", C.GOLD, 16), popT), u.chip(army, armyT), gap = 4)
         hud.visibility = View.GONE
         root.addView(hud, u.lp(-2, -2, Gravity.START or Gravity.TOP, 8, 8, 0, 0))
-        dateT = u.text("", 14f, C.TXT, true); clockT = u.text("", 13f, C.MUT, true)
+        dateT = u.text("", 12.5f, C.TXT, true); clockT = u.text("", 12f, C.MUT, true)
         val clock = u.row(u.icon("calendar", C.GOLD), dateT, clockT, gap = 6).apply { setPadding(u.dp(4), 0, u.dp(8), 0) }
         tbox = u.row(clock, gap = 2).apply { background = u.bg(C.PANEL, 12f); setPadding(u.dp(8), u.dp(3), u.dp(3), u.dp(3)); visibility = View.GONE }
         val icons = listOf("pause", "play", "chevrons-right", "fast-forward")
@@ -168,7 +168,7 @@ class MainActivity : Activity() {
         val key = j.optString("flag") + j.optString("name")
         if (meChip.tag != key) {
             meChip.tag = key; meChip.removeAllViews()
-            meChip.addView(u.flag(j.optString("flag"))); meChip.addView(u.space(7, 1)); meChip.addView(u.text(j.optString("name"), 14f, C.TXT, true))
+            meChip.addView(u.flag(j.optString("flag"), 22, 16)); meChip.addView(u.space(5, 1)); meChip.addView(u.text(j.optString("name"), 12.5f, C.TXT, true))
         }
         moneyT.text = j.optString("money"); incT.text = j.optString("inc"); popT.text = j.optString("pop"); armyT.text = j.optString("army")
         dateT.text = j.optString("date"); clockT.text = j.optString("clock")

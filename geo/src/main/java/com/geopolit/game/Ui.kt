@@ -72,8 +72,8 @@ class Ui(val ctx: Context) {
     fun col(): LinearLayout = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
     fun space(w: Int, h: Int): View = View(ctx).apply { layoutParams = LinearLayout.LayoutParams(dp(w), dp(h)) }
 
-    fun chip(vararg v: View): LinearLayout = row(*v, gap = 7).apply {
-        background = bg(C.PANEL, 12f); setPadding(dp(10), dp(6), dp(10), dp(6))
+    fun chip(vararg v: View): LinearLayout = row(*v, gap = 5).apply {
+        background = bg(C.PANEL, 12f); setPadding(dp(7), dp(4), dp(7), dp(4))
     }
 
     // button with optional icon, label and small sub-label; cls: "", "p" (accent), "r" (red), "g" (green), "on"
