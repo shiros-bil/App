@@ -479,7 +479,7 @@ function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
     if(sel>=0&&!selZ){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(regOutline(lodFor(T.k),sel));ctx.restore()}
     drawOcc(K,ox);drawCities(K,ox);
     if(T.k>=1.6&&WAT){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineCap='round';ctx.lineJoin='round';for(const v of WAT.rivers)if(v.can){for(const w of[[3.2,'rgba(0,0,0,.6)'],[1.8,'#3d8fd6']]){ctx.lineWidth=w[0]/K;ctx.strokeStyle=w[1];ctx.beginPath();v.ls[0].forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.stroke()}}ctx.restore()}
-    if(G){drawFronts(K,ox);drawPlanDbg(K,ox);drawDivs(K,ox)}
+    if(G){drawFronts(K,ox);drawPlanDbg(K,ox);drawCoverDbg(K,ox);drawDivs(K,ox)}
     drawLabels(K,ox)}}
 function drawOffensives(K,ox){
   for(const o of G.offs){const fx=LP[2*o.from],fy=LP[2*o.from+1],tx=LP[2*o.t],ty=LP[2*o.t+1];if(Math.abs(fx-tx)>MW/2)continue;
@@ -935,14 +935,14 @@ function sendAlong(divs,P){if(P.gap===undefined&&P.length>40)P.gap=3;const C=plL
 function frontOf(d){return G.fronts.find(f=>f.divs.includes(d.id))}
 function makeFront(P,tn){const ds=selDivs();if(!ds.length){toast('Сначала выберите дивизии');return}const ids=ds.map(d=>d.id);
   for(const f of G.fronts)f.divs=f.divs.filter(id=>!ids.includes(id));G.fronts=G.fronts.filter(f=>f.divs.length);
-  const f={id:(G.frN=(G.frN||0)+1),divs:ids,line:P,plan:null,exec:false,t:tn??null};G.fronts.push(f);const okN=(tn!=null?sendFront:sendAlong)(ds,P)||0;if(speed===0)setSpeed(1);toast(tn!=null?`Фронт против ${natName(tn)}: ${ids.length} див.`:`Фронт: ${ids.length} див.`);draw()}
+  const f={id:(G.frN=(G.frN||0)+1),divs:ids,line:P,plan:null,exec:false,t:tn??null};G.fronts.push(f);if(tn!=null){for(const d of ds)d.cv=null;coverFront(f,true);f.cvT=performance.now();f.cvV=ctlVer}else sendAlong(ds,P);if(speed===0)setSpeed(1);toast(tn!=null?`Фронт против ${natName(tn)}: ${ids.length} див.`:`Фронт: ${ids.length} див.`);draw()}
 function curFront(){const ds=selDivs();for(const d of ds){const f=frontOf(d);if(f)return f}return G.fronts[G.fronts.length-1]}
 function makePlan(P){const f=curFront();if(!f){toast('Сначала нарисуйте линию фронта');return}f.plan=P;f.exec=false;toast('План наступления готов · нажмите «Наступать»');draw()}
 function pathKm(d){let x=d.x,y=d.y,l=0;for(const q of d.path){l+=kmDist(x,y,q[0],q[1]);x=q[0];y=q[1]}return l}
 function orderPath(d,P){let x=d.x,y=d.y;const out=[];const step=Math.max(1,Math.floor(P.length/12));for(let i=step-1;i<P.length;i+=step){const q=P[Math.min(i,P.length-1)];let tx=q[0];while(tx-x>MW/2)tx-=MW;while(tx-x<-MW/2)tx+=MW;
     const r=regionAt(tx,q[1]);if(r<0||!canEnter(r))break;const g=gridRoute(x,y,tx,q[1]);if(!g)break;for(const p of g)out.push([p[0],p[1],-1]);x=tx;y=q[1]}
   if(!out.length)return false;out[out.length-1][2]=regionAt(x,y);d.path=out;d.hold=0;d.pf=0;return true}
-function makeSpear(P){const ds=selDivs();if(!ds.length){toast('Сначала выберите дивизии');return}let ok=0;for(const d of ds)if(orderPath(d,P.map(p=>[p[0]+(Math.random()-.5)*.6,p[1]+(Math.random()-.5)*.4])))ok++;
+function makeSpear(P){const ds=selDivs();if(!ds.length){toast('Сначала выберите дивизии');return}if(!CFG.deepBreak){let L=0;for(let i=1;i<P.length;i++){L+=kmDist(P[i-1][0],P[i-1][1],P[i][0],P[i][1]);if(L>CFG.spearMaxKm){P=P.slice(0,i+1);toast(`Прорыв ограничен ${CFG.spearMaxKm} км (глубокий прорыв выключен)`);break}}}let ok=0;for(const d of ds)if(orderPath(d,P.map(p=>[p[0]+(Math.random()-.5)*.6,p[1]+(Math.random()-.5)*.4])))ok++;
   SPEARS.push({P,t:performance.now()});toast(ok?`Прорыв: ${ok} див.`:'Нельзя пройти по этому маршруту');if(ok&&speed===0)setSpeed(1);draw()}
 let SPEARS=[];
 // ================= OFFENSIVE PLAN EXECUTION (HOI4-like, cell-based) =================
@@ -950,7 +950,7 @@ let SPEARS=[];
 // enemy cells + their position t along the front (0..1). Each division owns a lane [i/n,(i+1)/n) and attacks
 // the nearest uncaptured cell of its lane that touches own territory, step by step. Lanes that run ahead
 // help lagging neighbours; finished lanes help others. The plan ends when no area cell is left uncaptured.
-const PLAN_GAP=.2,PLAN_TICK=600;let PLAN_DBG=false,planT=0;const PAREA=new Map();
+const PLAN_GAP_=0,PLAN_TICK=600;let PLAN_DBG=false,planT=0;const PAREA=new Map();
 function snapMine(x,y,R=8){const me=G.player,ci=Math.floor(((x%MW)+MW)%MW*GW/MW),cj=Math.floor(y*GH/MH);let best=null,bd=1e9;
   for(let r=0;r<=R&&!best;r++)for(let b=-r;b<=r;b++)for(let a=-r;a<=r;a++){if(Math.max(Math.abs(a),Math.abs(b))!==r)continue;const j=cj+b;if(j<0||j>=GH)continue;const i=((ci+a)%GW+GW)%GW,k=j*GW+i;
     if(REG[k]&&ctrlOf(k)===me){const d=a*a+b*b;if(d<bd){bd=d;best=[x+a*MW/GW,(j+.5)*MH/GH,REG[k]-1]}}}return best}
@@ -1016,7 +1016,7 @@ function planTick(f){const me=G.player,ds=planDivs(f);if(!ds.length){f.exec=fals
     let L=own;
     if(!rem[own]){let bd=1e9;for(let l=0;l<n;l++)if(rem[l]&&Math.abs(l-own)<bd){bd=Math.abs(l-own);L=l}}
     else{const nb=[own-1,own+1].filter(l=>l>=0&&l<n&&rem[l]);let lo=-1,lp=2;for(const l of nb)if(prog(l)<lp){lp=prog(l);lo=l}
-      if(lo>=0&&prog(own)>lp+PLAN_GAP)L=lo}
+      if(lo>=0&&prog(own)>lp+CFG.planGap)L=lo}
     // nearest frontier cell of lane L (fallback: nearest frontier cell of the whole area)
     let bk=-1,bd=1e18;const dx=d.x*GW/MW,dy=d.y*GH/MH;
     for(const pass of[0,1]){for(const i of left){if(!pass&&laneOf(a.t[i],n)!==L)continue;const k=a.cells[i];if(!isFrontier(k))continue;const x=k%GW,y=k/GW|0;let ex=Math.abs(x-dx);if(ex>GW/2)ex=GW-ex;const dd=ex*ex+(y-dy)**2;if(dd<bd){bd=dd;bk=k}}if(bk>=0)break}
@@ -1024,19 +1024,81 @@ function planTick(f){const me=G.player,ds=planDivs(f);if(!ds.length){f.exec=fals
     const tx=((bk%GW)+.5)*MW/GW,ty=((bk/GW|0)+.5)*MH/GH;d.tk=bk;d.tl=L;
     if(!orderDiv(d,tx,ty,REG[bk]-1,true))d.tk=null;else{d.pf=f.id;d.hold=1}}}
 function finishPlan(f,ds){const pl=f.plan,a0=PAREA.get(f.id);if(a0)cleanHoles(a0);delete f.line0;f.plan=null;f.exec=false;PAREA.delete(f.id);for(const d of ds){d.tk=null;d.ln=undefined;d.pf=0}
-  if(f.t!=null){const g=frontUpd(f);if(g){f.line=g.pts;sendFront(ds,g.pts)}else{f.line=pl;sendAlong(ds,pl)}}else{f.line=pl;sendAlong(ds,pl)}
+  if(f.t!=null){const g=frontUpd(f);if(g){f.line=g.pts;for(const d of ds)d.cv=null;coverFront(f,true)}else{f.line=pl;sendAlong(ds,pl)}}else{f.line=pl;sendAlong(ds,pl)}
   toast('Наступление завершено: область захвачена');draw()}
 function execPlans(){let n=0;for(const f of G.fronts){if(!f.plan||f.exec)continue;const ds=planDivs(f);if(!ds.length)continue;f.line0=f.line;f.exec=true;PAREA.delete(f.id);
     const a=buildArea(f);if(!a.cells.length){toast('В области плана нет вражеской территории');f.exec=false;PAREA.delete(f.id);continue}for(const d of ds){d.path=[];d.tk=null}planTick(f);n++}
   toast(n?`Наступление: ${n} ${n===1?'фронт':'фронта'}`:'Нет готовых планов');if(n&&speed===0)setSpeed(1);draw()}
 function checkFronts(){const now=performance.now();
   if(now-planT>PLAN_TICK){planT=now;for(const f of G.fronts.slice())if(f.exec&&f.plan)planTick(f);else if(f.exec&&!f.plan)f.exec=false}
-  for(const f of G.fronts)if(f.t!=null&&!f.exec&&(f.v!==ctlVer||!FSEG.has(f.id))&&now-(f.tt||0)>3000){f.tt=now;frontUpd(f);draw()}}
+  coverTick()}
 function drawPlanDbg(K,ox){if(!PLAN_DBG)return;const me=G.player,cw=MW/GW*K,ch=MH/GH*K;
   for(const f of G.fronts){const a=PAREA.get(f.id);if(!a||!f.exec)continue;const n=Math.max(1,a.nd||1);
     for(let i=0;i<a.cells.length;i+=1){const k=a.cells[i];if(ctrlOf(k)===me)continue;const l=laneOf(a.t[i],n);ctx.fillStyle=`hsla(${(l*67)%360},90%,55%,.55)`;ctx.fillRect((k%GW)*cw+ox,(k/GW|0)*ch+T.y,cw+.5,ch+.5)}
     ctx.lineWidth=1.5;ctx.strokeStyle='#fff';for(const d of planDivs(f)){if(d.tk==null)continue;ctx.beginPath();ctx.moveTo(d.x*K+ox,d.y*K+T.y);ctx.lineTo(((d.tk%GW)+.5)*cw+ox,((d.tk/GW|0)+.5)*ch+T.y);ctx.stroke()}
     ctx.fillStyle='#fff';ctx.font='11px sans-serif';ctx.fillText(`осталось клеток: ${a.left||0}`,10,90)}}
+
+// ================= FRONT COVERAGE (no gaps) =================
+// Front line of a nation front is split into sectors (~CFG.sectorLen). Every sector must be covered by a division
+// standing on it or marching to it. Assignment is event-driven (control change, divisions change) + safety interval,
+// with hysteresis so divisions do not jitter. Surplus goes to second echelon/reserve; shortage -> divisions stretch
+// over 2 sectors, then the least important sectors stay open and the player is warned.
+const CFG={sectorLen:1.6,coverMs:1500,coverSafetyMs:6000,reassignMs:8000,keepDist:1.2,reservePct:.15,maxSecPerDiv:2,arriveDist:.35,
+  echelonBack:.9,reserveBack:1.6,warnMs:12000,deepBreak:false,spearMaxKm:160,planGap:.2};
+let ROUTE_OWN=false;const COVER=new Map();
+function frontSectors(P,t){const me=G.player,S=[];let cur=[P[0]],L=0;
+  for(let i=1;i<P.length;i++){const d=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]);if(d>3||L+d>CFG.sectorLen){S.push(cur);cur=[];L=0}else L+=d;cur.push(P[i])}if(cur.length)S.push(cur);
+  const caps=CITY_S?CITY_S.filter(c=>c.ctl===me):[];
+  return S.map((pts,i)=>{const c=pts[Math.floor(pts.length/2)],r=regionAt(c[0],c[1]);
+    // threat priority: enemy strength, rear importance (capital/cities behind), terrain (open land needs defence more)
+    let rear=0;for(const q of caps){const dd=Math.hypot(q.x-c[0],q.y-c[1]);if(dd<12)rear+=(q.cap?3:.6)*Math.exp(-dd/6)}
+    const enemy=Math.min(3,Math.log10(1+((G.nat[t]&&G.nat[t].army)||0)/1e4)),terr=r>=0&&RKM?regSpd(r):1;
+    return{i,c,pts,pr:+(1+enemy+rear+terr).toFixed(2),seg:pts.length>1?pts:[c,c]}})}
+// direction from the sector toward the enemy, used to put echelons/reserve behind the line
+function enemyDir(x,y,t){const ci=Math.floor(((x%MW)+MW)%MW*GW/MW),cj=Math.floor(y*GH/MH);let sx=0,sy=0,n=0;
+  for(let b=-4;b<=4;b++)for(let a=-4;a<=4;a++){const j=cj+b;if(j<0||j>=GH)continue;const k=j*GW+((ci+a)%GW+GW)%GW;if(REG[k]&&ctrlOf(k)===t){sx+=a;sy+=b;n++}}
+  if(!n)return[0,0];const l=Math.hypot(sx,sy)||1;return[sx/l,sy/l]}
+function behind(x,y,t,dist){const e=enemyDir(x,y,t);return snapMine(x-e[0]*dist,y-e[1]*dist)||snapMine(x,y)}
+function coverOrder(d,p){if(d.cv&&Math.hypot(d.cv[0]-p[0],d.cv[1]-p[1])<.05&&(d.path.length||Math.hypot(d.x-p[0],d.y-p[1])<CFG.arriveDist))return;
+  d.cv=[p[0],p[1]];d.cvT=performance.now();if(Math.hypot(d.x-p[0],d.y-p[1])<.05){d.path=[];d.hold=1;d.pf=0;return}
+  ROUTE_OWN=true;let ok=orderDiv(d,p[0],p[1],p[2],true);ROUTE_OWN=false;if(!ok)ok=orderDiv(d,p[0],p[1],p[2],true);d.hold=1;d.pf=0}
+function coverFront(f,force){if(f.t==null||f.exec)return;const me=G.player,ds=planDivs(f);if(!ds.length)return;const now=performance.now();
+  const g=frontGeom(f.t);f.v=ctlVer;if(!g){COVER.delete(f.id);return}FSEG.set(f.id,g.seg);FPATH.delete(f.id);f.line=g.pts;
+  const S=frontSectors(g.pts,f.t),n=ds.length;
+  // how many divisions hold the line: reserve only from surplus (never opens a gap)
+  const nRes=Math.min(Math.floor(n*CFG.reservePct),Math.max(0,n-S.length)),act=n-nRes;
+  // slots: one per sector; on shortage merge lowest-priority neighbours (one division covers 2 sectors), then leave lowest open
+  let slots=S.map(s=>({sec:[s.i],pr:s.pr,seg:s.seg}));
+  while(slots.length>act){let bi=-1,bv=1e9;for(let i=0;i+1<slots.length;i++){if(slots[i].sec.length+slots[i+1].sec.length>CFG.maxSecPerDiv)continue;
+      const a=slots[i].seg[slots[i].seg.length-1],b=slots[i+1].seg[0];if(Math.hypot(a[0]-b[0],a[1]-b[1])>3)continue;const v=slots[i].pr+slots[i+1].pr;if(v<bv){bv=v;bi=i}}
+    if(bi<0)break;const A=slots[bi],B=slots[bi+1];slots.splice(bi,2,{sec:A.sec.concat(B.sec),pr:Math.max(A.pr,B.pr),seg:A.seg.concat(B.seg)})}
+  for(const s of slots){const P=s.seg,C=plLen(P),m=plAt(P,C,.5);s.p=snapMine(m[0],m[1])||snapMine(P[0][0],P[0][1])}
+  slots=slots.filter(s=>s.p);slots.sort((a,b)=>b.pr-a.pr);
+  const open=slots.slice(act);slots=slots.slice(0,act);
+  // second echelon behind the most dangerous sectors, then reserve
+  const extra=[];for(let i=0;i<act-slots.length;i++){const s=slots[i%Math.max(1,slots.length)];if(!s)break;extra.push({ech:1,pr:s.pr*.5,p:behind(s.p[0],s.p[1],f.t,CFG.echelonBack*(1+Math.floor(i/slots.length))),of:s})}
+  const top=slots[0];for(let i=0;i<nRes;i++)if(top)extra.push({res:1,pr:0,p:behind(top.p[0],top.p[1],f.t,CFG.reserveBack+.3*i)});
+  const all=slots.concat(extra).filter(s=>s.p);
+  // matching with hysteresis: keep divisions whose current post is still a slot; others take remaining slots by priority, nearest first
+  const free=new Set(ds),taken=new Map();
+  for(const s of all){let bd=CFG.keepDist,bdv=null;for(const d of free){if(!d.cv)continue;const dd=Math.hypot(d.cv[0]-s.p[0],d.cv[1]-s.p[1]);if(dd<bd){bd=dd;bdv=d}}if(bdv){taken.set(s,bdv);free.delete(bdv)}}
+  for(const s of all){if(taken.has(s))continue;let bd=1e18,bdv=null;for(const d of free){const dd=Math.hypot(d.x-s.p[0],d.y-s.p[1]);if(dd<bd){bd=dd;bdv=d}}if(!bdv)break;taken.set(s,bdv);free.delete(bdv)}
+  for(const[s,d]of taken){const moved=d.cv&&Math.hypot(d.cv[0]-s.p[0],d.cv[1]-s.p[1])>.05;
+    if(moved&&!force&&now-(d.cvT||0)<CFG.reassignMs&&!s.ech&&!s.res&&Math.hypot(d.cv[0]-s.p[0],d.cv[1]-s.p[1])<CFG.keepDist)continue;coverOrder(d,s.p);d.role=s.res?'res':s.ech?'ech':'line'}
+  const st=all.map(s=>{const d=taken.get(s);return{p:s.p,pr:s.pr,res:!!s.res,ech:!!s.ech,d:d?d.id:0,state:!d?'gap':Math.hypot(d.x-s.p[0],d.y-s.p[1])<CFG.arriveDist?'ok':'move'}});
+  for(const s of open)st.push({p:s.p,pr:s.pr,d:0,state:'open'});
+  COVER.set(f.id,{st,need:open.reduce((a,s)=>a+1,0),t:now});
+  if(open.length&&(f.warnT==null||now-f.warnT>CFG.warnMs)){f.warnT=now;toast(`Фронт растянут: не хватает ${open.length} див. · открыты наименее важные участки`)}}
+function coverTick(){const now=performance.now();for(const f of G.fronts){if(f.t==null||f.exec)continue;const ds=planDivs(f),sig=ds.length+'_'+ds.map(d=>d.id).join(',');
+  if(f.cvV!==ctlVer||f.cvS!==sig||now-(f.cvT||0)>CFG.coverSafetyMs){if(now-(f.cvT||0)<CFG.coverMs&&f.cvS===sig)continue;f.cvT=now;f.cvV=ctlVer;f.cvS=sig;coverFront(f);draw()}
+  else{const c=COVER.get(f.id);if(c)for(const s of c.st){if(!s.d)continue;const d=G.divs.find(q=>q.id===s.d);if(d)s.state=Math.hypot(d.x-s.p[0],d.y-s.p[1])<CFG.arriveDist?'ok':'move'}}}}
+function drawCoverDbg(K,ox){if(!PLAN_DBG)return;for(const f of G.fronts){const c=COVER.get(f.id);if(!c)continue;
+  for(const s of c.st){const x=s.p[0]*K+ox,y=s.p[1]*K+T.y;const col=s.state==='ok'?'#2fdc5a':s.state==='move'?'#ffd84a':s.state==='open'?'#ff8a8a':'#ff2a2a';
+    ctx.fillStyle=s.res?'#58a6ff':col;ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,s.ech||s.res?3.5:5,0,7);ctx.fill();ctx.stroke();
+    if(s.state==='open'){ctx.strokeStyle='#ff2a2a';ctx.beginPath();ctx.moveTo(x-5,y-5);ctx.lineTo(x+5,y+5);ctx.moveTo(x+5,y-5);ctx.lineTo(x-5,y+5);ctx.stroke()}
+    if(T.k>4){ctx.fillStyle='#fff';ctx.font='10px sans-serif';ctx.fillText(s.pr,x+6,y-4)}
+    if(s.d){const d=G.divs.find(q=>q.id===s.d);if(d&&s.state==='move'){ctx.strokeStyle='rgba(255,216,74,.7)';ctx.beginPath();ctx.moveTo(d.x*K+ox,d.y*K+T.y);ctx.lineTo(x,y);ctx.stroke()}}}
+  const n=c.st.filter(s=>s.state==='gap'||s.state==='open').length;ctx.fillStyle='#fff';ctx.font='11px sans-serif';ctx.fillText(`фронт #${f.id}: брешей ${n}, не хватает ${c.need}`,10,104+f.id*13)}}
 
 function setDraw(m){DRAW=DRAW===m?null:m;DRAWP=null;let ov=document.getElementById('drawov');if(!ov){ov=document.createElement('div');ov.id='drawov';document.body.appendChild(ov);let pts=null;
     let dn=null;ov.addEventListener('pointerdown',e=>{ov.setPointerCapture(e.pointerId);dn=[e.clientX,e.clientY];pts=[toMap(e.clientX,e.clientY)];});
@@ -1114,7 +1176,7 @@ function findRoute(a,b){if(a===b)return[a];const R=RK.length,dist=new Float64Arr
   if(prev[b]<0)return null;const out=[b];let u=b;while(u!==a){u=prev[u];out.push(u)}return out.reverse()}
 // free movement: straight line if land is passable, otherwise A* over a coarse land grid + string pulling (no region waypoints)
 const CGS=4,CGW=GW/CGS,CGH=GH/CGS;
-function passK(k,ce){const r=REG[k];return r&&ce(r-1)}
+function passK(k,ce){const r=REG[k];if(ROUTE_OWN&&r&&ctrlOf(k)!==G.player)return false;return r&&ce(r-1)}
 function losOK(x0,y0,x1,y1,ce){const a=x0*GW/MW,b=y0*GH/MH,c=x1*GW/MW,e=y1*GH/MH,n=Math.ceil(Math.hypot(c-a,e-b)*2)+1;
   for(let i=0;i<=n;i++){const t=i/n;let x=Math.floor(a+(c-a)*t);x=((x%GW)+GW)%GW;const y=Math.min(GH-1,Math.max(0,Math.floor(b+(e-b)*t)));if(!passK(y*GW+x,ce))return false}return true}
 function gridRoute(sx,sy,tx,ty,ce){const cc=new Map(),C=r=>{let v=cc.get(r);if(v===undefined){v=canEnter(r);cc.set(r,v)}return v};ce=C;
