@@ -37,11 +37,22 @@ class AutoTest(private val a: MainActivity, private val map: MapView) {
 
     private fun shot(n: String) { sleep(1200); log("SHOT $n"); sleep(2500) }
 
-    private fun find(v: View, t: String): View? {
+    private fun find(v: View, t: String): View? = findBy(v) { it == t }
+    private fun findBy(v: View, m: (String) -> Boolean): View? {
         if (v.visibility != View.VISIBLE) return null
-        if ((v is TextView && v.text.toString() == t) || v.contentDescription?.toString() == t) return v
-        if (v is ViewGroup) for (i in 0 until v.childCount) find(v.getChildAt(i), t)?.let { return it }
+        if ((v is TextView && m(v.text.toString())) || (v.contentDescription != null && m(v.contentDescription.toString()))) return v
+        if (v is ViewGroup) for (i in 0 until v.childCount) findBy(v.getChildAt(i), m)?.let { return it }
         return null
+    }
+    // the "N выбр." toolbar button toggles select-all; with everything selected a map tap would order a move
+    private fun deselect() {
+        ui {
+            var v = findBy(a.window.decorView) { it.endsWith("выбр.") }
+            while (v != null && !v.isClickable) v = v.parent as? View
+            v?.performClick()
+        }
+        log("deselect")
+        sleep(700)
     }
     private fun click(t: String): Boolean {
         val ok = ui {
@@ -117,6 +128,7 @@ class AutoTest(private val a: MainActivity, private val map: MapView) {
             click("Наступать"); sleep(25000); shot("09_offensive")
             click("Отладка"); sleep(1500); shot("10_debug"); click("Отладка")
             click("speed0"); sleep(800)
+            deselect()
             // occupied zone panel (if a free spot exists), otherwise any Mongolian region; then the peace conference
             if (point(mn, 1) != null) { tapNat(mn, 1, "occupied zone"); shot("11_zone") } else { tapNat(mn, 0, "Mongolia (peace)"); shot("11_zone") }
             if (!click("Мирная конференция")) { closePanel(); tapNat(mn, 0, "Mongolia (peace)"); click("Мирная конференция") }
