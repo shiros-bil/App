@@ -223,6 +223,23 @@ fn main() {
             "pcsign" => { app.cmd("pcsign", 0, 0, ""); }
             "debug" => { app.cmd("debug", 0, 0, ""); }
             "ui" => eprintln!("{}", app.ui_json()),
+            "uidraw" => {
+                // UI path: toolbar mode + touch drag in screen coords + toasts
+                app.cmd("draw", 0, 0, p[1]);
+                let v: Vec<f32> = p[2..6].iter().map(|x| x.parse().unwrap()).collect();
+                app.draw_touch(0, v[0], v[1]);
+                for i in 1..=20 { let t = i as f32 / 20.0; app.draw_touch(1, v[0] + (v[2] - v[0]) * t, v[1] + (v[3] - v[1]) * t); }
+                app.draw_touch(2, v[2], v[3]);
+                eprintln!("after draw: {}", app.ui_json());
+            }
+            "uitap" => {
+                app.cmd("draw", 0, 0, p[1]);
+                let (x, y): (f32, f32) = (p[2].parse().unwrap(), p[3].parse().unwrap());
+                app.draw_touch(0, x, y);
+                app.draw_touch(2, x, y);
+                eprintln!("after tap: {}", app.ui_json());
+            }
+            "exec" => { app.cmd("exec", 0, 0, ""); eprintln!("after exec: {}", app.ui_json()); }
             "atk" => {
                 for f in &app.s.g.fronts { eprintln!("front divs {} atk {} exec {}", f.divs.len(), f.atk.len(), f.exec); }
                 let c: usize = app.s.cover.values().map(|v| v.iter().filter(|s| s.d != 0).count()).sum();

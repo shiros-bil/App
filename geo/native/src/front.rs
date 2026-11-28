@@ -555,27 +555,95 @@ impl Sim {
             }
         }
     }
-    fn cur_front(&self) -> Option<usize> {
-        for di in self.sel_divs() {
-            let id = self.g.divs[di].id;
-            if let Some(fi) = self.g.fronts.iter().position(|f| f.divs.contains(&id)) {
-                return Some(fi);
+    // enemy (at war with us) that owns most of the land under a drawn line
+    fn line_enemy(&self, p: &[[f32; 2]]) -> Option<u16> {
+        let me = self.g.player;
+        let mut cnt: HashMap<u16, usize> = HashMap::new();
+        let c = pl_len(p, 0.0);
+        for i in 0..=60 {
+            let q = pl_at(p, &c, i as f32 / 60.0);
+            let k = self.cell_at(q[0], q[1]);
+            if self.w.reg[k] == 0 {
+                continue;
+            }
+            let o = self.ctrl_of(k);
+            if o != me && self.at_war(me, o) {
+                *cnt.entry(o).or_insert(0) += 1;
             }
         }
-        if self.g.fronts.is_empty() {
-            None
-        } else {
-            Some(self.g.fronts.len() - 1)
+        if cnt.is_empty() {
+            // line drawn on our side of the border: look for an enemy right next to it
+            for i in 0..=30 {
+                let q = pl_at(p, &c, i as f32 / 30.0);
+                let k0 = self.cell_at(q[0], q[1]);
+                let (ci, cj) = ((k0 % GW) as i64, (k0 / GW) as i64);
+                for dj in (-10i64..=10).step_by(2) {
+                    for di in (-10i64..=10).step_by(2) {
+                        let j = cj + dj;
+                        if j < 0 || j >= GH as i64 {
+                            continue;
+                        }
+                        let k = j as usize * GW + (ci + di).rem_euclid(GW as i64) as usize;
+                        if self.w.reg[k] == 0 {
+                            continue;
+                        }
+                        let o = self.ctrl_of(k);
+                        if o != me && self.at_war(me, o) {
+                            *cnt.entry(o).or_insert(0) += 1;
+                        }
+                    }
+                }
+            }
         }
+        cnt.into_iter().max_by_key(|x| x.1).map(|x| x.0)
+    }
+    // front against `t` for the current selection (or for everyone if nothing is selected)
+    fn front_vs(&mut self, t: u16) -> Option<usize> {
+        let sel: Vec<u32> = self.sel_divs().iter().map(|&i| self.g.divs[i].id).collect();
+        if let Some(fi) = self.g.fronts.iter().position(|f| f.t == Some(t) && (sel.is_empty() || sel.iter().any(|id| f.divs.contains(id)))) {
+            return Some(fi);
+        }
+        let g = match self.front_geom(t) {
+            Some(g) => g,
+            None => {
+                let s = format!("Нет общей границы с {}", self.nm(t));
+                self.toast(s);
+                return None;
+            }
+        };
+        if sel.is_empty() {
+            self.sels = self.g.divs.iter().map(|d| d.id).collect();
+        }
+        if self.sels.is_empty() && self.sel_div.is_none() {
+            self.toast("Нет дивизий: сначала создайте их");
+            return None;
+        }
+        let n0 = self.g.fr_n;
+        self.make_front(g.0, Some(t));
+        if self.g.fr_n == n0 {
+            return None;
+        }
+        let fi = self.g.fronts.len() - 1;
+        let id = self.g.fronts[fi].id;
+        self.fseg.insert(id, g.1);
+        self.g.fronts[fi].v = self.ctl_ver;
+        Some(fi)
     }
     pub fn make_plan(&mut self, p: Vec<[f32; 2]>) {
-        match self.cur_front() {
-            None => self.toast("Сначала нарисуйте линию фронта"),
-            Some(fi) => {
-                self.g.fronts[fi].plan = Some(p);
-                self.g.fronts[fi].exec = false;
-                self.toast("План наступления готов · нажмите «Наступать»");
+        let t = match self.line_enemy(&p) {
+            Some(t) => t,
+            None => {
+                self.toast("План должен идти по территории врага, с которым идёт война");
+                self.dirty_ui = true;
+                return;
             }
+        };
+        if let Some(fi) = self.front_vs(t) {
+            self.g.fronts[fi].plan = Some(p);
+            self.g.fronts[fi].exec = false;
+            self.g.fronts[fi].atk.clear();
+            let s = format!("План против {} готов · нажмите «Наступать»", self.nm(t));
+            self.toast(s);
         }
         self.dirty_ui = true;
     }
@@ -1241,7 +1309,14 @@ impl Sim {
             self.cover_front(fi, true);
             n += 1;
         }
-        self.toast(if n > 0 { format!("Наступление: {} {}", n, if n == 1 { "фронт" } else { "фронта" }) } else { "Нет готовых планов".into() });
+        let msg = if n > 0 {
+            format!("Наступление: {} {}", n, if n == 1 { "фронт" } else { "фронта" })
+        } else if self.g.fronts.iter().any(|f| f.exec) {
+            "Наступление уже идёт".into()
+        } else {
+            "Нет плана: нажмите «План» и проведите линию по территории врага".into()
+        };
+        self.toast(msg);
         if n > 0 && self.speed == 0 {
             self.speed = 1;
         }
