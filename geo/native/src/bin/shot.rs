@@ -152,6 +152,54 @@ fn main() {
                 app.s.make_plan(pl);
                 app.s.exec_plans();
             }
+            "bench" => {
+                // same scenario as geo/perf/sim_bench.js (old JS engine)
+                let nn: usize = p[1].parse().unwrap();
+                let me = app.w.nations.iter().position(|n| n.iso == "ru").unwrap();
+                app.cmd("new", me as i64, 0, "");
+                let tg: Vec<u16> = ["ua", "kz", "mn", "by", "ge"].iter().map(|i| app.w.nations.iter().position(|n| &n.iso == i).unwrap() as u16).collect();
+                for &t in &tg { app.cmd("war", t as i64, 0, ""); }
+                let per = (nn + 49) / 50;
+                for &t in &tg {
+                    let before: std::collections::HashSet<u32> = app.s.g.divs.iter().map(|d| d.id).collect();
+                    let q = app.s.terr(t)[0] as usize;
+                    let qp = app.w.lp(q);
+                    let mut near = app.s.terr(me as u16).clone();
+                    near.sort_by(|a, b| { let (pa, pb) = (app.w.lp(*a as usize), app.w.lp(*b as usize)); (pa[0]-qp[0]).hypot(pa[1]-qp[1]).partial_cmp(&(pb[0]-qp[0]).hypot(pb[1]-qp[1])).unwrap() });
+                    for i in 0..per { app.s.test_divs(near[i % 5], 0); }
+                    app.s.sels = app.s.g.divs.iter().filter(|d| !before.contains(&d.id)).map(|d| d.id).collect();
+                    app.s.sel_div = None;
+                    app.s.front_on_nation(qp[0], qp[1]);
+                }
+                let clk = || std::time::Instant::now();
+                let mut tm = std::collections::BTreeMap::<&str, (f64, u32)>::new();
+                let mut run = |app: &mut App, n: usize, tm: &mut std::collections::BTreeMap<&str, (f64, u32)>| {
+                    let me = app.s.g.player;
+                    for i in 0..n {
+                        let t = clk(); app.hour_tick(); let e = tm.entry("hourTick").or_default(); e.0 += t.elapsed().as_secs_f64()*1e3; e.1 += 1;
+                        if i % 3 == 0 { let t = clk(); app.s.occ_smooth(me); let e = tm.entry("occSmooth").or_default(); e.0 += t.elapsed().as_secs_f64()*1e3; e.1 += 1; }
+                        if i % 4 == 0 { let t = clk(); let mut zt = std::mem::take(&mut app.zt); app.s.zone_flush(&mut zt, false, 0.0, &|| 0.0); app.zt = zt; let e = tm.entry("zoneFlush").or_default(); e.0 += t.elapsed().as_secs_f64()*1e3; e.1 += 1; }
+                        if i % 12 == 0 { let t = clk(); let mut zt = std::mem::take(&mut app.zt); app.s.cut_flush(&mut zt, 0.0, &|| 0.0); app.zt = zt; let e = tm.entry("cutFlush").or_default(); e.0 += t.elapsed().as_secs_f64()*1e3; e.1 += 1; }
+                    }
+                };
+                run(&mut app, 120, &mut tm);
+                for fi in 0..app.s.g.fronts.len() {
+                    let t = match app.s.g.fronts[fi].t { Some(t) => t, None => continue };
+                    let rs = app.s.terr(t).clone(); if rs.is_empty() { continue; }
+                    let (mut cx, mut cy) = (0f32, 0f32);
+                    for &r in &rs { let l = app.w.lp(r as usize); cx += l[0]; cy += l[1]; }
+                    cx /= rs.len() as f32; cy /= rs.len() as f32;
+                    let mut pl = vec![]; let mut a = -1.0f32; while a <= 1.001 { pl.push([cx + a * 8.0, cy + (a * 3.0).sin()]); a += 0.1; }
+                    app.g_plan(fi, pl);
+                }
+                tm.clear();
+                let t0 = clk(); app.s.exec_plans(); let ex = t0.elapsed().as_secs_f64()*1e3;
+                let t1 = clk(); run(&mut app, 300, &mut tm); let tot = t1.elapsed().as_secs_f64()*1e3 + ex;
+                let mut out = format!("{{\"divs\":{},\"totalMs\":{:.0},\"msPerTick\":{:.2},\"execMs\":{:.1}", app.s.g.divs.len(), tot, tot/300.0, ex);
+                for (k, (ms, c)) in &tm { out += &format!(",\"{}\":{{\"ms\":{:.0},\"calls\":{},\"perCall\":{:.3}}}", k, ms, c, ms / *c as f64); }
+                out += "}";
+                println!("{}", out);
+            }
             "speed" => { app.cmd("speed", p[1].parse().unwrap(), 0, ""); }
             "frames" => {
                 let nn: usize = p[1].parse().unwrap();

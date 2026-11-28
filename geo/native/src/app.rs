@@ -835,6 +835,10 @@ impl App {
         }
         "{}".into()
     }
+    pub fn g_plan(&mut self, fi: usize, p: Vec<[f32; 2]>) {
+        self.s.g.fronts[fi].plan = Some(p);
+        self.s.g.fronts[fi].exec = false;
+    }
     fn after_start(&mut self) {
         self.started = true;
         self.zt = ZoneTex::default();
