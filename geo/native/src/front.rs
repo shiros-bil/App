@@ -21,6 +21,8 @@ pub struct Cfg {
     pub spear_max_km: f32,
     pub plan_gap: f32,
     pub atk_radius: f32,
+    pub min_spacing: f32,
+    pub hold_slack: f32,
 }
 pub const CFG: Cfg = Cfg {
     plan_full_ticks: 24,
@@ -38,6 +40,8 @@ pub const CFG: Cfg = Cfg {
     spear_max_km: 160.0,
     plan_gap: 0.2,
     atk_radius: 14.0,
+    min_spacing: 0.7,
+    hold_slack: 0.6,
 };
 
 pub struct Area {
@@ -1324,34 +1328,6 @@ impl Sim {
     }
 
     // ---------------- coverage ----------------
-    fn enemy_dir(&self, x: f32, y: f32, t: u16) -> [f32; 2] {
-        let ci = (((x % MW) + MW) % MW * GW as f32 / MW).floor() as i32;
-        let cj = (y * GH as f32 / MH).floor() as i32;
-        let (mut sx, mut sy, mut n) = (0f32, 0f32, 0);
-        for b in -4..=4 {
-            for a in -4..=4 {
-                let j = cj + b;
-                if j < 0 || j >= GH as i32 {
-                    continue;
-                }
-                let k = j as usize * GW + (ci + a).rem_euclid(GW as i32) as usize;
-                if self.w.reg[k] != 0 && self.ctrl_of(k) == t {
-                    sx += a as f32;
-                    sy += b as f32;
-                    n += 1;
-                }
-            }
-        }
-        if n == 0 {
-            return [0.0, 0.0];
-        }
-        let l = sx.hypot(sy).max(1e-6);
-        [sx / l, sy / l]
-    }
-    fn behind(&self, x: f32, y: f32, t: u16, dist: f32) -> Option<[f32; 3]> {
-        let e = self.enemy_dir(x, y, t);
-        self.snap_mine(x - e[0] * dist, y - e[1] * dist, 8).or_else(|| self.snap_mine(x, y, 8))
-    }
     fn cover_order(&mut self, di: usize, p: [f32; 3]) {
         let d = &self.g.divs[di];
         if let Some(cv) = d.cv {
@@ -1379,47 +1355,7 @@ impl Sim {
         self.g.divs[di].hold = true;
         self.g.divs[di].pf = 0;
     }
-    fn front_sectors(&mut self, p: &[[f32; 2]], t: u16) -> Vec<(Vec<[f32; 2]>, f32)> {
-        let me = self.g.player;
-        let mut s: Vec<Vec<[f32; 2]>> = Vec::new();
-        let mut cur = vec![p[0]];
-        let mut l = 0.0;
-        for i in 1..p.len() {
-            let d = (p[i][0] - p[i - 1][0]).hypot(p[i][1] - p[i - 1][1]);
-            if d > 3.0 || l + d > CFG.sector_len {
-                s.push(std::mem::take(&mut cur));
-                l = 0.0;
-            } else {
-                l += d;
-            }
-            cur.push(p[i]);
-        }
-        if !cur.is_empty() {
-            s.push(cur);
-        }
-        self.cap_update();
-        let caps: Vec<(f32, f32, bool)> = self.w.cities.iter().zip(self.caps.iter()).filter(|(_, st)| st.ctl == me as i32).map(|(c, st)| (c.x, c.y, st.cap)).collect();
-        let army = self.g.nat.get(t as usize).map(|n| n.army).unwrap_or(0.0);
-        s.into_iter()
-            .map(|pts| {
-                let c = pts[pts.len() / 2];
-                let r = self.region_at(c[0], c[1]);
-                let mut rear = 0.0;
-                for &(x, y, cap) in &caps {
-                    let dd = (x - c[0]).hypot(y - c[1]);
-                    if dd < 12.0 {
-                        rear += if cap { 3.0 } else { 0.6 } * (-dd / 6.0).exp();
-                    }
-                }
-                let enemy = (1.0 + army / 1e4).log10().min(3.0) as f32;
-                let terr = if r >= 0 { self.reg_spd(r as u32) } else { 1.0 };
-                let pr = ((1.0 + enemy + rear + terr) * 100.0).round() / 100.0;
-                let seg = if pts.len() > 1 { pts } else { vec![c, c] };
-                (seg, pr)
-            })
-            .collect()
-    }
-    pub fn cover_front(&mut self, fi: usize, force: bool) {
+    pub fn cover_front(&mut self, fi: usize, _force: bool) {
         let f = &self.g.fronts[fi];
         let t = match f.t {
             Some(t) => t,
@@ -1445,167 +1381,221 @@ impl Sim {
         if !exec {
             self.g.fronts[fi].line = pts.clone();
         }
-        let mut secs = self.front_sectors(&pts, t);
-        if exec {
-            // the attack group owns the stretch where the plan is being pushed: holders cover the rest
-            if let Some(a) = self.parea.get(&id) {
-                let me = self.g.player;
-                let rr = 5i64;
-                secs.retain(|(seg, _)| {
-                    let c = seg[seg.len() / 2];
-                    let (ci, cj) = ((c[0].rem_euclid(MW) * GW as f32 / MW) as i64, (c[1] * GH as f32 / MH) as i64);
-                    for dj in -rr..=rr {
-                        for di in -rr..=rr {
-                            let j = cj + dj;
-                            if j < 0 || j >= GH as i64 {
-                                continue;
-                            }
-                            let k = (j as usize) * GW + (ci + di).rem_euclid(GW as i64) as usize;
-                            if a.set.contains(&(k as u32)) && self.ctrl_of(k) != me {
-                                return false;
-                            }
-                        }
-                    }
-                    true
-                });
-            }
-            if secs.is_empty() {
-                self.cover.remove(&id);
-                return;
-            }
-        }
-        let n = ds.len();
-        let n_res = ((n as f32 * CFG.reserve_pct).floor() as usize).min(n.saturating_sub(secs.len()));
-        let act = n - n_res;
-        struct Slot {
-            sec: usize,
-            pr: f32,
-            seg: Vec<[f32; 2]>,
-            p: Option<[f32; 3]>,
-            ech: bool,
-            res: bool,
-        }
-        let mut slots: Vec<Slot> = secs.into_iter().map(|(seg, pr)| Slot { sec: 1, pr, seg, p: None, ech: false, res: false }).collect();
-        while slots.len() > act {
-            let (mut bi, mut bv) = (usize::MAX, f32::MAX);
-            for i in 0..slots.len() - 1 {
-                if slots[i].sec + slots[i + 1].sec > CFG.max_sec_per_div {
-                    continue;
-                }
-                let a = *slots[i].seg.last().unwrap();
-                let b = slots[i + 1].seg[0];
-                if (a[0] - b[0]).hypot(a[1] - b[1]) > 3.0 {
-                    continue;
-                }
-                let v = slots[i].pr + slots[i + 1].pr;
-                if v < bv {
-                    bv = v;
-                    bi = i;
-                }
-            }
-            if bi == usize::MAX {
-                break;
-            }
-            let b = slots.remove(bi + 1);
-            let a = &mut slots[bi];
-            a.sec += b.sec;
-            a.pr = a.pr.max(b.pr);
-            a.seg.extend(b.seg);
-        }
-        for s in slots.iter_mut() {
-            let c = pl_len(&s.seg, 0.0);
-            let m = pl_at(&s.seg, &c, 0.5);
-            s.p = self.snap_mine(m[0], m[1], 8).or_else(|| self.snap_mine(s.seg[0][0], s.seg[0][1], 8));
-        }
-        slots.retain(|s| s.p.is_some());
-        slots.sort_by(|a, b| b.pr.partial_cmp(&a.pr).unwrap());
-        let open: Vec<Slot> = if slots.len() > act { slots.split_off(act) } else { Vec::new() };
-        let mut extra: Vec<Slot> = Vec::new();
-        let base = slots.len();
-        if base > 0 {
-            for i in 0..act.saturating_sub(base) {
-                let s = &slots[i % base];
-                let p = s.p.unwrap();
-                let pr = s.pr * 0.5;
-                let bp = self.behind(p[0], p[1], t, CFG.echelon_back * (1 + i / base) as f32);
-                extra.push(Slot { sec: 0, pr, seg: vec![], p: bp, ech: true, res: false });
-            }
-            let top = slots[0].p.unwrap();
-            for i in 0..n_res {
-                let bp = self.behind(top[0], top[1], t, CFG.reserve_back + 0.3 * i as f32);
-                extra.push(Slot { sec: 0, pr: 0.0, seg: vec![], p: bp, ech: false, res: true });
-            }
-        }
-        slots.extend(extra);
-        slots.retain(|s| s.p.is_some());
-        let mut free: Vec<usize> = ds.clone();
-        let mut taken: Vec<Option<usize>> = vec![None; slots.len()];
-        for (si, s) in slots.iter().enumerate() {
-            let p = s.p.unwrap();
-            let (mut bd, mut bdv) = (CFG.keep_dist, None);
-            for (fi2, &d) in free.iter().enumerate() {
-                if let Some(cv) = self.g.divs[d].cv {
-                    let dd = (cv[0] - p[0]).hypot(cv[1] - p[1]);
-                    if dd < bd {
-                        bd = dd;
-                        bdv = Some(fi2);
-                    }
-                }
-            }
-            if let Some(i) = bdv {
-                taken[si] = Some(free.remove(i));
-            }
-        }
-        for (si, s) in slots.iter().enumerate() {
-            if taken[si].is_some() {
-                continue;
-            }
-            if free.is_empty() {
-                break;
-            }
-            let p = s.p.unwrap();
-            let (mut bd, mut bi) = (f32::MAX, 0);
-            for (i, &d) in free.iter().enumerate() {
-                let dd = (self.g.divs[d].x - p[0]).hypot(self.g.divs[d].y - p[1]);
-                if dd < bd {
-                    bd = dd;
-                    bi = i;
-                }
-            }
-            taken[si] = Some(free.remove(bi));
-        }
-        for (si, s) in slots.iter().enumerate() {
-            let d = match taken[si] {
-                Some(d) => d,
-                None => continue,
+        // 1) usable pieces of the front line: split where the line jumps, and (during an offensive) cut out
+        //    the stretch the attack group is pushing through
+        let me = self.g.player;
+        let area = if exec { self.parea.get(&id) } else { None };
+        let near_active = |q: [f32; 2]| -> bool {
+            let a = match area {
+                Some(a) => a,
+                None => return false,
             };
-            let p = s.p.unwrap();
-            let moved = self.g.divs[d].cv.map(|cv| (cv[0] - p[0]).hypot(cv[1] - p[1])).unwrap_or(0.0);
-            if moved > 0.05 && !force && now - self.g.divs[d].cv_t < CFG.reassign_h && !s.ech && !s.res && moved < CFG.keep_dist {
-                continue;
-            }
-            self.cover_order(d, p);
-            self.g.divs[d].role = if s.res { 2 } else if s.ech { 1 } else { 0 };
-        }
-        let mut st: Vec<CoverSlot> = slots
-            .iter()
-            .enumerate()
-            .map(|(si, s)| {
-                let p = s.p.unwrap();
-                let (did, state) = match taken[si] {
-                    None => (0, 2),
-                    Some(d) => {
-                        let dv = &self.g.divs[d];
-                        (dv.id, if (dv.x - p[0]).hypot(dv.y - p[1]) < CFG.arrive_dist { 0 } else { 1 })
+            let (ci, cj) = ((q[0].rem_euclid(MW) * GW as f32 / MW) as i64, (q[1] * GH as f32 / MH) as i64);
+            for dj in -5i64..=5 {
+                for di in -5i64..=5 {
+                    let j = cj + dj;
+                    if j < 0 || j >= GH as i64 {
+                        continue;
                     }
-                };
-                CoverSlot { p: [p[0], p[1]], pr: s.pr, res: s.res, ech: s.ech, d: did, state }
+                    let k = (j as usize) * GW + (ci + di).rem_euclid(GW as i64) as usize;
+                    if a.set.contains(&(k as u32)) && self.ctrl_of(k) != me {
+                        return true;
+                    }
+                }
+            }
+            false
+        };
+        let mut pieces: Vec<Vec<[f32; 2]>> = Vec::new();
+        let mut cur: Vec<[f32; 2]> = Vec::new();
+        for (i, &q) in pts.iter().enumerate() {
+            let skip = near_active(q);
+            let jump = i > 0 && (pts[i - 1][0] - q[0]).hypot(pts[i - 1][1] - q[1]) > 3.0;
+            if (skip || jump) && !cur.is_empty() {
+                pieces.push(std::mem::take(&mut cur));
+            }
+            if !skip {
+                cur.push(q);
+            }
+        }
+        if !cur.is_empty() {
+            pieces.push(cur);
+        }
+        if pieces.is_empty() {
+            self.cover.remove(&id);
+            return;
+        }
+        let plen: Vec<f32> = pieces.iter().map(|p| (1..p.len()).map(|i| (p[i][0] - p[i - 1][0]).hypot(p[i][1] - p[i - 1][1])).sum::<f32>().max(0.5)).collect();
+        let total: f32 = plen.iter().sum();
+        // 2) line parameter = distance along the pieces laid end to end (no padding between pieces)
+        let n = ds.len();
+        let spacing = total / n as f32;
+        let mut offs: Vec<f32> = Vec::with_capacity(pieces.len());
+        {
+            let mut o = 0f32;
+            for &l in &plen {
+                offs.push(o);
+                o += l;
+            }
+        }
+        let line_t = |x: f32, y: f32| -> f32 {
+            let (mut bt, mut bd) = (0f32, f32::MAX);
+            for (pi, p) in pieces.iter().enumerate() {
+                if p.len() == 1 {
+                    let d = (p[0][0] - x).powi(2) + (p[0][1] - y).powi(2);
+                    if d < bd {
+                        bd = d;
+                        bt = offs[pi] + plen[pi] * 0.5;
+                    }
+                    continue;
+                }
+                let mut acc = 0f32;
+                for i in 1..p.len() {
+                    let (ax, ay) = (p[i - 1][0], p[i - 1][1]);
+                    let (dx, dy) = (p[i][0] - ax, p[i][1] - ay);
+                    let l2 = (dx * dx + dy * dy).max(1e-9);
+                    let u = (((x - ax) * dx + (y - ay) * dy) / l2).clamp(0.0, 1.0);
+                    let d = (ax + u * dx - x).powi(2) + (ay + u * dy - y).powi(2);
+                    let sl = l2.sqrt();
+                    if d < bd {
+                        bd = d;
+                        bt = offs[pi] + acc + u * sl;
+                    }
+                    acc += sl;
+                }
+            }
+            bt
+        };
+        let point_at = |t: f32| -> [f32; 2] {
+            let t = t.clamp(0.0, total);
+            let mut pi = 0;
+            while pi + 1 < pieces.len() && t > offs[pi] + plen[pi] {
+                pi += 1;
+            }
+            let p = &pieces[pi];
+            if p.len() == 1 {
+                return p[0];
+            }
+            let c = pl_len(p, 0.0);
+            let real = c[c.len() - 1].max(1e-6);
+            pl_at(p, &c, ((t - offs[pi]) / plen[pi]).clamp(0.0, 1.0) * real / real)
+        };
+        // 3) holders in line order by their current post (or position when they have none)
+        let mut hs: Vec<(f32, usize, bool)> = ds
+            .iter()
+            .map(|&d| {
+                let dv = &self.g.divs[d];
+                match dv.cv {
+                    Some(c) => {
+                        let on = pieces.iter().any(|p| p.iter().any(|q| (q[0] - c[0]).hypot(q[1] - c[1]) < 3.0));
+                        (line_t(c[0], c[1]), d, !on)
+                    }
+                    None => (line_t(dv.x, dv.y), d, true),
+                }
             })
             .collect();
-        for s in &open {
-            let p = s.p.unwrap();
-            st.push(CoverSlot { p: [p[0], p[1]], pr: s.pr, res: false, ech: false, d: 0, state: 3 });
+        hs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap().then(self.g.divs[a.1].id.cmp(&self.g.divs[b.1].id)));
+        // 4) holes: places on the line farther than ~one spacing from every post
+        let thr = spacing * 0.95 + 0.6;
+        let posts: Vec<[f32; 2]> = hs.iter().filter(|h| !h.2).map(|h| self.g.divs[h.1].cv.unwrap()).collect();
+        let mut holes: Vec<f32> = Vec::new();
+        for (pi, p) in pieces.iter().enumerate() {
+            let c = if p.len() > 1 { pl_len(p, 0.0) } else { vec![0.0] };
+            for (i, q) in p.iter().enumerate().step_by(2) {
+                if !posts.iter().any(|c2| (q[0] - c2[0]).hypot(q[1] - c2[1]) < thr) {
+                    holes.push(offs[pi] + c[i.min(c.len() - 1)]);
+                }
+            }
         }
+        let must: usize = hs.iter().filter(|h| h.2).count();
+        if holes.is_empty() && must == 0 {
+            if let Some(c) = self.cover.get_mut(&id) {
+                for s in c.iter_mut() {
+                    if let Some(dv) = self.g.divs.iter().find(|d| d.id == s.d) {
+                        s.state = if (dv.x - s.p[0]).hypot(dv.y - s.p[1]) < CFG.arrive_dist { 0 } else { 1 };
+                    }
+                }
+            }
+            return;
+        }
+        // 5) local repair: mark divisions without a valid post plus the neighbours of every hole, then spread
+        //    each run of marked divisions evenly between the unmarked divisions around it. Everyone else stays.
+        let mut mark: Vec<bool> = hs.iter().map(|h| h.2).collect();
+        let w = spacing * 1.5;
+        for &th in &holes {
+            let mut l: Option<usize> = None;
+            let mut r: Option<usize> = None;
+            for (i, h) in hs.iter().enumerate() {
+                if h.0 <= th {
+                    l = Some(i);
+                } else if r.is_none() {
+                    r = Some(i);
+                }
+                if (h.0 - th).abs() < w {
+                    mark[i] = true;
+                }
+            }
+            if let Some(i) = l {
+                mark[i] = true;
+            }
+            if let Some(i) = r {
+                mark[i] = true;
+            }
+        }
+        if mark.iter().all(|&m| m) || n <= 2 {
+            for m in mark.iter_mut() {
+                *m = true;
+            }
+        }
+        let mut target: Vec<Option<f32>> = vec![None; n];
+        let mut i = 0;
+        while i < n {
+            if !mark[i] {
+                i += 1;
+                continue;
+            }
+            let s = i;
+            while i < n && mark[i] {
+                i += 1;
+            }
+            let e = i; // run [s, e)
+            let k = (e - s) as f32;
+            let lb = if s > 0 { Some(hs[s - 1].0) } else { None };
+            let rb = if e < n { Some(hs[e].0) } else { None };
+            for j in 0..(e - s) {
+                let jf = j as f32;
+                let t = match (lb, rb) {
+                    (Some(a), Some(b)) => a + (b - a) * (jf + 1.0) / (k + 1.0),
+                    (None, Some(b)) => b * (jf + 0.5) / (k + 0.5),
+                    (Some(a), None) => a + (total - a) * (jf + 1.0) / (k + 0.5),
+                    (None, None) => total * (jf + 0.5) / k,
+                };
+                target[s + j] = Some(t);
+            }
+        }
+        let slack = CFG.hold_slack.max(0.35 * spacing);
+        for (k, h) in hs.iter().enumerate() {
+            let d = h.1;
+            if let Some(t) = target[k] {
+                let q = point_at(t);
+                if let Some(pp) = self.snap_mine(q[0], q[1], 8).or_else(|| self.snap_mine(q[0], q[1], 20)) {
+                    let keep = !h.2 && self.g.divs[d].cv.map(|cv| (cv[0] - pp[0]).hypot(cv[1] - pp[1]) < slack).unwrap_or(false);
+                    if !keep {
+                        self.cover_order(d, pp);
+                    }
+                }
+            }
+            self.g.divs[d].role = 0;
+        }
+        let st: Vec<CoverSlot> = hs
+            .iter()
+            .filter_map(|h| {
+                let dv = &self.g.divs[h.1];
+                let at = dv.cv?;
+                let state = if (dv.x - at[0]).hypot(dv.y - at[1]) < CFG.arrive_dist { 0 } else { 1 };
+                Some(CoverSlot { p: at, pr: 1.0, res: false, ech: false, d: dv.id, state })
+            })
+            .collect();
+        let _ = now;
         self.cover.insert(id, st);
     }
     pub fn cover_tick(&mut self) {

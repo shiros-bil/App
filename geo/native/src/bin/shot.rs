@@ -240,6 +240,44 @@ fn main() {
                 eprintln!("after tap: {}", app.ui_json());
             }
             "exec" => { app.cmd("exec", 0, 0, ""); eprintln!("after exec: {}", app.ui_json()); }
+            "cov" => {
+                // coverage: front sample points without any of our divisions within 1.6 units (by real position and by assigned post)
+                for fi in 0..app.s.g.fronts.len() {
+                    let t = match app.s.g.fronts[fi].t { Some(t) => t, None => continue };
+                    let pts = match app.s.front_geom(t) { Some(g) => g.0, None => continue };
+                    let ds = app.s.plan_divs(&app.s.g.fronts[fi]);
+                    let (mut gp, mut gc, mut n) = (0, 0, 0);
+                    let ll: f32 = (1..pts.len()).map(|i| (pts[i][0] - pts[i - 1][0]).hypot(pts[i][1] - pts[i - 1][1])).filter(|&d| d <= 3.0).sum();
+                    let thr = ll / ds.len().max(1) as f32 * 0.75 + 0.5;
+                    for q in pts.iter().step_by(2) {
+                        n += 1;
+                        let near = |f: &dyn Fn(usize) -> Option<(f32, f32)>| ds.iter().filter_map(|&d| f(d)).any(|(x, y)| (x - q[0]).hypot(y - q[1]) < thr);
+                        if !near(&|d| Some((app.s.g.divs[d].x, app.s.g.divs[d].y))) { gp += 1; }
+                        if !near(&|d| app.s.g.divs[d].cv.map(|c| (c[0], c[1]))) { gc += 1; }
+                    }
+                    eprintln!("front {} len {:.0} thr {:.2} pts {} gaps(pos) {} gaps(post) {} divs {}", fi, ll, thr, n, gp, gc, ds.len());
+                }
+            }
+            "jump" => {
+                // run N hours and count post reassignments (cv moved > 0.3) of divisions that had a post
+                let nn: usize = p[1].parse().unwrap();
+                let (mut jumps, mut moved) = (0, 0f32);
+                for _ in 0..nn {
+                    let before: Vec<(u32, Option<[f32; 2]>, f32, f32)> = app.s.g.divs.iter().map(|d| (d.id, d.cv, d.x, d.y)).collect();
+                    app.hour_tick();
+                    now += 1.0;
+                    app.s.now_ms = now;
+                    app.s.step_pockets();
+                    let me = app.s.g.player;
+                    app.s.occ_smooth(me);
+                    for (d, b) in app.s.g.divs.iter().zip(before.iter()) {
+                        if d.id != b.0 { continue; }
+                        if let (Some(a), Some(c)) = (b.1, d.cv) { if (a[0] - c[0]).hypot(a[1] - c[1]) > 0.3 { jumps += 1; } }
+                        moved += (d.x - b.2).hypot(d.y - b.3);
+                    }
+                }
+                eprintln!("{} h: reassignments {} total move {:.1}", nn, jumps, moved);
+            }
             "atk" => {
                 for f in &app.s.g.fronts { eprintln!("front divs {} atk {} exec {}", f.divs.len(), f.atk.len(), f.exec); }
                 let c: usize = app.s.cover.values().map(|v| v.iter().filter(|s| s.d != 0).count()).sum();
