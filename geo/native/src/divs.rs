@@ -346,6 +346,44 @@ impl Sim {
     }
 
     // order a division to the exact point; returns false (with toast unless quiet) if impossible
+    // divisions marching to the same place don't walk in single file: each keeps its own lane, shifted
+    // sideways from the common route (fading in after the start and out before the target), where the
+    // shifted point is still land it may enter
+    fn spread_path(&self, di: usize, p: &mut Vec<[f32; 2]>) {
+        if p.len() < 3 {
+            return;
+        }
+        let mut cum = vec![0f32; p.len()];
+        for i in 1..p.len() {
+            cum[i] = cum[i - 1] + (p[i][0] - p[i - 1][0]).hypot(p[i][1] - p[i - 1][1]);
+        }
+        let tot = cum[p.len() - 1];
+        if tot < 3.0 {
+            return;
+        }
+        let id = self.g.divs[di].id;
+        let h = ((id.wrapping_mul(2654435761) >> 8) & 0xffff) as f32 / 65535.0;
+        let lane = (h - 0.5) * 2.0 * 1.1;
+        let ramp = 2.5f32.min(tot / 3.0);
+        let src = p.clone();
+        for i in 1..p.len() - 1 {
+            let f = (cum[i].min(tot - cum[i]) / ramp).min(1.0);
+            if f <= 0.0 {
+                continue;
+            }
+            let (a, b) = (src[i - 1], src[i + 1]);
+            let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+            let l = dx.hypot(dy);
+            if l < 1e-6 {
+                continue;
+            }
+            let q = [src[i][0] - dy / l * lane * f, src[i][1] + dx / l * lane * f];
+            let r = self.region_at(q[0], q[1]);
+            if r >= 0 && self.can_enter(r as u32) {
+                p[i] = q;
+            }
+        }
+    }
     pub fn order_div(&mut self, di: usize, tx: f32, ty: f32, tr: u32, quiet: bool) -> bool {
         let had = self.g.divs[di].path.last().copied();
         let ok = self.order_div0(di, tx, ty, tr, quiet);
@@ -415,6 +453,7 @@ impl Sim {
                 }
                 self.route_own = saved;
             }
+            self.spread_path(di, &mut p);
             let d = &mut self.g.divs[di];
             d.path = p[1..].iter().map(|q| [q[0], q[1], -1.0]).collect();
             if let Some(l) = d.path.last_mut() {

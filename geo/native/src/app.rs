@@ -1600,9 +1600,10 @@ impl App {
                 self.batch.arrow(p[p.len() - 2], p[p.len() - 1], 9.0 * dpr, c);
             }
         }
-        // zoomed out: merge nearby divisions. Cells live in map space with a power-of-two size so they
-        // don't shift while panning/zooming, and each group is drawn at its members' mean position.
-        let cm = if k < 4.0 { (16.0 * dpr / kd).log2().ceil().exp2() } else { 0.0 };
+        // stacks: divisions whose icons would overlap are drawn as one icon with a count, at any zoom.
+        // Cells live in map space with a power-of-two size so they don't shift while panning/zooming,
+        // and each stack is drawn at its members' mean position (highlighted if any member is selected).
+        let cm = (15.0 * dpr / kd).log2().ceil().exp2();
         let mut cells: std::collections::HashMap<(i32, i32), usize> = std::collections::HashMap::new();
         let mut sprites: Vec<([f32; 2], bool, f32, u32)> = Vec::new();
         for d in divs {
@@ -1612,12 +1613,15 @@ impl App {
                 continue;
             }
             let is_s = sel == Some(d.id) || sels.contains(&d.id);
-            if cm > 0.0 && !is_s {
+            let solo = sel == Some(d.id);
+            if !solo {
                 let key = ((ip[0] / cm).floor() as i32, (ip[1] / cm).floor() as i32);
                 if let Some(&si) = cells.get(&key) {
                     let s = &mut sprites[si];
                     s.0[0] += x;
                     s.0[1] += y;
+                    s.1 |= is_s;
+                    s.2 = s.2.min(d.str_);
                     s.3 += 1;
                     continue;
                 }
