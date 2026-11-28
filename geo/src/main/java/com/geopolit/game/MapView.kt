@@ -40,7 +40,7 @@ class MapView(ctx: Context, private val host: MainActivity) : GLSurfaceView(ctx)
             override fun onDrawFrame(gl: GL10?) {
                 if (!ready) return
                 val v = Native.frame(System.nanoTime() / 1e6)
-                if (v != lastUi) { lastUi = v; host.runOnUiThread { host.refreshUi() } }
+                if (v != lastUi) { lastUi = v; host.requestRefresh() }
             }
         })
         renderMode = RENDERMODE_CONTINUOUSLY

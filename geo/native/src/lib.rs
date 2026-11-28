@@ -23,9 +23,15 @@ unsafe impl Send for SendApp {}
 
 pub static APP: Mutex<Option<SendApp>> = Mutex::new(None);
 
+// every JNI entry runs inside catch_unwind: a bug in one frame must never kill the app
 pub fn with_app<R>(f: impl FnOnce(&mut App) -> R) -> Option<R> {
     let mut g = APP.lock().unwrap_or_else(|e| e.into_inner());
-    g.as_mut().map(|a| f(&mut a.0))
+    let a = g.as_mut()?;
+    let app: &mut App = &mut a.0;
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(app))) {
+        Ok(r) => Some(r),
+        Err(_) => None,
+    }
 }
 
 pub fn load_app(a: &world::Assets, fonts: Vec<Vec<u8>>) {

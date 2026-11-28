@@ -185,6 +185,17 @@ class MainActivity : Activity() {
     }
 
     // ---------------- UI refresh ----------------
+    // coalesce refresh requests from the GL thread (at most ~6 per second)
+    private var refreshPending = false
+    private var lastRefresh = 0L
+    fun requestRefresh() {
+        runOnUiThread {
+            if (refreshPending) return@runOnUiThread
+            val wait = maxOf(0L, 160L - (System.currentTimeMillis() - lastRefresh))
+            refreshPending = true
+            h.postDelayed({ refreshPending = false; lastRefresh = System.currentTimeMillis(); refreshUi() }, wait)
+        }
+    }
     fun refreshUi() {
         if (!loaded) return
         val j = try { JSONObject(Native.ui()) } catch (_: Throwable) { return }
