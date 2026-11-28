@@ -5,3 +5,5 @@ local.properties
 *.iml
 BlueWave.apk
 GeoPolit.apk
+geo/native/target/
+geo/src/main/jniLibs/
