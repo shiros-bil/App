@@ -7,15 +7,12 @@ adb install -r GeoPolit.apk
 adb shell pm clear com.geopolit.game
 adb logcat -c
 adb shell am start -n com.geopolit.game/.MainActivity --ez autotest true
-end=$((SECONDS + 600))
-seen=""
-while [ $SECONDS -lt $end ]; do
-  sleep 1
-  log=$(adb logcat -d -s GeoAT:I)
-  for n in $(echo "$log" | grep -o 'SHOT [0-9a-z_]*' | awk '{print $2}'); do
-    case " $seen " in *" $n "*) ;; *) adb exec-out screencap -p > "shots/$n.png"; seen="$seen $n";; esac
-  done
-  echo "$log" | grep -q "DONE" && break
+# react to "SHOT name" lines as they are logged (streaming, not polling)
+timeout 600 adb logcat -v brief -s GeoAT:I | while read -r line; do
+  case "$line" in
+    *"SHOT "*) n=${line##*SHOT }; n=${n//[^0-9a-z_]/}; adb exec-out screencap -p > "shots/$n.png"; echo "shot $n";;
+    *DONE*) pkill -f "logcat -v brief"; break;;
+  esac
 done
 adb logcat -d -s GeoAT:I > shots/autotest.txt
 adb shell am force-stop com.geopolit.game; sleep 2

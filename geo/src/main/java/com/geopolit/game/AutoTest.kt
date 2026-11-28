@@ -35,7 +35,7 @@ class AutoTest(private val a: MainActivity, private val map: MapView) {
         return r as T
     }
 
-    private fun shot(n: String) { sleep(1200); log("SHOT $n"); sleep(2500) }
+    private fun shot(n: String) { sleep(1200); log("SHOT $n"); sleep(4000) }
 
     private fun find(v: View, t: String): View? = findBy(v) { it == t }
     private fun findBy(v: View, m: (String) -> Boolean): View? {
