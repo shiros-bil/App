@@ -25,7 +25,7 @@ tap_text "Играть"; sleep 8; shot 03_game
 W=$(adb shell wm size | grep -o '[0-9]*x[0-9]*' | tail -1); SW=${W%x*}; SH=${W#*x}; [ "$SW" -lt "$SH" ] && { t=$SW; SW=$SH; SH=$t; }
 px() { echo $(( SW * $1 / 1000 )); }; py() { echo $(( SH * $1 / 1000 )); }
 # own region panel -> test divisions (scroll the panel)
-adb shell input tap $(px 560) $(py 520); sleep 3; shot 04_panel
+adb shell input tap $(px 575) $(py 640); sleep 3; shot 04_panel
 adb shell input swipe $(px 800) $(py 800) $(px 800) $(py 250) 300; sleep 1
 tap_text "Тест: +10 дивизий"; sleep 2; tap_text "Тест: +10 дивизий"; sleep 2; shot 05_divs
 adb shell input keyevent 4; sleep 1
