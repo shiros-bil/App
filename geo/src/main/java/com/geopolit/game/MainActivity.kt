@@ -114,6 +114,7 @@ class MainActivity : Activity() {
                 loading?.let { root.removeView(it) }; loading = null; loadText = null; loadBar = null
                 val sv = if (saveFile.exists()) saveFile.readText() else ""
                 if (sv.isNotEmpty() && Native.cmd("load", 0, 0, sv) == "ok") { started = true; refreshUi() } else pickScreen()
+                if (intent?.getBooleanExtra("autotest", false) == true) Thread { AutoTest(this, map).run() }.start()
             }
         } catch (t: Throwable) {
             runOnUiThread { fatal("Ошибка загрузки: ${t.message}") }

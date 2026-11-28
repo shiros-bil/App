@@ -173,6 +173,57 @@ impl App {
         self.cam.k = nk;
         self.cam = self.constrain(self.cam);
     }
+    // autotest helper: a free screen point (no water/division under it, outside the side panel) that is
+    // controlled by nation `n` (mode 0) or is land of `n` occupied by the player (mode 1). "x,y" or "".
+    pub fn scr_point(&self, n: u16, mode: i64) -> String {
+        let st = 14.0 * self.dpr;
+        let (x0, x1) = (40.0 * self.dpr, self.sw - 380.0 * self.dpr);
+        let (y0, y1) = (80.0 * self.dpr, self.sh - 90.0 * self.dpr);
+        let (nx, ny) = (((x1 - x0) / st).max(1.0) as usize, ((y1 - y0) / st).max(1.0) as usize);
+        let me = self.s.g.player;
+        let mut ok = vec![false; nx * ny];
+        for j in 0..ny {
+            for i in 0..nx {
+                let (x, y) = (x0 + i as f32 * st, y0 + j as f32 * st);
+                if self.hit(x, y) < 0 || self.hit_water(x, y).is_some() || self.hit_div(x, y).is_some() {
+                    continue;
+                }
+                let [mx, my] = self.to_map(x, y);
+                let ci = self.s.cell_at(mx, my);
+                let rg = self.w.reg[ci];
+                if rg == 0 {
+                    continue;
+                }
+                let c = self.s.ctrl_of(ci);
+                ok[j * nx + i] = if mode == 0 { c == n } else { c == me && self.w.regions[rg as usize - 1].nat == n };
+            }
+        }
+        let mut best = (0, 0usize);
+        for j in 0..ny {
+            for i in 0..nx {
+                if !ok[j * nx + i] {
+                    continue;
+                }
+                let mut sc = 0;
+                for dj in -3i64..=3 {
+                    for di in -3i64..=3 {
+                        let (a, b) = (i as i64 + di, j as i64 + dj);
+                        if a >= 0 && b >= 0 && (a as usize) < nx && (b as usize) < ny && ok[b as usize * nx + a as usize] {
+                            sc += 1;
+                        }
+                    }
+                }
+                if sc > best.0 {
+                    best = (sc, j * nx + i);
+                }
+            }
+        }
+        if best.0 == 0 {
+            return String::new();
+        }
+        let (i, j) = (best.1 % nx, best.1 / nx);
+        format!("{},{}", x0 + i as f32 * st, y0 + j as f32 * st)
+    }
     pub fn to_map(&self, x: f32, y: f32) -> [f32; 2] {
         let k = self.kk();
         let mx = ((x - self.cam.x) / k).rem_euclid(MW);
@@ -791,6 +842,7 @@ impl App {
                 self.zoom_to_nat(p);
             }
             "close" => self.close_panel(),
+            "scr" => return self.scr_point(a as u16, b),
             "selall" => {
                 if self.s.sels.len() == self.s.g.divs.len() && !self.s.sels.is_empty() {
                     self.s.sels.clear();
