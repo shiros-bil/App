@@ -479,7 +479,7 @@ function overlay(K,ww){ctx.setTransform(DPR,0,0,DPR,0,0);
     if(sel>=0&&!selZ){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineWidth=2.5/K;ctx.strokeStyle='#ffd84a';ctx.stroke(regOutline(lodFor(T.k),sel));ctx.restore()}
     drawOcc(K,ox);drawCities(K,ox);
     if(T.k>=1.6&&WAT){ctx.save();ctx.setTransform(DPR*K,0,0,DPR*K,DPR*ox,DPR*T.y);ctx.lineCap='round';ctx.lineJoin='round';for(const v of WAT.rivers)if(v.can){for(const w of[[3.2,'rgba(0,0,0,.6)'],[1.8,'#3d8fd6']]){ctx.lineWidth=w[0]/K;ctx.strokeStyle=w[1];ctx.beginPath();v.ls[0].forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.stroke()}}ctx.restore()}
-    if(G){drawFronts(K,ox);drawPlanDbg(K,ox);drawCoverDbg(K,ox);drawDivs(K,ox)}
+    if(G){drawFronts(K,ox);drawPlanDbg(K,ox);drawCoverDbg(K,ox);drawTickDbg(K,ox);drawDivs(K,ox)}
     drawLabels(K,ox)}}
 function drawOffensives(K,ox){
   for(const o of G.offs){const fx=LP[2*o.from],fy=LP[2*o.from+1],tx=LP[2*o.t],ty=LP[2*o.t+1];if(Math.abs(fx-tx)>MW/2)continue;
@@ -938,10 +938,16 @@ function makeFront(P,tn){const ds=selDivs();if(!ds.length){toast('Сначала
   const f={id:(G.frN=(G.frN||0)+1),divs:ids,line:P,plan:null,exec:false,t:tn??null};G.fronts.push(f);if(tn!=null){for(const d of ds)d.cv=null;coverFront(f,true);f.cvT=performance.now();f.cvV=ctlVer}else sendAlong(ds,P);if(speed===0)setSpeed(1);toast(tn!=null?`Фронт против ${natName(tn)}: ${ids.length} див.`:`Фронт: ${ids.length} див.`);draw()}
 function curFront(){const ds=selDivs();for(const d of ds){const f=frontOf(d);if(f)return f}return G.fronts[G.fronts.length-1]}
 function makePlan(P){const f=curFront();if(!f){toast('Сначала нарисуйте линию фронта');return}f.plan=P;f.exec=false;toast('План наступления готов · нажмите «Наступать»');draw()}
+const gameH=()=>G?G.hour||0:0;
+// speed in km/h with modifier hooks (terrain from region size/density; road/weather/supply/org are extension points = 1)
+function divMods(d){return{terr:RKM?regSpd(d.r):1,plan:d.k||1,road:1,weather:1,supply:1,org:1,retreat:d.retreat?CFG.retreatMul:1}}
+function divSpd(d){const m=divMods(d);let v=d.kmh||CFG.baseKmh;for(const k in m)v*=m[k];return v}
+function divEta(d){const rem=Math.max(0,(d.pTot||pathKm(d))-(d.pDone||0));return rem/Math.max(.01,divSpd(d))}
+function fmtEta(h){h=Math.round(h);return h<24?h+' ч':Math.floor(h/24)+' д '+(h%24)+' ч'}
 function pathKm(d){let x=d.x,y=d.y,l=0;for(const q of d.path){l+=kmDist(x,y,q[0],q[1]);x=q[0];y=q[1]}return l}
 function orderPath(d,P){let x=d.x,y=d.y;const out=[];const step=Math.max(1,Math.floor(P.length/12));for(let i=step-1;i<P.length;i+=step){const q=P[Math.min(i,P.length-1)];let tx=q[0];while(tx-x>MW/2)tx-=MW;while(tx-x<-MW/2)tx+=MW;
     const r=regionAt(tx,q[1]);if(r<0||!canEnter(r))break;const g=gridRoute(x,y,tx,q[1]);if(!g)break;for(const p of g)out.push([p[0],p[1],-1]);x=tx;y=q[1]}
-  if(!out.length)return false;out[out.length-1][2]=regionAt(x,y);d.path=out;d.hold=0;d.pf=0;return true}
+  if(!out.length)return false;out[out.length-1][2]=regionAt(x,y);d.path=out;d.hold=0;d.pf=0;d.pTot=pathKm(d);d.pDone=0;return true}
 function makeSpear(P){const ds=selDivs();if(!ds.length){toast('Сначала выберите дивизии');return}if(!CFG.deepBreak){let L=0;for(let i=1;i<P.length;i++){L+=kmDist(P[i-1][0],P[i-1][1],P[i][0],P[i][1]);if(L>CFG.spearMaxKm){P=P.slice(0,i+1);toast(`Прорыв ограничен ${CFG.spearMaxKm} км (глубокий прорыв выключен)`);break}}}let ok=0;for(const d of ds)if(orderPath(d,P.map(p=>[p[0]+(Math.random()-.5)*.6,p[1]+(Math.random()-.5)*.4])))ok++;
   SPEARS.push({P,t:performance.now()});toast(ok?`Прорыв: ${ok} див.`:'Нельзя пройти по этому маршруту');if(ok&&speed===0)setSpeed(1);draw()}
 let SPEARS=[];
@@ -1047,7 +1053,8 @@ function drawPlanDbg(K,ox){if(!PLAN_DBG)return;const me=G.player,cw=MW/GW*K,ch=M
 // standing on it or marching to it. Assignment is event-driven (control change, divisions change) + safety interval,
 // with hysteresis so divisions do not jitter. Surplus goes to second echelon/reserve; shortage -> divisions stretch
 // over 2 sectors, then the least important sectors stay open and the player is warned.
-const CFG={sectorLen:1.6,coverMs:1500,coverSafetyMs:6000,reassignMs:8000,keepDist:1.2,reservePct:.15,maxSecPerDiv:2,arriveDist:.35,
+const CFG={tickH:1,maxTicksPerFrame:480,maxBacklogTicks:480,tickBudgetMs:10,planEveryTicks:1,smoothMs:250,baseKmh:4,turnPenaltyH:0,retreatMul:.8,combatEveryTicks:1,zoneFlushMs:90,cutFlushMs:600,
+  sectorLen:1.6,coverMs:6,coverSafetyMs:48,reassignMs:48,keepDist:1.2,reservePct:.15,maxSecPerDiv:2,arriveDist:.35,
   echelonBack:.9,reserveBack:1.6,warnMs:12000,deepBreak:false,spearMaxKm:160,planGap:.2};
 let ROUTE_OWN=false;const COVER=new Map();
 function frontSectors(P,t){const me=G.player,S=[];let cur=[P[0]],L=0;
@@ -1064,9 +1071,9 @@ function enemyDir(x,y,t){const ci=Math.floor(((x%MW)+MW)%MW*GW/MW),cj=Math.floor
   if(!n)return[0,0];const l=Math.hypot(sx,sy)||1;return[sx/l,sy/l]}
 function behind(x,y,t,dist){const e=enemyDir(x,y,t);return snapMine(x-e[0]*dist,y-e[1]*dist)||snapMine(x,y)}
 function coverOrder(d,p){if(d.cv&&Math.hypot(d.cv[0]-p[0],d.cv[1]-p[1])<.05&&(d.path.length||Math.hypot(d.x-p[0],d.y-p[1])<CFG.arriveDist))return;
-  d.cv=[p[0],p[1]];d.cvT=performance.now();if(Math.hypot(d.x-p[0],d.y-p[1])<.05){d.path=[];d.hold=1;d.pf=0;return}
+  d.cv=[p[0],p[1]];d.cvT=gameH();if(Math.hypot(d.x-p[0],d.y-p[1])<.05){d.path=[];d.hold=1;d.pf=0;return}
   ROUTE_OWN=true;let ok=orderDiv(d,p[0],p[1],p[2],true);ROUTE_OWN=false;if(!ok)ok=orderDiv(d,p[0],p[1],p[2],true);d.hold=1;d.pf=0}
-function coverFront(f,force){if(f.t==null||f.exec)return;const me=G.player,ds=planDivs(f);if(!ds.length)return;const now=performance.now();
+function coverFront(f,force){if(f.t==null||f.exec)return;const me=G.player,ds=planDivs(f);if(!ds.length)return;const now=gameH();
   const g=frontGeom(f.t);f.v=ctlVer;if(!g){COVER.delete(f.id);return}FSEG.set(f.id,g.seg);FPATH.delete(f.id);f.line=g.pts;
   const S=frontSectors(g.pts,f.t),n=ds.length;
   // how many divisions hold the line: reserve only from surplus (never opens a gap)
@@ -1093,9 +1100,14 @@ function coverFront(f,force){if(f.t==null||f.exec)return;const me=G.player,ds=pl
   for(const s of open)st.push({p:s.p,pr:s.pr,d:0,state:'open'});
   COVER.set(f.id,{st,need:open.reduce((a,s)=>a+1,0),t:now});
   }
-function coverTick(){const now=performance.now();for(const f of G.fronts){if(f.t==null||f.exec)continue;const ds=planDivs(f),sig=ds.length+'_'+ds.map(d=>d.id).join(',');
+function coverTick(){const now=gameH();for(const f of G.fronts){if(f.t==null||f.exec)continue;const ds=planDivs(f),sig=ds.length+'_'+ds.map(d=>d.id).join(',');
   if(f.cvV!==ctlVer||f.cvS!==sig||now-(f.cvT||0)>CFG.coverSafetyMs){if(now-(f.cvT||0)<CFG.coverMs&&f.cvS===sig)continue;f.cvT=now;f.cvV=ctlVer;f.cvS=sig;coverFront(f);draw()}
   else{const c=COVER.get(f.id);if(c)for(const s of c.st){if(!s.d)continue;const d=G.divs.find(q=>q.id===s.d);if(d)s.state=Math.hypot(d.x-s.p[0],d.y-s.p[1])<CFG.arriveDist?'ok':'move'}}}}
+function drawTickDbg(K,ox){if(!PLAN_DBG||!G)return;ctx.fillStyle='#fff';ctx.font='11px sans-serif';ctx.fillText(`тик ${G.hour||0} (${Math.floor((G.hour||0)/24)} д ${(G.hour||0)%24} ч) · тиков за кадр до ${CFG.maxTicksPerFrame}`,10,76);
+  if(T.k<3)return;ctx.font='10px sans-serif';for(const d of G.divs){if(!d.path.length)continue;const ix=d.ox!=null?d.ox+(d.x-d.ox)*DIVF:d.x,iy=d.oy!=null?d.oy+(d.y-d.oy)*DIVF:d.y,x=ix*K+ox,y=iy*K+T.y;if(x<0||x>W||y<0||y>H)continue;
+    const m=divMods(d),pr=Math.round(100*(d.pDone||0)/Math.max(.01,d.pTot||1));ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(x+9,y-16,120,26);ctx.fillStyle='#fff';
+    ctx.fillText(`${pr}% · ${divSpd(d).toFixed(2)} км/ч · ${fmtEta(divEta(d))}`,x+11,y-6);ctx.fillText(`мест ${m.terr.toFixed(2)} план ${m.plan.toFixed(2)}`,x+11,y+5);
+    ctx.fillStyle='#2fdc5a';ctx.fillRect(x-8,y+7,16*Math.min(1,pr/100),2)}}
 function drawCoverDbg(K,ox){if(!PLAN_DBG)return;for(const f of G.fronts){const c=COVER.get(f.id);if(!c)continue;
   for(const s of c.st){const x=s.p[0]*K+ox,y=s.p[1]*K+T.y;const col=s.state==='ok'?'#2fdc5a':s.state==='move'?'#ffd84a':s.state==='open'?'#ff8a8a':'#ff2a2a';
     ctx.fillStyle=s.res?'#58a6ff':col;ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,s.ech||s.res?3.5:5,0,7);ctx.fill();ctx.stroke();
@@ -1198,7 +1210,9 @@ function gridRoute(sx,sy,tx,ty,ce){const cc=new Map(),C=r=>{let v=cc.get(r);if(v
   if(!found)return null;const cells=[];for(let k=t0;k>=0&&k!==s0;k=PR[k])cells.push([(PI[k]+.5)*MW/CGW,(((k/CGW)|0)+.5)*MH/CGH]);cells.reverse();cells[cells.length-1]=[tx,ty];
   // string pulling
   const out=[];let cx=sx,cy=sy,i=0;while(i<cells.length){let j=cells.length-1;while(j>i&&!losOK(cx,cy,cells[j][0],cells[j][1],ce))j--;out.push(cells[j]);cx=cells[j][0];cy=cells[j][1];i=j+1}return out}
-function orderDiv(d,tx,ty,tr,quiet){d.hold=0;d.pf=0;if(REG){while(tx-d.x>MW/2)tx-=MW;while(tx-d.x<-MW/2)tx+=MW;if(!canEnter(tr)){if(!quiet)toast('Нельзя: нет войны с '+nm(G.owner[tr]));return false}
+function orderDiv(d,tx,ty,tr,quiet){const had=d.path.length?d.path[d.path.length-1]:null;const ok=orderDiv0(d,tx,ty,tr,quiet);
+  if(ok){const same=had&&Math.hypot(had[0]-tx,had[1]-ty)<.3;if(same){const done=d.pDone||0;d.pTot=pathKm(d)+done;d.pDone=done}else{d.pTot=pathKm(d);d.pDone=0;if(had&&CFG.turnPenaltyH>0)d.wait=CFG.turnPenaltyH}}return ok}
+function orderDiv0(d,tx,ty,tr,quiet){d.hold=0;d.pf=0;if(REG){while(tx-d.x>MW/2)tx-=MW;while(tx-d.x<-MW/2)tx+=MW;if(!canEnter(tr)){if(!quiet)toast('Нельзя: нет войны с '+nm(G.owner[tr]));return false}
     let gp=gridRoute(d.x,d.y,tx,ty);if(gp&&!gp.length)gp=[[tx,ty]];if(!gp&&ROUTE_OWN)return false;if(gp){let P=[[d.x,d.y]].concat(gp);
       // gentle corner rounding (only at bends)
       if(P.length>2){for(let it=0;it<2;it++){const Q=[P[0]];for(let i=1;i<P.length-1;i++){const a=P[i-1],b=P[i],c=P[i+1];const p1=[b[0]*.75+a[0]*.25,b[1]*.75+a[1]*.25],p2=[b[0]*.75+c[0]*.25,b[1]*.75+c[1]*.25];
@@ -1219,12 +1233,12 @@ function zonePt(r,z){if(!REG)return[LP[2*r],LP[2*r+1]];const[x0,y0,x1,y1]=cellBo
 function newDivZ(r,z){const p=zonePt(r,z);newDiv(r,p[0],p[1]);updHud();save();draw()}
 function testDivs(r,z){const p=zonePt(r,z);for(let i=0;i<10;i++)newDiv(r,p[0]+(Math.random()-.5)*1.5,p[1]+(Math.random()-.5)*1,1);toast('+10 дивизий (тест)');updHud();draw()}
 function moveDivs(hrs){let mv=false;
-  for(const d of G.divs){let left=hrs;while(left>0&&d.path.length){const q=d.path[0];if(q[2]>=0&&q[2]!==d.r&&!canEnter(q[2])){d.path=[];toast(d.n+': граница закрыта');break}
-      const kmF=kmDist(d.x,d.y,q[0],q[1]),km=Math.min(kmF,15),t=km/(INF_KMH*regSpd(d.r)*(d.k||1)),sx=d.x,sy=d.y;mv=true;
+  for(const d of G.divs){let left=hrs;if(d.wait>0){const w=Math.min(d.wait,left);d.wait-=w;left-=w}while(left>0&&d.path.length){const q=d.path[0];if(q[2]>=0&&q[2]!==d.r&&!canEnter(q[2])){d.path=[];toast(d.n+': граница закрыта');break}
+      const kmF=kmDist(d.x,d.y,q[0],q[1]),km=Math.min(kmF,15),t=km/divSpd(d),sx=d.x,sy=d.y;mv=true;
       if(t<=left){left-=t;if(km>=kmF){d.x=q[0];d.y=q[1];d.path.shift()}else{const f=km/kmF;d.x+=(q[0]-d.x)*f;d.y+=(q[1]-d.y)*f}}
       else{const f=left/t*km/(kmF||1);d.x+=(q[0]-d.x)*f;d.y+=(q[1]-d.y)*f;left=0}
       {let nr=regionAt(d.x,d.y);if(nr<0&&q[2]>=0&&!d.path.length)nr=q[2];if(nr>=0&&nr!==d.r){if(!canEnter(nr)){if(d.path.length&&d.path[d.path.length-1][2]>=0&&!canEnter(d.path[d.path.length-1][2])){d.path=[];toast(d.n+': граница закрыта')}}else{d.r=nr;const o=G.owner[nr];if(o!==G.player&&atWar(G.player,o)&&(!RC||RC[nr]<4))conquer(G.player,nr)}}}
-      if(d.pf)planBubble(d);else if(!d.hold)occTrail(G.player,sx,sy,d.x,d.y,d)}
+      d.pDone=(d.pDone||0)+kmDist(sx,sy,d.x,d.y);if(d.pf)planBubble(d);else if(!d.hold)occTrail(G.player,sx,sy,d.x,d.y,d)}
     if(!d.path.length&&d.k)d.k=0;
     if(d.x<0||d.x>=MW){const sh=d.x<0?MW:-MW;d.x+=sh;for(const q of d.path)q[0]+=sh}}
   return mv}
@@ -1238,7 +1252,7 @@ function pathBox(d){let a=d.x,b=d.y,c=d.x,e=d.y;for(const q of d.path){if(q[0]<a
 function drawDivs(K,ox){if(!G.divs||!G.divs.length||T.k<1.8)return;const col=natColor(G.player),vx0=-ox/K-2,vx1=(W-ox)/K+2,vy0=-T.y/K-2,vy1=(H-T.y)/K+2,many=G.divs.length>60;
   const bk=new Path2D(),gr=new Path2D(),ar=new Path2D();let sp=null;
   for(const d of G.divs){if(!d.path.length)continue;const isS=d===selDiv;if(many&&!isS&&T.k<4)continue;if(!d.pb||d.pbv!==d.path.length){pathBox(d);d.pbv=d.path.length}
-    const b=d.pb;if(b[2]<vx0||b[0]>vx1||b[3]<vy0||b[1]>vy1)continue;const P=d.path,pp=new Path2D();pp.moveTo(d.x*K+ox,d.y*K+T.y);
+    const b=d.pb;if(b[2]<vx0||b[0]>vx1||b[3]<vy0||b[1]>vy1)continue;const P=d.path,pp=new Path2D();pp.moveTo((d.ox!=null&&Math.abs(d.x-d.ox)<MW/2?d.ox+(d.x-d.ox)*DIVF:d.x)*K+ox,(d.oy!=null?d.oy+(d.y-d.oy)*DIVF:d.y)*K+T.y);
     const st=Math.max(1,Math.floor(P.length/Math.max(8,(b[2]-b[0]+b[3]-b[1])*K/4)));for(let i=st-1;i<P.length;i+=st)pp.lineTo(P[i][0]*K+ox,P[i][1]*K+T.y);const e=P[P.length-1];pp.lineTo(e[0]*K+ox,e[1]*K+T.y);
     bk.addPath(pp);if(isS)sp=pp;else gr.addPath(pp);
     const p2=P.length>1?P[P.length-2]:[d.x,d.y],ex=e[0]*K+ox,ey=e[1]*K+T.y,ang=Math.atan2(ey-(p2[1]*K+T.y),ex-(p2[0]*K+ox)),A=isS?new Path2D():ar;
@@ -1246,7 +1260,7 @@ function drawDivs(K,ox){if(!G.divs||!G.divs.length||T.k<1.8)return;const col=nat
   ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=4;ctx.stroke(bk);ctx.strokeStyle='rgba(140,255,140,.95)';ctx.lineWidth=2;ctx.stroke(gr);ctx.fillStyle='rgba(140,255,140,.95)';ctx.fill(ar);
   if(sp){ctx.strokeStyle='#ffe14a';ctx.stroke(sp);ctx.fillStyle='#ffe14a';ctx.fill(sp.arr)}
   const sN=divSprite(col,''),sS=divSprite(col,'s'),cell=new Map(),cs=T.k<4?16:0;
-  for(const d of G.divs){const x=d.x*K+ox,y=d.y*K+T.y;if(x<-20||x>W+20||y<-20||y>H+20)continue;
+  for(const d of G.divs){const ix=d.ox!=null&&Math.abs(d.x-d.ox)<MW/2&&d.path.length?d.ox+(d.x-d.ox)*DIVF:d.x,iy=d.oy!=null&&d.path.length?d.oy+(d.y-d.oy)*DIVF:d.y,x=ix*K+ox,y=iy*K+T.y;if(x<-20||x>W+20||y<-20||y>H+20)continue;
     if(cs&&d!==selDiv&&!SELS.has(d.id)){const key=((x/cs)|0)*4096+((y/cs)|0),c=cell.get(key);if(c){c.n++;continue}cell.set(key,{x,y,n:1})}
     ctx.drawImage(d===selDiv||SELS.has(d.id)?sS:sN,x-9,y-6.5,18,13);if(d.str<10000){ctx.fillStyle='#000a';ctx.fillRect(x-7,y+6,14,2);ctx.fillStyle='#7dff7d';ctx.fillRect(x-7,y+6,14*d.str/10000,2)}}
   ctx.font='700 9px system-ui';ctx.textAlign='left';ctx.textBaseline='middle';for(const c of cell.values())if(c.n>1){const t=String(c.n),w=ctx.measureText(t).width+5;ctx.fillStyle='#000c';ctx.fillRect(c.x+6,c.y-11,w,10);ctx.fillStyle='#fff';ctx.fillText(t,c.x+8.5,c.y-6)}}
@@ -1266,22 +1280,31 @@ function randomEvent(){const me=G.player,M=G.nat[me],ev=[
   ()=>{for(const r of terr(me))G.gdp[r]*=.97;recalc();return`${I("trending-down")} Мировой кризис ударил по экономике.`},
   ()=>{M.tech+=.1;return`${I("lightbulb")} Учёные совершили открытие.`},
   ()=>{M.army*=.96;return`${I("tornado")} Стихийное бедствие.`}];addLog(ev[Math.floor(Math.random()*ev.length)]())}
+let hAcc=0,DIVF=0,tickN=0,HMV=false,smT=0;
+function hourTick(){if(!G.hour)G.hour=G.day*24;for(const d of G.divs){d.ox=d.x;d.oy=d.y}
+  const mv=G.divs.length&&moveDivs(CFG.tickH);G.hour+=CFG.tickH;tickN++;
+  if(mv)HMV=true;
+  if(G.fronts&&G.fronts.length){if(G.hour%CFG.planEveryTicks===0)for(const f of G.fronts.slice())if(f.exec&&f.plan)planTick(f);else if(f.exec&&!f.plan)f.exec=false;coverTick()}
+  if(G.hour%24===0)dayTick();return mv}
 let last=performance.now(),acc=0,lastHud=0,lastSimDraw=0;
 let lastClk='';function clockStr(){const f=Math.min(.9999,Math.max(0,acc)),m=Math.floor(f*1440);const h=Math.floor(m/60),mm=m%60;return String(h).padStart(2,'0')+':'+String(speed>=3?0:mm-mm%10).padStart(2,'0')}
-function loop(now){requestAnimationFrame(loop);if(G&&G.fronts&&G.fronts.length&&now-frChk>500){frChk=now;checkFronts()}
-if(G&&CHR.size&&now-zFlushT>300){zFlushT=now;zoneFlush(false)}if(G&&CUTQ.size&&now-cutT>1200){cutT=now;cutFlush()}
+function loop(now){requestAnimationFrame(loop);
+if(G&&CHR.size&&now-zFlushT>CFG.zoneFlushMs){zFlushT=now;zoneFlush(false)}if(G&&CUTQ.size&&now-cutT>CFG.cutFlushMs){cutT=now;cutFlush()}
 if(G&&ANQ.length&&now-(window.__pk||0)>16){window.__pk=now;stepPockets();if(now-lastSimDraw>30){lastSimDraw=now;draw()}}
 const dt=Math.min(1,(now-last)/1000);last=now;
-  if(G&&!modalOpen()&&speed>0){acc+=dt*SPEEDS[speed];let n=0;const dmv=G.divs&&G.divs.length&&moveDivs(dt*SPEEDS[speed]*24);if(dmv&&now-(window.__sm||0)>300){window.__sm=now;occSmooth(G.player)}if(dmv&&now-lastSimDraw>(divOnScreen()?40:250)){lastSimDraw=now;draw()}
-    while(acc>=1&&n<10){acc-=1;n++;dayTick()}
-    if(n){if(now-lastHud>100){lastHud=now;updHud()}if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
+  if(G&&!modalOpen()&&speed>0){if(G.hour==null)G.hour=G.day*24;hAcc=Math.min(CFG.maxBacklogTicks,hAcc+dt*SPEEDS[speed]*24/CFG.tickH);let n=0,dmv=false,d0=G.day;
+    const tb0=performance.now();while(hAcc>=1&&n<CFG.maxTicksPerFrame&&(n<4||performance.now()-tb0<CFG.tickBudgetMs)){hAcc-=1;n++;if(hourTick())dmv=true}
+    if(HMV&&now-smT>CFG.smoothMs){smT=now;HMV=false;occSmooth(G.player)}
+    DIVF=Math.min(1,hAcc);acc=((G.hour%24)+hAcc*CFG.tickH)/24;const moving=G.divs&&G.divs.some(d=>d.path.length);
+    if((dmv||moving)&&now-lastSimDraw>(divOnScreen()?0:250)){lastSimDraw=now;draw()}
+    if(G.day!==d0){if(now-lastHud>100){lastHud=now;updHud()}if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
   if(G){const c=clockStr();if(c!==lastClk){lastClk=c;const e=document.getElementById('clk');if(e)e.textContent=c}}
   }
 requestAnimationFrame(loop);
 
 // ================= UI =================
 function modalOpen(){return !!document.getElementById('modal')}
-function onTap(r,ev){if(G&&ev){const dv=hitDiv(ev.clientX,ev.clientY);if(dv){selDiv=selDiv===dv?null:dv;SELS=selDiv?new Set([dv.id]):new Set();updFtb();if(selDiv)toast(dv.n+' дивизия · '+fmtN(dv.str)+' · нажмите куда идти');closePanel();return}
+function onTap(r,ev){if(G&&ev){const dv=hitDiv(ev.clientX,ev.clientY);if(dv){selDiv=selDiv===dv?null:dv;SELS=selDiv?new Set([dv.id]):new Set();updFtb();if(selDiv)toast(dv.n+' дивизия · '+fmtN(dv.str)+(dv.path.length?` · ${Math.round(100*(dv.pDone||0)/Math.max(1,dv.pTot||1))}% · прибытие через ${fmtEta(divEta(dv))}`:' · нажмите куда идти'));closePanel();return}
     if(SELS.size>1&&r>=0){const[mx,my]=toMap(ev.clientX,ev.clientY);for(const d of selDivs()){let x=mx;while(x-d.x>MW/2)x-=MW;while(x-d.x<-MW/2)x+=MW;orderDiv(d,x+(Math.random()-.5)*.8,my+(Math.random()-.5)*.5,r)}draw();return}
     if(selDiv&&r>=0){const[mx,my]=toMap(ev.clientX,ev.clientY);let x=mx;while(x-selDiv.x>MW/2)x-=MW;while(x-selDiv.x<-MW/2)x+=MW;orderDiv(selDiv,x,my,r);draw();return}
     if(selDiv||SELS.size){selDiv=null;SELS.clear();updFtb();draw()}const w=hitWater(ev.clientX,ev.clientY);if(w){showWater(w);return}}selW=null;if(r<0){const si=ev?hitSea(ev.clientX,ev.clientY):-1;if(si>=0&&G){showSea(si);return}closePanel();return}selSea=-1;{const sp=document.getElementById('seap');if(sp)sp.style.display='none'}selZ=null;if(G&&REG&&ev){const[mx,my]=toMap(ev.clientX,ev.clientY),ci=Math.min(GH-1,Math.max(0,(my*GH/MH)|0))*GW+Math.min(GW-1,(mx*GW/MW)|0),rg=REG[ci],rr=rg?rg-1:r;if(regionZoned(rr)||(G.rg&&G.rg[rr])){r=rr;selZ={r,z:CTL[ci]&&G.zones[CTL[ci]-1].r===r?CTL[ci]:0}}}sel=r;draw();if(!G){confirmPick(RK[r]);return}showPanel(r)}
