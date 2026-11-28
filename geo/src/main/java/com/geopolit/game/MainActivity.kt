@@ -87,16 +87,31 @@ class MainActivity : Activity() {
 
     private fun loadCore() {
         try {
-            setLoad("Загрузка карты мира…")
-            val ok = Native.load(readAsset("nations.json"), readAsset("world_lo.json"), readAsset("world_mid.json"), readAsset("world.json"),
-                readAsset("water.json"), readAsset("marine.json"), readAsset("cities.json"),
+            setLoad("Чтение данных…", 3)
+            val nat = readAsset("nations.json"); val lo = readAsset("world_lo.json"); setLoad("Чтение данных…", 8)
+            val mid = readAsset("world_mid.json"); val hi = readAsset("world.json"); setLoad("Чтение данных…", 14)
+            val wat = readAsset("water.json"); val mar = readAsset("marine.json"); val cit = readAsset("cities.json")
+            // poll the core's current stage while it builds the world
+            val stages = listOf("Загрузка стран…" to 18, "Загрузка карты (1/3)…" to 24, "Загрузка карты (2/3)…" to 38, "Загрузка карты (3/3)…" to 55,
+                "Загрузка озёр и рек…" to 72, "Загрузка морей…" to 82, "Загрузка городов…" to 90, "Подготовка графики…" to 96)
+            val done = java.util.concurrent.atomic.AtomicBoolean(false)
+            Thread {
+                while (!done.get()) {
+                    val st = Native.stage()
+                    val p = stages.firstOrNull { it.first == st }?.second
+                    if (st.isNotEmpty()) setLoad(st, p)
+                    try { Thread.sleep(60) } catch (_: Throwable) {}
+                }
+            }.start()
+            val ok = try { Native.load(nat, lo, mid, hi, wat, mar, cit,
                 readFont("Roboto-Regular.ttf", "NotoSans-Regular.ttf", "DroidSans.ttf"),
-                readFont("NotoSerif-Bold.ttf", "DroidSerif-Bold.ttf", "NotoSerif-Regular.ttf", "Roboto-Bold.ttf", "Roboto-Regular.ttf"))
+                readFont("NotoSerif-Bold.ttf", "DroidSerif-Bold.ttf", "NotoSerif-Regular.ttf", "Roboto-Bold.ttf", "Roboto-Regular.ttf")) } finally { done.set(true) }
+            setLoad("Подготовка графики…", 100)
             runOnUiThread {
                 if (!ok) { fatal("Не удалось загрузить карту"); return@runOnUiThread }
                 loaded = true
                 map.start()
-                loading?.let { root.removeView(it) }; loading = null
+                loading?.let { root.removeView(it) }; loading = null; loadText = null; loadBar = null
                 val sv = if (saveFile.exists()) saveFile.readText() else ""
                 if (sv.isNotEmpty() && Native.cmd("load", 0, 0, sv) == "ok") { started = true; refreshUi() } else pickScreen()
             }
@@ -105,14 +120,39 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun setLoad(t: String) = runOnUiThread { (loading as? LinearLayout)?.let { (it.getChildAt(0) as? TextView)?.text = t } }
+    private var loadText: TextView? = null
+    private var loadBar: View? = null
+    private var loadPct = 0
+    private fun setLoad(t: String, pct: Int? = null) = runOnUiThread {
+        loadText?.text = t
+        if (pct != null && pct > loadPct) {
+            loadPct = pct
+            loadBar?.let { b -> val lp = b.layoutParams; lp.width = u.dp(220) * pct / 100; b.layoutParams = lp }
+        }
+    }
     private fun showLoading() {
         val l = u.col().apply {
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.rgb(8, 14, 28))
-            addView(u.text("Загрузка карты мира…", 16f, C.TXT, true))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                gradientType = android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT
+                colors = intArrayOf(Color.rgb(19, 37, 74), Color.rgb(6, 10, 20))
+                setGradientCenter(0.5f, 0.4f)
+                gradientRadius = resources.displayMetrics.widthPixels * 0.6f
+            }
+            addView(u.text("GeoPolit", 28f, C.TXT, true).apply { gravity = Gravity.CENTER })
+            addView(u.space(1, 18))
+            val t = u.text("Загрузка карты мира…", 16f, C.TXT, true).apply { gravity = Gravity.CENTER; minWidth = u.dp(260) }
+            loadText = t
+            addView(t)
             addView(u.space(1, 12))
-            addView(ProgressBar(this@MainActivity, null, android.R.attr.progressBarStyleHorizontal).apply { isIndeterminate = true; layoutParams = LinearLayout.LayoutParams(u.dp(220), u.dp(8)) })
+            val track = FrameLayout(this@MainActivity).apply {
+                background = u.bg(Color.argb(30, 255, 255, 255), 4f, Color.TRANSPARENT)
+                layoutParams = LinearLayout.LayoutParams(u.dp(220), u.dp(8))
+            }
+            val bar = View(this@MainActivity).apply { background = u.bg(C.ACC, 4f, Color.TRANSPARENT) }
+            track.addView(bar, FrameLayout.LayoutParams(0, -1))
+            loadBar = bar
+            addView(track)
         }
         loading = l
         root.addView(l, FrameLayout.LayoutParams(-1, -1))

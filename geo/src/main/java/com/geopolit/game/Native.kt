@@ -4,6 +4,7 @@ package com.geopolit.game
 object Native {
     init { System.loadLibrary("geopolit") }
 
+    external fun stage(): String
     external fun load(nations: ByteArray, lo: ByteArray, mid: ByteArray, hi: ByteArray, water: ByteArray, marine: ByteArray,
                       cities: ByteArray, fontRegular: ByteArray, fontSerif: ByteArray): Boolean
     external fun surfaceCreated(): String

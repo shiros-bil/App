@@ -238,7 +238,7 @@ impl Sim {
             zt.dirty = Some(b);
         }
         if full {
-            self.cut_flush(zt, 0.0, clock);
+            zt.cutq.clear();
         }
     }
     pub fn cut_flush(&mut self, zt: &mut ZoneTex, budget_ms: f64, clock: &dyn Fn() -> f64) {

@@ -173,7 +173,7 @@ fn main() {
                 }
                 let clk = || std::time::Instant::now();
                 let mut tm = std::collections::BTreeMap::<&str, (f64, u32)>::new();
-                let mut run = |app: &mut App, n: usize, tm: &mut std::collections::BTreeMap<&str, (f64, u32)>| {
+                let run = |app: &mut App, n: usize, tm: &mut std::collections::BTreeMap<&str, (f64, u32)>| {
                     let me = app.s.g.player;
                     for i in 0..n {
                         let t = clk(); app.hour_tick(); let e = tm.entry("hourTick").or_default(); e.0 += t.elapsed().as_secs_f64()*1e3; e.1 += 1;
@@ -221,6 +221,10 @@ fn main() {
             "pcsign" => { app.cmd("pcsign", 0, 0, ""); }
             "debug" => { app.cmd("debug", 0, 0, ""); }
             "ui" => eprintln!("{}", app.ui_json()),
+            "own" => {
+                let i = app.w.nations.iter().position(|n| n.iso == p[1]).unwrap() as u16;
+                for r in 0..app.w.nreg() { if app.w.regions[r].nat == i { let zs: Vec<_> = app.s.g.zones.iter().filter(|z| z.r as usize == r).map(|z| (z.o, z.k, z.c)).collect(); eprintln!("r{} owner {} zones {:?}", r, app.s.g.owner[r], zs); } }
+            }
             _ => eprintln!("? {}", cmd),
         }
     }

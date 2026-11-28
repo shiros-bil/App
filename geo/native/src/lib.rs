@@ -34,8 +34,14 @@ pub fn with_app<R>(f: impl FnOnce(&mut App) -> R) -> Option<R> {
     }
 }
 
+pub static STAGE: Mutex<String> = Mutex::new(String::new());
+fn set_stage(s: &str) {
+    *STAGE.lock().unwrap_or_else(|e| e.into_inner()) = s.to_string();
+}
+
 pub fn load_app(a: &world::Assets, fonts: Vec<Vec<u8>>) {
-    let w = Arc::new(world::load(a, &|_| {}));
+    let w = Arc::new(world::load(a, &|s| set_stage(s)));
+    set_stage("Подготовка графики…");
     let app = App::new(w, fonts);
     *APP.lock().unwrap_or_else(|e| e.into_inner()) = Some(SendApp(app));
 }
@@ -100,6 +106,12 @@ pub extern "system" fn Java_com_geopolit_game_Native_load<'l>(
     let a = world::Assets { nations: &n, world_lo: &l, world_mid: &m, world_hi: &h, water: &w, marine: &mr, cities: &c };
     let r = std::panic::catch_unwind(|| load_app(&a, fonts));
     r.is_ok() as jboolean
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_geopolit_game_Native_stage<'l>(mut env: JNIEnv<'l>, _c: JClass<'l>) -> jstring {
+    let s = STAGE.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    ret(&mut env, s)
 }
 
 #[no_mangle]

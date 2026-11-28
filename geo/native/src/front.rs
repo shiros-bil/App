@@ -702,7 +702,7 @@ impl Sim {
                 }
             }
         }
-        let mut flood = |strict: bool, side_k: &mut dyn FnMut(usize) -> i32| -> (Vec<u32>, HashSet<u32>) {
+        let flood = |strict: bool, side_k: &mut dyn FnMut(usize) -> i32| -> (Vec<u32>, HashSet<u32>) {
             let mut a: HashSet<u32> = HashSet::new();
             let mut order = Vec::new();
             let mut st = Vec::new();

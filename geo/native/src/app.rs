@@ -1055,14 +1055,8 @@ impl App {
             self.zt = zt;
             self.pf("карта", clock() - t0);
         }
-        if !self.zt.cutq.is_empty() && now - self.cut_t > 600.0 {
-            self.cut_t = now;
-            let t0 = clock();
-            let mut zt = std::mem::take(&mut self.zt);
-            self.s.cut_flush(&mut zt, 4.0, &clock);
-            self.zt = zt;
-            self.pf("линии", clock() - t0);
-        }
+        // zone cut lines are not drawn (they outlined whole provinces): drop the queue
+        self.zt.cutq.clear();
         if self.s.dirty_ui {
             self.s.dirty_ui = false;
             self.ui_ver += 1;
@@ -1249,7 +1243,6 @@ impl App {
     fn overlay(&mut self, ox: f32, kd: f32) {
         let dpr = self.dpr;
         let k = self.cam.k;
-        let (vx0, vx1, vy0, vy1) = (-ox / kd, (self.sw - ox) / kd, -self.cam.y / kd, (self.sh - self.cam.y) / kd);
         // water selection
         if let Some((lake, i)) = self.sel_w {
             if lake {
@@ -1282,16 +1275,6 @@ impl App {
             self.outline_region(self.sel as usize, ox, kd, 2.5 * dpr, rgba(255, 216, 74, 1.0));
         }
         if self.started {
-            // annexed/occupied cut lines
-            let cuts: Vec<Vec<f32>> = self.zt.cut.values().map(|v| v.1.clone()).collect();
-            for segs in cuts {
-                for s in segs.chunks(4) {
-                    if (s[0] < vx0 && s[2] < vx0) || (s[0] > vx1 && s[2] > vx1) || (s[1] < vy0 && s[3] < vy0) || (s[1] > vy1 && s[3] > vy1) {
-                        continue;
-                    }
-                    self.batch.line(self.m2s([s[0], s[1]], ox, kd), self.m2s([s[2], s[3]], ox, kd), 1.5 * dpr, rgba(0, 0, 0, 0.9));
-                }
-            }
             if let Some(sz) = self.sel_z {
                 self.draw_sel(sz, ox, kd);
             }
@@ -1565,27 +1548,33 @@ impl App {
                 self.batch.arrow(p[p.len() - 2], p[p.len() - 1], 9.0 * dpr, c);
             }
         }
-        let cs = if k < 4.0 { 16.0 * dpr } else { 0.0 };
-        let mut cells: std::collections::HashMap<(i32, i32), (f32, f32, u32)> = std::collections::HashMap::new();
-        let mut sprites: Vec<([f32; 2], bool, f32)> = Vec::new();
+        // zoomed out: merge nearby divisions. Cells live in map space with a power-of-two size so they
+        // don't shift while panning/zooming, and each group is drawn at its members' mean position.
+        let cm = if k < 4.0 { (16.0 * dpr / kd).log2().ceil().exp2() } else { 0.0 };
+        let mut cells: std::collections::HashMap<(i32, i32), usize> = std::collections::HashMap::new();
+        let mut sprites: Vec<([f32; 2], bool, f32, u32)> = Vec::new();
         for d in divs {
             let ip = ipos(d);
             let (x, y) = (ip[0] * kd + ox, ip[1] * kd + self.cam.y);
-            if x < -20.0 * dpr || x > self.sw + 20.0 * dpr || y < -20.0 * dpr || y > self.sh + 20.0 * dpr {
+            if x < -40.0 * dpr || x > self.sw + 40.0 * dpr || y < -40.0 * dpr || y > self.sh + 40.0 * dpr {
                 continue;
             }
             let is_s = sel == Some(d.id) || sels.contains(&d.id);
-            if cs > 0.0 && !is_s {
-                let key = ((x / cs) as i32, (y / cs) as i32);
-                if let Some(c) = cells.get_mut(&key) {
-                    c.2 += 1;
+            if cm > 0.0 && !is_s {
+                let key = ((ip[0] / cm).floor() as i32, (ip[1] / cm).floor() as i32);
+                if let Some(&si) = cells.get(&key) {
+                    let s = &mut sprites[si];
+                    s.0[0] += x;
+                    s.0[1] += y;
+                    s.3 += 1;
                     continue;
                 }
-                cells.insert(key, (x, y, 1));
+                cells.insert(key, sprites.len());
             }
-            sprites.push(([x, y], is_s, d.str_));
+            sprites.push(([x, y], is_s, d.str_, 1));
         }
-        for (p, is_s, st) in sprites {
+        let sprites: Vec<([f32; 2], bool, f32, u32)> = sprites.into_iter().map(|(p, s, st, n)| ([p[0] / n as f32, p[1] / n as f32], s, st, n)).collect();
+        for &(p, is_s, st, _) in &sprites {
             let (w, h) = (14.0 * dpr, 9.0 * dpr);
             let (x0, y0) = (p[0] - w / 2.0, p[1] - h / 2.0);
             self.batch.rect(x0 - 1.5 * dpr, y0 - 1.5 * dpr, w + 3.0 * dpr, h + 3.0 * dpr, rgba(0, 0, 0, 0.6));
@@ -1599,7 +1588,7 @@ impl App {
                 self.batch.rect(p[0] - 7.0 * dpr, p[1] + 6.0 * dpr, 14.0 * dpr * st / 10000.0, 2.0 * dpr, rgba(125, 255, 125, 1.0));
             }
         }
-        for (_, (x, y, n)) in cells {
+        for &([x, y], _, _, n) in &sprites {
             if n > 1 {
                 let t = n.to_string();
                 let w = (t.len() as f32 * 6.0 + 5.0) * dpr;
