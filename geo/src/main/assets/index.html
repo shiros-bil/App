@@ -643,6 +643,7 @@ function rebuildTile(T2,t){const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS,r=T2.dr;T2.dr=n
 function setCell(i,z){const o=CTL[i];if(o===z)return;if(o)G.zones[o-1].c--;if(z)G.zones[z-1].c++;CTL[i]=z;paintPix(i,o);ctlVer++;if(REG&&REG[i])CHR.add(REG[i]-1)}
 function zoneFor(r,o){const key=r+'_'+o;let id=ZK.get(key);if(id)return id;G.zones.push({r,o,k:'o',c:0,n:''});id=G.zones.length;ZK.set(key,id);return id}
 const ctrlOf=i=>{const z=CTL[i];return z?G.zones[z-1].o:G.owner[REG[i]-1]};
+function capCell(me,i){const rg=REG[i];if(!rg)return false;const r=rg-1,own=G.owner[r],c=ctrlOf(i);if(c===me)return false;if(own===me){setCell(i,0);return true}if(!atWar(me,c))return false;setCell(i,zoneFor(r,me));return true}
 let DBL=[];function occPaint(me,x,y,ry=1.5){if(!REG)return;x=((x%MW)+MW)%MW;const cx=x*GW/MW,cy=y*GH/MH;let D=null;for(const b of DBL)if(cx>b[0]-24&&cx<b[2]+24&&cy>b[1]-24&&cy<b[3]+24&&b[2]-b[0]<120&&b[3]-b[1]<120){D=b;break}
   if(!D)DBL.push([cx,cy,cx,cy]);else{if(cx<D[0])D[0]=cx;if(cy<D[1])D[1]=cy;if(cx>D[2])D[2]=cx;if(cy>D[3])D[3]=cy}const rx=ry/Math.max(.2,Math.cos((90-y/MH*180)*Math.PI/180));
   for(let j=Math.max(0,Math.floor(cy-ry));j<=Math.min(GH-1,Math.ceil(cy+ry));j++){const dy=(j+.5-cy)/ry;if(dy*dy>1)continue;const hw=rx*Math.sqrt(1-dy*dy);
@@ -930,7 +931,7 @@ function sendAlong(divs,P){if(P.gap===undefined&&P.length>40)P.gap=3;const C=plL
   const ord=divs.map(d=>({d,t:plProj(P,C,d.x,d.y)})).sort((a,b)=>a.t-b.t);let ok=0;
   ord.forEach((o,i)=>{const sl=Math.floor(i*slots/n),ech=i-Math.ceil(sl*n/slots);const p=plAt(P,C,(sl+.5)/slots);let x=p[0],y=p[1];while(x-o.d.x>MW/2)x-=MW;while(x-o.d.x<-MW/2)x+=MW;
     if(ech>0){const vx=o.d.x-x,vy=o.d.y-y,l=Math.hypot(vx,vy)||1;x+=vx/l*.8*ech;y+=vy/l*.8*ech}
-    const sp=snapMine(x,y);if(!sp)return;o.d.tk=null;if(Math.hypot(sp[0]-o.d.x,sp[1]-o.d.y)<.05){o.d.path=[];ok++;return}if(orderDiv(o.d,sp[0],sp[1],sp[2],true))ok++});return ok}
+    const sp=snapMine(x,y);if(!sp)return;o.d.tk=null;if(Math.hypot(sp[0]-o.d.x,sp[1]-o.d.y)<.05){o.d.path=[];o.d.hold=1;ok++;return}if(orderDiv(o.d,sp[0],sp[1],sp[2],true))ok++;o.d.hold=1;o.d.pf=0});return ok}
 function frontOf(d){return G.fronts.find(f=>f.divs.includes(d.id))}
 function makeFront(P,tn){const ds=selDivs();if(!ds.length){toast('Сначала выберите дивизии');return}const ids=ds.map(d=>d.id);
   for(const f of G.fronts)f.divs=f.divs.filter(id=>!ids.includes(id));G.fronts=G.fronts.filter(f=>f.divs.length);
@@ -940,7 +941,7 @@ function makePlan(P){const f=curFront();if(!f){toast('Сначала нарис�
 function pathKm(d){let x=d.x,y=d.y,l=0;for(const q of d.path){l+=kmDist(x,y,q[0],q[1]);x=q[0];y=q[1]}return l}
 function orderPath(d,P){let x=d.x,y=d.y;const out=[];const step=Math.max(1,Math.floor(P.length/12));for(let i=step-1;i<P.length;i+=step){const q=P[Math.min(i,P.length-1)];let tx=q[0];while(tx-x>MW/2)tx-=MW;while(tx-x<-MW/2)tx+=MW;
     const r=regionAt(tx,q[1]);if(r<0||!canEnter(r))break;const g=gridRoute(x,y,tx,q[1]);if(!g)break;for(const p of g)out.push([p[0],p[1],-1]);x=tx;y=q[1]}
-  if(!out.length)return false;out[out.length-1][2]=regionAt(x,y);d.path=out;return true}
+  if(!out.length)return false;out[out.length-1][2]=regionAt(x,y);d.path=out;d.hold=0;d.pf=0;return true}
 function makeSpear(P){const ds=selDivs();if(!ds.length){toast('Сначала выберите дивизии');return}let ok=0;for(const d of ds)if(orderPath(d,P.map(p=>[p[0]+(Math.random()-.5)*.6,p[1]+(Math.random()-.5)*.4])))ok++;
   SPEARS.push({P,t:performance.now()});toast(ok?`Прорыв: ${ok} див.`:'Нельзя пройти по этому маршруту');if(ok&&speed===0)setSpeed(1);draw()}
 let SPEARS=[];
@@ -961,23 +962,48 @@ function planCells(A,B){if(!REG)return[];B=orient(A,B);const poly=[...A,...B.sli
       if(c!==me&&(G.owner[REG[k]-1]===me||atWar(me,c)))cells.push(k)}}
   return cells}
 function fillBetween(A,B){const me=G.player,cells=planCells(A,B);if(cells.length)queuePocket(me,cells,i=>REG[i]&&ctrlOf(i)===me)}
-// target area: cells + t along the front line; pockets enclosed by the area (enemy cells not reachable from enemy land outside) are added
-function buildArea(f){const A=f.line0||f.line,cells=planCells(A,f.plan),me=G.player,inA=new Set(cells);
-  // pockets: enemy components touching the area that are cut off from the rest of enemy land by own territory+area
-  const seen=new Set(),add=[];for(const k0 of cells)for(const o of[-1,1,-GW,GW]){const s=k0+o;if(inA.has(s)||seen.has(s)||!REG[s])continue;const c=ctrlOf(s);if(c===me||!(atWar(me,c)||G.owner[REG[s]-1]===me))continue;
-    const comp=[s],st=[s];seen.add(s);let open=false;while(st.length&&!open){const k=st.pop();for(const q of[-1,1,-GW,GW]){const n=k+q;if(n<0||n>=GW*GH||seen.has(n)||inA.has(n))continue;if(!REG[n])continue;const cn=ctrlOf(n);if(cn===me)continue;seen.add(n);st.push(n);comp.push(n);if(comp.length>4000){open=true;break}}}
-    if(!open)for(const k of comp)if(ctrlOf(k)!==me){add.push(k);inA.add(k)}}
-  const all=cells.concat(add),C=plLen(A),T=new Float32Array(all.length);
-  // t along front: project a sparse sample per 3x3 block to keep it cheap
-  const cache=new Map();all.forEach((k,i)=>{const bk=((k/GW|0)/3|0)*2048+((k%GW)/3|0);let t=cache.get(bk);if(t===undefined){t=plProj(A,C,((k%GW)+.5)*MW/GW,((k/GW|0)+.5)*MH/GH);cache.set(bk,t)}T[i]=t});
-  const a={cells:Int32Array.from(all),t:T,v:-1};PAREA.set(f.id,a);return a}
+// target area (HOI4 rule): enemy cells reachable from own front without crossing the plan line, on the front's side of the plan
+// and laterally inside the plan's extent. Connected to own land by construction, so it can be taken step by step.
+function buildArea(f){const me=G.player,P=f.plan,ds=planDivs(f),sx=GW/MW,sy=GH/MH;
+  const side=(x,y)=>{let bd=1e18,bs=0,end=false;for(let i=1;i<P.length;i++){const ax=P[i-1][0],ay=P[i-1][1],dx=P[i][0]-ax,dy=P[i][1]-ay,l2=dx*dx+dy*dy||1e-9;let u=((x-ax)*dx+(y-ay)*dy)/l2;const e=(i===1&&u<0)||(i===P.length-1&&u>1);u=Math.max(0,Math.min(1,u));
+      const d=(ax+u*dx-x)**2+(ay+u*dy-y)**2;if(d<bd){bd=d;end=e;bs=Math.sign(dx*(y-ay)-dy*(x-ax))}}return end?0:bs};
+  let S=0;for(const d of ds)S+=side(d.x,d.y);if(!S&&f.line0)for(const q of f.line0)S+=side(q[0],q[1]);S=Math.sign(S)||1;
+  const bar=new Set();for(let i=1;i<P.length;i++){const ax=P[i-1][0]*sx,ay=P[i-1][1]*sy,bx=P[i][0]*sx,by=P[i][1]*sy,n=Math.ceil(Math.hypot(bx-ax,by-ay)*2)+1;
+    for(let q=0;q<=n;q++){const x=Math.floor(ax+(bx-ax)*q/n),y=Math.floor(ay+(by-ay)*q/n);if(y<1||y>=GH-1)continue;const k=y*GW+((x%GW)+GW)%GW;bar.add(k);bar.add(k+1);bar.add(k+GW)}}
+  const ok=k=>{if(!REG[k]||bar.has(k))return false;const c=ctrlOf(k);return c!==me&&(G.owner[REG[k]-1]===me||atWar(me,c))};
+  const sd=new Map(),sideK=k=>{let v=sd.get(k);if(v===undefined){v=side(((k%GW)+.5)/sx,((k/GW|0)+.5)/sy);sd.set(k,v)}return v};
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const q of P.concat(f.line0||[]).concat(ds.map(d=>[d.x,d.y]))){x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);y0=Math.min(y0,q[1]);y1=Math.max(y1,q[1])}
+  const X0=Math.floor(x0*sx)-40,X1=Math.ceil(x1*sx)+40,Y0=Math.max(1,Math.floor(y0*sy)-40),Y1=Math.min(GH-2,Math.ceil(y1*sy)+40);
+  const inA=new Set(),st=[];
+  for(let j=Y0;j<=Y1;j++)for(let ii=X0;ii<=X1;ii++){const k=j*GW+((ii%GW)+GW)%GW;if(inA.has(k)||!ok(k))continue;
+    if(!((REG[k-1]&&ctrlOf(k-1)===me)||(REG[k+1]&&ctrlOf(k+1)===me)||(REG[k-GW]&&ctrlOf(k-GW)===me)||(REG[k+GW]&&ctrlOf(k+GW)===me)))continue;if(sideK(k)!==S)continue;inA.add(k);st.push(k)}
+  while(st.length&&inA.size<400000){const k=st.pop();for(const o of[-1,1,-GW,GW]){const n=k+o;if(n<GW||n>=GW*(GH-1)||inA.has(n)||!ok(n))continue;if(sideK(n)!==S)continue;inA.add(n);st.push(n)}}
+  const all=[...inA],C=plLen(P),T=new Float32Array(all.length),cache=new Map();
+  all.forEach((k,i)=>{const bk=((k/GW|0)/3|0)*2048+((k%GW)/3|0);let t=cache.get(bk);if(t===undefined){t=plProj(P,C,((k%GW)+.5)/sx,((k/GW|0)+.5)/sy);cache.set(bk,t)}T[i]=t});
+  const a={cells:Int32Array.from(all),t:T,v:-1,set:inA};PAREA.set(f.id,a);return a}
+function plDist(P,x,y){let bd=1e18;for(let i=1;i<P.length;i++){const ax=P[i-1][0],ay=P[i-1][1],dx=P[i][0]-ax,dy=P[i][1]-ay,l2=dx*dx+dy*dy||1;let u=((x-ax)*dx+(y-ay)*dy)/l2;u=Math.max(0,Math.min(1,u));const d=(ax+u*dx-x)**2+(ay+u*dy-y)**2;if(d<bd)bd=d}return Math.sqrt(bd)}
+// enemy cells hugging the start line fall outside the polygon (its edge runs through own border cells): add them if nearer to the start line than to the plan
+function edgeRing(A,B,set,me){let cur=[...set];for(let it=0;it<4;it++){const nx=[];for(const k of cur)for(const o of[-1,1,-GW,GW]){const n=k+o;if(n<0||n>=GW*GH||set.has(n)||!REG[n])continue;const c=ctrlOf(n);if(c===me||!(atWar(me,c)||G.owner[REG[n]-1]===me))continue;
+    const x=((n%GW)+.5)*MW/GW,y=((n/GW|0)+.5)*MH/GH;if(plDist(A,x,y)<plDist(B,x,y)-.3){set.add(n);nx.push(n)}}cur=nx;if(!cur.length)break}}
+// a division on a plan pushes the front: it takes enemy area cells next to own land within a breathing radius (smooth wave, never past the area)
+function planBubble(d){const a=PAREA.get(d.pf);if(!a)return;const me=G.player,cx=(((d.x%MW)+MW)%MW)*GW/MW,cy=d.y*GH/MH,t=(d.dist=(d.dist||0)+.7)/5,sd=d.id*7.13,R=1.6+.6*Math.sin(t*.83+sd)+.4*Math.sin(t*2.1+sd*1.7);let any=false;
+  for(let pass=0;pass<2;pass++)for(let j=Math.floor(cy-R);j<=Math.ceil(cy+R);j++)for(let ii=Math.floor(cx-R);ii<=Math.ceil(cx+R);ii++){const dx=ii+.5-cx,dy=j+.5-cy;if(dx*dx+dy*dy>R*R||j<1||j>=GH-1)continue;const i=j*GW+((ii%GW)+GW)%GW;
+    if(!a.set.has(i)||ctrlOf(i)===me)continue;if(!((REG[i-1]&&ctrlOf(i-1)===me)||(REG[i+1]&&ctrlOf(i+1)===me)||(REG[i-GW]&&ctrlOf(i-GW)===me)||(REG[i+GW]&&ctrlOf(i+GW)===me)))continue;if(capCell(me,i))any=true}
+  if(any)DBL.push([cx-R,cy-R,cx+R,cy+R])}
+// small enemy specks left inside own land around the area are taken at the end
+function cleanHoles(a){const me=G.player;let x0=GW,y0=GH,x1=0,y1=0;for(const k of a.cells){const x=k%GW,y=k/GW|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  x0=Math.max(1,x0-6);y0=Math.max(1,y0-6);x1=Math.min(GW-2,x1+6);y1=Math.min(GH-2,y1+6);const seen=new Uint8Array((x1-x0+1)*(y1-y0+1)),L=k=>((k/GW|0)-y0)*(x1-x0+1)+(k%GW)-x0,out=[];
+  for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){const k0=j*GW+i;if(seen[L(k0)]||!REG[k0])continue;const c0=ctrlOf(k0);if(c0===me){seen[L(k0)]=1;continue}
+    const comp=[k0],st=[k0];seen[L(k0)]=1;let open=false;while(st.length){const k=st.pop();for(const o of[-1,1,-GW,GW]){const n=k+o,x=n%GW,y=n/GW|0;if(x<x0||x>x1||y<y0||y>y1){open=true;continue}if(!REG[n]){continue}if(ctrlOf(n)===me||seen[L(n)])continue;seen[L(n)]=1;st.push(n);comp.push(n)}}
+    if(!open&&comp.length<=120)for(const k of comp){const c=ctrlOf(k);if(G.owner[REG[k]-1]===me||atWar(me,c))out.push(k)}}
+  if(out.length)queuePocket(me,out,i=>REG[i]&&ctrlOf(i)===me)}
 const isFrontier=k=>{const me=G.player,i=k%GW;return(i>0&&REG[k-1]&&ctrlOf(k-1)===me)||(i<GW-1&&REG[k+1]&&ctrlOf(k+1)===me)||(REG[k-GW]&&ctrlOf(k-GW)===me)||(REG[k+GW]&&ctrlOf(k+GW)===me)};
 function laneOf(t,n){return Math.min(n-1,Math.max(0,Math.floor(t*n)))}
 function planDivs(f){return f.divs.map(id=>G.divs.find(d=>d.id===id)).filter(Boolean)}
 function planTick(f){const me=G.player,ds=planDivs(f);if(!ds.length){f.exec=false;PAREA.delete(f.id);return}let a=PAREA.get(f.id)||buildArea(f);
   const n=ds.length,A=f.line0||f.line,C=plLen(A);
   // lanes: divisions ordered along the front (re-done when divisions die/are added)
-  if(a.nd!==n){ds.map(d=>({d,t:plProj(A,C,d.x,d.y)})).sort((x,y)=>x.t-y.t).forEach((o,i)=>o.d.ln=i);a.nd=n}
+  if(a.nd!==n){const PC=plLen(f.plan);ds.map(d=>({d,t:plProj(f.plan,PC,d.x,d.y)})).sort((x,y)=>x.t-y.t).forEach((o,i)=>o.d.ln=i);a.nd=n}
   const tot=new Int32Array(n),rem=new Int32Array(n),left=[];for(let i=0;i<a.cells.length;i++){const k=a.cells[i],l=laneOf(a.t[i],n);tot[l]++;if(ctrlOf(k)!==me){rem[l]++;left.push(i)}}
   a.rem=rem;a.tot=tot;a.left=left.length;
   if(!left.length&&ds.every(d=>!d.path.length||d.tk==null)){finishPlan(f,ds);return}
@@ -986,7 +1012,7 @@ function planTick(f){const me=G.player,ds=planDivs(f);if(!ds.length){f.exec=fals
   for(const d of ds){const own=d.ln??0;
     // keep current attack while its target is still enemy
     if(d.path.length&&d.tk!=null&&ctrlOf(d.tk)!==me)continue;
-    if(!d.path.length&&d.tk!=null&&ctrlOf(d.tk)!==me){occPaint(me,d.x,d.y,1.4);d.tk=null}
+    if(!d.path.length&&d.tk!=null&&ctrlOf(d.tk)!==me){d.pf=f.id;planBubble(d);d.tk=null}
     let L=own;
     if(!rem[own]){let bd=1e9;for(let l=0;l<n;l++)if(rem[l]&&Math.abs(l-own)<bd){bd=Math.abs(l-own);L=l}}
     else{const nb=[own-1,own+1].filter(l=>l>=0&&l<n&&rem[l]);let lo=-1,lp=2;for(const l of nb)if(prog(l)<lp){lp=prog(l);lo=l}
@@ -996,8 +1022,8 @@ function planTick(f){const me=G.player,ds=planDivs(f);if(!ds.length){f.exec=fals
     for(const pass of[0,1]){for(const i of left){if(!pass&&laneOf(a.t[i],n)!==L)continue;const k=a.cells[i];if(!isFrontier(k))continue;const x=k%GW,y=k/GW|0;let ex=Math.abs(x-dx);if(ex>GW/2)ex=GW-ex;const dd=ex*ex+(y-dy)**2;if(dd<bd){bd=dd;bk=k}}if(bk>=0)break}
     if(bk<0){d.tk=null;continue}
     const tx=((bk%GW)+.5)*MW/GW,ty=((bk/GW|0)+.5)*MH/GH;d.tk=bk;d.tl=L;
-    if(!orderDiv(d,tx,ty,REG[bk]-1,true))d.tk=null}}
-function finishPlan(f,ds){const pl=f.plan;delete f.line0;f.plan=null;f.exec=false;PAREA.delete(f.id);for(const d of ds){d.tk=null;d.ln=undefined}
+    if(!orderDiv(d,tx,ty,REG[bk]-1,true))d.tk=null;else{d.pf=f.id;d.hold=1}}}
+function finishPlan(f,ds){const pl=f.plan,a0=PAREA.get(f.id);if(a0)cleanHoles(a0);delete f.line0;f.plan=null;f.exec=false;PAREA.delete(f.id);for(const d of ds){d.tk=null;d.ln=undefined;d.pf=0}
   if(f.t!=null){const g=frontUpd(f);if(g){f.line=g.pts;sendFront(ds,g.pts)}else{f.line=pl;sendAlong(ds,pl)}}else{f.line=pl;sendAlong(ds,pl)}
   toast('Наступление завершено: область захвачена');draw()}
 function execPlans(){let n=0;for(const f of G.fronts){if(!f.plan||f.exec)continue;const ds=planDivs(f);if(!ds.length)continue;f.line0=f.line;f.exec=true;PAREA.delete(f.id);
@@ -1106,7 +1132,7 @@ function gridRoute(sx,sy,tx,ty,ce){const cc=new Map(),C=r=>{let v=cc.get(r);if(v
   if(!found)return null;const cells=[];for(let k=t0;k>=0&&k!==s0;k=PR[k])cells.push([(PI[k]+.5)*MW/CGW,(((k/CGW)|0)+.5)*MH/CGH]);cells.reverse();cells[cells.length-1]=[tx,ty];
   // string pulling
   const out=[];let cx=sx,cy=sy,i=0;while(i<cells.length){let j=cells.length-1;while(j>i&&!losOK(cx,cy,cells[j][0],cells[j][1],ce))j--;out.push(cells[j]);cx=cells[j][0];cy=cells[j][1];i=j+1}return out}
-function orderDiv(d,tx,ty,tr,quiet){if(REG){while(tx-d.x>MW/2)tx-=MW;while(tx-d.x<-MW/2)tx+=MW;if(!canEnter(tr)){if(!quiet)toast('Нельзя: нет войны с '+nm(G.owner[tr]));return false}
+function orderDiv(d,tx,ty,tr,quiet){d.hold=0;d.pf=0;if(REG){while(tx-d.x>MW/2)tx-=MW;while(tx-d.x<-MW/2)tx+=MW;if(!canEnter(tr)){if(!quiet)toast('Нельзя: нет войны с '+nm(G.owner[tr]));return false}
     let gp=gridRoute(d.x,d.y,tx,ty);if(gp&&!gp.length)gp=[[tx,ty]];if(gp){let P=[[d.x,d.y]].concat(gp);
       // gentle corner rounding (only at bends)
       if(P.length>2){for(let it=0;it<2;it++){const Q=[P[0]];for(let i=1;i<P.length-1;i++){const a=P[i-1],b=P[i],c=P[i+1];const p1=[b[0]*.75+a[0]*.25,b[1]*.75+a[1]*.25],p2=[b[0]*.75+c[0]*.25,b[1]*.75+c[1]*.25];
@@ -1132,7 +1158,7 @@ function moveDivs(hrs){let mv=false;
       if(t<=left){left-=t;if(km>=kmF){d.x=q[0];d.y=q[1];d.path.shift()}else{const f=km/kmF;d.x+=(q[0]-d.x)*f;d.y+=(q[1]-d.y)*f}}
       else{const f=left/t*km/(kmF||1);d.x+=(q[0]-d.x)*f;d.y+=(q[1]-d.y)*f;left=0}
       {let nr=regionAt(d.x,d.y);if(nr<0&&q[2]>=0&&!d.path.length)nr=q[2];if(nr>=0&&nr!==d.r){if(!canEnter(nr)){if(d.path.length&&d.path[d.path.length-1][2]>=0&&!canEnter(d.path[d.path.length-1][2])){d.path=[];toast(d.n+': граница закрыта')}}else{d.r=nr;const o=G.owner[nr];if(o!==G.player&&atWar(G.player,o)&&(!RC||RC[nr]<4))conquer(G.player,nr)}}}
-      occTrail(G.player,sx,sy,d.x,d.y,d)}
+      if(d.pf)planBubble(d);else if(!d.hold)occTrail(G.player,sx,sy,d.x,d.y,d)}
     if(!d.path.length&&d.k)d.k=0;
     if(d.x<0||d.x>=MW){const sh=d.x<0?MW:-MW;d.x+=sh;for(const q of d.path)q[0]+=sh}}
   return mv}
