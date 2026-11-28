@@ -143,6 +143,8 @@ fn main() {
                 cx /= rs.len() as f32;
                 cy /= rs.len() as f32;
                 let mut pl = vec![];
+                let (f0, f1): (f32, f32) = if p.len() > 3 { (p[2].parse().unwrap(), p[3].parse().unwrap()) } else { (0.0, 1.0) };
+                let (x0, x1) = (x0 + (x1 - x0) * f0, x0 + (x1 - x0) * f1);
                 let mut x = x0 - 3.0;
                 while x <= x1 + 3.0 {
                     pl.push([x, cy]);
@@ -221,6 +223,12 @@ fn main() {
             "pcsign" => { app.cmd("pcsign", 0, 0, ""); }
             "debug" => { app.cmd("debug", 0, 0, ""); }
             "ui" => eprintln!("{}", app.ui_json()),
+            "atk" => {
+                for f in &app.s.g.fronts { eprintln!("front divs {} atk {} exec {}", f.divs.len(), f.atk.len(), f.exec); }
+                let c: usize = app.s.cover.values().map(|v| v.iter().filter(|s| s.d != 0).count()).sum();
+                let g: usize = app.s.cover.values().map(|v| v.iter().filter(|s| s.d == 0).count()).sum();
+                eprintln!("cover slots filled {} empty {}", c, g);
+            }
             "scr" => {
                 let i = app.w.nations.iter().position(|n| n.iso == p[1]).unwrap();
                 eprintln!("scr {}", app.cmd("scr", i as i64, p[2].parse().unwrap(), ""));

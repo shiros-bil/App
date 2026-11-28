@@ -79,6 +79,9 @@ pub struct Front {
     pub t: Option<u16>,
     #[serde(default)]
     pub line0: Option<Vec<[f32; 2]>>,
+    // divisions executing the plan (the rest keep holding the front)
+    #[serde(default)]
+    pub atk: Vec<u32>,
     #[serde(skip)]
     pub v: u64,
     #[serde(skip)]

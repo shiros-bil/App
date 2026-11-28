@@ -1548,7 +1548,6 @@ impl App {
         let nd = &self.w.nations[me as usize];
         let col = nat_color(me as usize, &nd.iso, &nd.e);
         let colf = rgba(col[0], col[1], col[2], 1.0);
-        let many = self.s.g.divs.len() > 60;
         let (vx0, vx1, vy0, vy1) = (-ox / kd - 2.0, (self.sw - ox) / kd + 2.0, -self.cam.y / kd - 2.0, (self.sh - self.cam.y) / kd + 2.0);
         let divf = self.s.divf;
         let ipos = |d: &crate::sim::Div| -> [f32; 2] {
@@ -1566,8 +1565,9 @@ impl App {
             if d.path.is_empty() {
                 continue;
             }
+            // only the division picked by a direct tap shows its route
             let is_s = sel == Some(d.id);
-            if many && !is_s && k < 4.0 {
+            if !is_s {
                 continue;
             }
             let (mut a, mut b, mut c, mut e) = (d.x, d.y, d.x, d.y);

@@ -20,6 +20,7 @@ pub struct Cfg {
     pub deep_break: bool,
     pub spear_max_km: f32,
     pub plan_gap: f32,
+    pub atk_radius: f32,
 }
 pub const CFG: Cfg = Cfg {
     plan_full_ticks: 24,
@@ -36,6 +37,7 @@ pub const CFG: Cfg = Cfg {
     deep_break: false,
     spear_max_km: 160.0,
     plan_gap: 0.2,
+    atk_radius: 14.0,
 };
 
 pub struct Area {
@@ -114,6 +116,87 @@ impl Sim {
             m.insert(d.id, i);
         }
         f.divs.iter().filter_map(|id| m.get(id).copied()).collect()
+    }
+    fn ids_to_idx(&self, ids: &[u32]) -> Vec<usize> {
+        let set: HashSet<u32> = ids.iter().copied().collect();
+        self.g.divs.iter().enumerate().filter(|(_, d)| set.contains(&d.id)).map(|(i, _)| i).collect()
+    }
+    // divisions attacking with the plan (all of the front's if no group was chosen)
+    pub fn atk_divs(&self, f: &Front) -> Vec<usize> {
+        if f.exec && !f.atk.is_empty() {
+            let ok: HashSet<u32> = f.divs.iter().copied().collect();
+            let ids: Vec<u32> = f.atk.iter().copied().filter(|i| ok.contains(i)).collect();
+            self.ids_to_idx(&ids)
+        } else {
+            self.plan_divs(f)
+        }
+    }
+    // divisions holding the line: everyone not in the attack group
+    pub fn hold_divs(&self, f: &Front) -> Vec<usize> {
+        if !f.exec {
+            return self.plan_divs(f);
+        }
+        let atk: HashSet<u32> = f.atk.iter().copied().collect();
+        let ids: Vec<u32> = f.divs.iter().copied().filter(|i| !atk.contains(i)).collect();
+        self.ids_to_idx(&ids)
+    }
+    // pick the attack group: divisions whose post is near the plan's start line (area cells touching
+    // our territory). Divisions on other parts of the front stay where they are.
+    fn pick_attackers(&mut self, fi: usize) -> Vec<u32> {
+        let ds = self.plan_divs(&self.g.fronts[fi]);
+        let id = self.g.fronts[fi].id;
+        let a = match self.parea.get(&id) {
+            Some(a) => a,
+            None => return ds.iter().map(|&d| self.g.divs[d].id).collect(),
+        };
+        let me = self.g.player;
+        let mut start: Vec<(f32, f32)> = Vec::new();
+        for (i, &c) in a.cells.iter().enumerate() {
+            let k = c as usize;
+            if k < GW || k + GW >= GW * GH {
+                continue;
+            }
+            let nb = [k - 1, k + 1, k - GW, k + GW].iter().any(|&q| self.w.reg[q] != 0 && self.ctrl_of(q) == me);
+            if nb && i % 2 == 0 {
+                start.push(((k % GW) as f32, (k / GW) as f32));
+            }
+        }
+        if start.is_empty() {
+            return ds.iter().map(|&d| self.g.divs[d].id).collect();
+        }
+        let r = CFG.atk_radius;
+        let mut dist: Vec<(f32, u32)> = ds
+            .iter()
+            .map(|&d| {
+                let dv = &self.g.divs[d];
+                let (x, y) = match dv.cv {
+                    Some(c) => (c[0], c[1]),
+                    None => (dv.x, dv.y),
+                };
+                let (cx, cy) = (x * GW as f32 / MW, y * GH as f32 / MH);
+                let mut bd = f32::MAX;
+                for &(sx, sy) in &start {
+                    let mut ex = (sx - cx).abs();
+                    if ex > GW as f32 / 2.0 {
+                        ex = GW as f32 - ex;
+                    }
+                    bd = bd.min(ex * ex + (sy - cy) * (sy - cy));
+                }
+                (bd.sqrt(), dv.id)
+            })
+            .collect();
+        dist.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        let mut out: Vec<u32> = dist.iter().filter(|x| x.0 <= r).map(|x| x.1).collect();
+        // at least one division per ~sector of start line, but never more than the front has
+        let need = ((start.len() as f32 * 2.0 * MW / GW as f32 / CFG.sector_len / 2.0).ceil() as usize).clamp(1, ds.len());
+        let mut i = 0;
+        while out.len() < need.min(2).max(1) && i < dist.len() {
+            if !out.contains(&dist[i].1) {
+                out.push(dist[i].1);
+            }
+            i += 1;
+        }
+        out
     }
     pub fn sel_divs(&self) -> Vec<usize> {
         let mut s: Vec<usize> = self.sels.iter().filter_map(|&id| self.div_index(id)).collect();
@@ -872,7 +955,7 @@ impl Sim {
 
     pub fn plan_tick(&mut self, fi: usize) {
         let me = self.g.player;
-        let ds = self.plan_divs(&self.g.fronts[fi]);
+        let ds = self.atk_divs(&self.g.fronts[fi]);
         let id = self.g.fronts[fi].id;
         if ds.is_empty() {
             self.g.fronts[fi].exec = false;
@@ -1088,6 +1171,9 @@ impl Sim {
     fn finish_plan(&mut self, fi: usize, ds: &[usize]) {
         let id = self.g.fronts[fi].id;
         self.clean_holes(id);
+        self.g.fronts[fi].atk.clear();
+        let all = self.plan_divs(&self.g.fronts[fi]);
+        let ds: &[usize] = if all.is_empty() { ds } else { &all };
         let pl = self.g.fronts[fi].plan.take().unwrap_or_default();
         self.g.fronts[fi].line0 = None;
         self.g.fronts[fi].exec = false;
@@ -1141,11 +1227,18 @@ impl Sim {
                 self.parea.remove(&id);
                 continue;
             }
-            for &d in &ds {
+            let atk = self.pick_attackers(fi);
+            self.g.fronts[fi].atk = atk.clone();
+            let atk_idx = self.ids_to_idx(&atk);
+            for &d in &atk_idx {
                 self.g.divs[d].path.clear();
                 self.g.divs[d].tk = None;
+                self.g.divs[d].cv = None;
             }
             self.plan_tick(fi);
+            // holders re-spread over the rest of the front right away
+            self.g.fronts[fi].cv_s = 0;
+            self.cover_front(fi, true);
             n += 1;
         }
         self.toast(if n > 0 { format!("Наступление: {} {}", n, if n == 1 { "фронт" } else { "фронта" }) } else { "Нет готовых планов".into() });
@@ -1257,10 +1350,8 @@ impl Sim {
             Some(t) => t,
             None => return,
         };
-        if f.exec {
-            return;
-        }
-        let ds = self.plan_divs(f);
+        let exec = f.exec;
+        let ds = self.hold_divs(f);
         if ds.is_empty() {
             return;
         }
@@ -1276,8 +1367,38 @@ impl Sim {
         };
         self.g.fronts[fi].v = self.ctl_ver;
         self.fseg.insert(id, seg);
-        self.g.fronts[fi].line = pts.clone();
-        let secs = self.front_sectors(&pts, t);
+        if !exec {
+            self.g.fronts[fi].line = pts.clone();
+        }
+        let mut secs = self.front_sectors(&pts, t);
+        if exec {
+            // the attack group owns the stretch where the plan is being pushed: holders cover the rest
+            if let Some(a) = self.parea.get(&id) {
+                let me = self.g.player;
+                let rr = 5i64;
+                secs.retain(|(seg, _)| {
+                    let c = seg[seg.len() / 2];
+                    let (ci, cj) = ((c[0].rem_euclid(MW) * GW as f32 / MW) as i64, (c[1] * GH as f32 / MH) as i64);
+                    for dj in -rr..=rr {
+                        for di in -rr..=rr {
+                            let j = cj + dj;
+                            if j < 0 || j >= GH as i64 {
+                                continue;
+                            }
+                            let k = (j as usize) * GW + (ci + di).rem_euclid(GW as i64) as usize;
+                            if a.set.contains(&(k as u32)) && self.ctrl_of(k) != me {
+                                return false;
+                            }
+                        }
+                    }
+                    true
+                });
+            }
+            if secs.is_empty() {
+                self.cover.remove(&id);
+                return;
+            }
+        }
         let n = ds.len();
         let n_res = ((n as f32 * CFG.reserve_pct).floor() as usize).min(n.saturating_sub(secs.len()));
         let act = n - n_res;
@@ -1415,10 +1536,10 @@ impl Sim {
     pub fn cover_tick(&mut self) {
         let now = self.g.hour;
         for fi in 0..self.g.fronts.len() {
-            if self.g.fronts[fi].t.is_none() || self.g.fronts[fi].exec {
+            if self.g.fronts[fi].t.is_none() {
                 continue;
             }
-            let ds = self.plan_divs(&self.g.fronts[fi]);
+            let ds = self.hold_divs(&self.g.fronts[fi]);
             let mut sig: i64 = ds.len() as i64;
             for &d in &ds {
                 sig = sig.wrapping_mul(31).wrapping_add(self.g.divs[d].id as i64);
