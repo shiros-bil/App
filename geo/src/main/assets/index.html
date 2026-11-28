@@ -295,7 +295,7 @@ function renderScene(){const t0=performance.now();const K=S0()*T.k;sctx.setTrans
 
 let sel=-1,raf=0;
 function draw(){if(!raf)raf=requestAnimationFrame(frame)}
-function frame(){raf=0;if(!RK.length)return;if(GLR.ok&&GLR.lods[0]){glFrame();return}const t0=performance.now();
+function frame(){raf=0;if(!RK.length)return;if(GLR.ok&&GLR.lods[0]){const t=performance.now();glFrame();pf('рендер',performance.now()-t);return}const t0=performance.now();
   const K=S0()*T.k,ww=MW*K;if(!baseCv||(!interacting&&(baseVer!==ownVer||baseStale&&t0-baseT>1500))){renderBase();baseStale=false;baseT=t0}
   ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#0d3358';ctx.fillRect(0,0,W*DPR,H*DPR);ctx.imageSmoothingEnabled=true;
   const wpx=ww*DPR;let z=Math.max(0,Math.min(6,Math.ceil(Math.log2(wpx/2048)-0.05)));const wp=2048<<z,f=wpx/wp,tsz=TS*f;
@@ -643,7 +643,8 @@ function rebuildTile(T2,t){const tx=(t%TX)*OTS,ty=((t/TX)|0)*OTS,r=T2.dr;T2.dr=n
 function setCell(i,z){const o=CTL[i];if(o===z)return;if(o)G.zones[o-1].c--;if(z)G.zones[z-1].c++;CTL[i]=z;paintPix(i,o);ctlVer++;if(REG&&REG[i])CHR.add(REG[i]-1)}
 function zoneFor(r,o){const key=r+'_'+o;let id=ZK.get(key);if(id)return id;G.zones.push({r,o,k:'o',c:0,n:''});id=G.zones.length;ZK.set(key,id);return id}
 const ctrlOf=i=>{const z=CTL[i];return z?G.zones[z-1].o:G.owner[REG[i]-1]};
-function capCell(me,i){const rg=REG[i];if(!rg)return false;const r=rg-1,own=G.owner[r],c=ctrlOf(i);if(c===me)return false;if(own===me){setCell(i,0);return true}if(!atWar(me,c))return false;setCell(i,zoneFor(r,me));return true}
+let CAPLOG=null;function capCell(me,i){if(CAPLOG)CAPLOG.push(i);const rg=REG[i];if(!rg)return false;const r=rg-1,own=G.owner[r],c=ctrlOf(i);if(c===me)return false;if(own===me){setCell(i,0);return true}if(!atWar(me,c))return false;setCell(i,zoneFor(r,me));return true}
+function dblAdd(a,b,c,e){for(const D of DBL)if(a>D[0]-24&&c<D[2]+24&&b>D[1]-24&&e<D[3]+24&&D[2]-D[0]<120&&D[3]-D[1]<120){if(a<D[0])D[0]=a;if(b<D[1])D[1]=b;if(c>D[2])D[2]=c;if(e>D[3])D[3]=e;return}DBL.push([a,b,c,e])}
 let DBL=[];function occPaint(me,x,y,ry=1.5){if(!REG)return;x=((x%MW)+MW)%MW;const cx=x*GW/MW,cy=y*GH/MH;let D=null;for(const b of DBL)if(cx>b[0]-24&&cx<b[2]+24&&cy>b[1]-24&&cy<b[3]+24&&b[2]-b[0]<120&&b[3]-b[1]<120){D=b;break}
   if(!D)DBL.push([cx,cy,cx,cy]);else{if(cx<D[0])D[0]=cx;if(cy<D[1])D[1]=cy;if(cx>D[2])D[2]=cx;if(cy>D[3])D[3]=cy}const rx=ry/Math.max(.2,Math.cos((90-y/MH*180)*Math.PI/180));
   for(let j=Math.max(0,Math.floor(cy-ry));j<=Math.min(GH-1,Math.ceil(cy+ry));j++){const dy=(j+.5-cy)/ry;if(dy*dy>1)continue;const hw=rx*Math.sqrt(1-dy*dy);
@@ -764,11 +765,11 @@ function zoneRegion(r){const R1=r+1,[x0,y0,x1,y1]=cellBox(r),ids=[];G.zones.forE
       for(const o of[-1,1,-GW,GW]){const z=ZID_A[k+o]&32767;if(z&&G.zones[z-1].r===r){add.push(k,z);break}}}}for(let q=0;q<add.length;q+=2)ZID_A[add[q]]=add[q+1]|32768}
   CUTQ.add(r);
   return[bx,by,bx+w-1,by+h-1]}
-let CUTQ=new Set(),cutT=0;function cutFlush(){const L=CUTQ;CUTQ=new Set();for(const r of L){for(const id of [...ZCUT.keys()])if(G.zones[id-1].r===r)ZCUT.delete(id);G.zones.forEach((z,i)=>{if(z.r===r&&z.c>0){const m=maskContour(r,k=>CTL[k]===i+1);ZCUT.set(i+1,{r,line:m.line,b:m.b})}})}
+let CUTQ=new Set(),cutT=0;function cutFlush(budget){const t0=performance.now(),L=[];for(const r of CUTQ){L.push(r);if(budget&&performance.now()-t0>budget)break}for(const r of L)CUTQ.delete(r);for(const r of L){for(const id of [...ZCUT.keys()])if(G.zones[id-1].r===r)ZCUT.delete(id);G.zones.forEach((z,i)=>{if(z.r===r&&z.c>0){const m=maskContour(r,k=>CTL[k]===i+1);ZCUT.set(i+1,{r,line:m.line,b:m.b})}})}
   ANX=[...ZCUT.entries()].map(([id,v])=>({id,r:v.r,line:v.line,b:v.b}));draw()}
-function zoneFlush(full){if(!REG||!G)return;if(!ZID_A){ZID_A=new Uint16Array(GW*GH);FF_A=new Uint8Array(GW*GH)}
-  let regs;if(full){ZID_A.fill(0);FF_A.fill(0);ZCUT.clear();regs=new Set(G.zones.filter(z=>z.c>0).map(z=>z.r))}else regs=CHR;CHR=new Set();
-  let X0=GW,Y0=GH,X1=-1,Y1=-1;for(const r of regs){const b=zoneRegion(r);X0=Math.min(X0,b[0]);Y0=Math.min(Y0,b[1]);X1=Math.max(X1,b[2]);Y1=Math.max(Y1,b[3])}
+function zoneFlush(full,budget){if(!REG||!G)return;if(!ZID_A){ZID_A=new Uint16Array(GW*GH);FF_A=new Uint8Array(GW*GH)}
+  let regs;if(full){ZID_A.fill(0);FF_A.fill(0);ZCUT.clear();regs=new Set(G.zones.filter(z=>z.c>0).map(z=>z.r));CHR=new Set()}else{regs=CHR;CHR=new Set()}
+  const zt0=performance.now();let X0=GW,Y0=GH,X1=-1,Y1=-1;for(const r of regs){if(!full&&budget&&performance.now()-zt0>budget){CHR.add(r);continue}const b=zoneRegion(r);X0=Math.min(X0,b[0]);Y0=Math.min(Y0,b[1]);X1=Math.max(X1,b[2]);Y1=Math.max(Y1,b[3])}
   ANX=[...ZCUT.entries()].map(([id,v])=>({id,r:v.r,line:v.line,b:v.b}));
   if(!GLR.ok||!GLR.fill){draw();return}GLR.zon=G.zones.some(z=>z.c>0)?1:0;
   const zh=Math.ceil((G.zones.length+1)/TW),inf=new Uint32Array(TW*zh*4);
@@ -920,7 +921,7 @@ function plLen(P){const c=[0];for(let i=1;i<P.length;i++){const d=Math.hypot(P[i
 function plAt(P,C,t){const L=C[C.length-1]*t;let i=1;while(i<C.length-1&&C[i]<L)i++;const s=C[i]-C[i-1]||1,f=(L-C[i-1])/s;return[P[i-1][0]+(P[i][0]-P[i-1][0])*f,P[i-1][1]+(P[i][1]-P[i-1][1])*f]}
 function plProj(P,C,x,y){let bt=0,bd=1e18;for(let i=1;i<P.length;i++){const ax=P[i-1][0],ay=P[i-1][1],dx=P[i][0]-ax,dy=P[i][1]-ay,l2=dx*dx+dy*dy||1;let u=((x-ax)*dx+(y-ay)*dy)/l2;u=Math.max(0,Math.min(1,u));
   const d=(ax+u*dx-x)**2+(ay+u*dy-y)**2;if(d<bd){bd=d;bt=(C[i-1]+u*(C[i]-C[i-1]))/(C[C.length-1]||1)}}return bt}
-function selDivs(){const s=[...SELS].map(id=>G.divs.find(d=>d.id===id)).filter(Boolean);if(!s.length&&selDiv)s.push(selDiv);return s}
+function selDivs(){const s=[...SELS].map(id=>divById(id)).filter(Boolean);if(!s.length&&selDiv)s.push(selDiv);return s}
 function sendFront(divs,P){const gap=3,S=[[P[0]]];for(let i=1;i<P.length;i++){if(Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1])>gap)S.push([]);S[S.length-1].push(P[i])}
   if(S.length<2)return sendAlong(divs,P);const L=S.map(s=>{let l=0;for(let i=1;i<s.length;i++)l+=Math.hypot(s[i][0]-s[i-1][0],s[i][1]-s[i-1][1]);return l+.5});
   const ord=S.map((s,i)=>i).sort((a,b)=>L[b]-L[a]),n=divs.length,cnt=new Array(S.length).fill(0);let left=n;for(const i of ord){if(!left)break;cnt[i]=1;left--}
@@ -990,7 +991,7 @@ function buildArea(f){const me=G.player,P=f.plan,ds=planDivs(f),sx=GW/MW,sy=GH/M
   let inA=flood(false),far=0;for(const k of inA)if(sideK(k)===-S)far++;if(far>inA.size*.05||inA.size>=400000)inA=flood(true);
   const all=[...inA],C=plLen(P),T=new Float32Array(all.length),cache=new Map();
   all.forEach((k,i)=>{const bk=((k/GW|0)/3|0)*2048+((k%GW)/3|0);let t=cache.get(bk);if(t===undefined){t=plProj(P,C,((k%GW)+.5)/sx,((k/GW|0)+.5)/sy);cache.set(bk,t)}T[i]=t});
-  const a={cells:Int32Array.from(all),t:T,v:-1,set:inA};PAREA.set(f.id,a);return a}
+  const ix=new Map();all.forEach((k,i)=>ix.set(k,i));const a={cells:Int32Array.from(all),t:T,v:-1,set:inA,ix};PAREA.set(f.id,a);return a}
 function plDist(P,x,y){let bd=1e18;for(let i=1;i<P.length;i++){const ax=P[i-1][0],ay=P[i-1][1],dx=P[i][0]-ax,dy=P[i][1]-ay,l2=dx*dx+dy*dy||1;let u=((x-ax)*dx+(y-ay)*dy)/l2;u=Math.max(0,Math.min(1,u));const d=(ax+u*dx-x)**2+(ay+u*dy-y)**2;if(d<bd)bd=d}return Math.sqrt(bd)}
 // enemy cells hugging the start line fall outside the polygon (its edge runs through own border cells): add them if nearer to the start line than to the plan
 function edgeRing(A,B,set,me){let cur=[...set];for(let it=0;it<4;it++){const nx=[];for(const k of cur)for(const o of[-1,1,-GW,GW]){const n=k+o;if(n<0||n>=GW*GH||set.has(n)||!REG[n])continue;const c=ctrlOf(n);if(c===me||!(atWar(me,c)||G.owner[REG[n]-1]===me))continue;
@@ -1009,27 +1010,39 @@ function cleanHoles(a){const me=G.player;let x0=GW,y0=GH,x1=0,y1=0;for(const k o
   if(out.length)queuePocket(me,out,i=>REG[i]&&ctrlOf(i)===me)}
 const isFrontier=k=>{const me=G.player,i=k%GW;return(i>0&&REG[k-1]&&ctrlOf(k-1)===me)||(i<GW-1&&REG[k+1]&&ctrlOf(k+1)===me)||(REG[k-GW]&&ctrlOf(k-GW)===me)||(REG[k+GW]&&ctrlOf(k+GW)===me)};
 function laneOf(t,n){return Math.min(n-1,Math.max(0,Math.floor(t*n)))}
-function planDivs(f){return f.divs.map(id=>G.divs.find(d=>d.id===id)).filter(Boolean)}
+// id -> division index, rebuilt only when the division list changes (was O(divs) find per id)
+let DBI=null,DBA=null,DBN=-1;function divById(id){if(DBA!==G.divs||DBN!==G.divs.length){DBA=G.divs;DBN=G.divs.length;DBI=new Map();for(const d of G.divs)DBI.set(d.id,d)}return DBI.get(id)}
+function planDivs(f){const out=[];for(const id of f.divs){const d=divById(id);if(d)out.push(d)}return out}
 function planTick(f){const me=G.player,ds=planDivs(f);if(!ds.length){f.exec=false;PAREA.delete(f.id);return}let a=PAREA.get(f.id)||buildArea(f);
   const n=ds.length,A=f.line0||f.line,C=plLen(A);
   // lanes: divisions ordered along the front (re-done when divisions die/are added)
   if(a.nd!==n){const PC=plLen(f.plan);ds.map(d=>({d,t:plProj(f.plan,PC,d.x,d.y)})).sort((x,y)=>x.t-y.t).forEach((o,i)=>o.d.ln=i);a.nd=n}
-  const tot=new Int32Array(n),rem=new Int32Array(n),left=[];for(let i=0;i<a.cells.length;i++){const k=a.cells[i],l=laneOf(a.t[i],n);tot[l]++;if(ctrlOf(k)!==me){rem[l]++;left.push(i)}}
-  a.rem=rem;a.tot=tot;a.left=left.length;
+  // remaining cells: filter last tick's list (captures only shrink it); full rescan when lanes change or every planFullTicks (recaptures)
+  if(a.totN!==n){a.tot=new Int32Array(n);for(let i=0;i<a.cells.length;i++)a.tot[laneOf(a.t[i],n)]++;a.totN=n;a.lv=null}
+  const tot=a.tot,rem=new Int32Array(n);let left;const src=a.lv&&gameH()-a.lvH<CFG.planFullTicks?a.lv:null;
+  if(src){left=[];for(let q=0;q<src.length;q++){const i=src[q];if(ctrlOf(a.cells[i])!==me){left.push(i);rem[laneOf(a.t[i],n)]++}}}
+  else{left=[];for(let i=0;i<a.cells.length;i++)if(ctrlOf(a.cells[i])!==me){left.push(i);rem[laneOf(a.t[i],n)]++}a.lvH=gameH()}
+  a.lv=left;a.rem=rem;a.left=left.length;
   if(!left.length&&ds.every(d=>!d.path.length||d.tk==null)){finishPlan(f,ds);return}
   if(!left.length){for(const d of ds)if(d.tk!=null){d.path=[];d.tk=null}finishPlan(f,ds);return}
   const prog=l=>tot[l]?1-rem[l]/tot[l]:1;
-  for(const d of ds){const own=d.ln??0;
+  // frontier cells per lane, built lazily once per tick (in 'left' order, so ties resolve exactly as a full scan); rebuilt only if control changed meanwhile
+  // frontier flags for remaining cells: computed lazily once per tick, then patched only around cells captured inside this tick (same result as re-evaluating isFrontier)
+  let LL=null,FR=null;const laneLists=()=>{if(LL)return;LL=[];for(let l=0;l<n;l++)LL.push([]);if(!a.fr||a.fr.length!==a.cells.length)a.fr=new Uint8Array(a.cells.length);FR=a.fr;
+    FA=[];for(const i of left){const f=isFrontier(a.cells[i])?1:0;FR[i]=f;if(f){LL[laneOf(a.t[i],n)].push(i);FA.push(i)}}if(!a.inL||a.inL.length!==a.cells.length)a.inL=new Uint32Array(a.cells.length);a.gen=(a.gen||0)+1;for(const i of left)a.inL[i]=a.gen};
+  let FA=null;const patch=log=>{if(!FR)return;for(const c of log)for(const o of[0,-1,1,-GW,GW]){const j=a.ix.get(c+o);if(j===undefined||a.inL[j]!==a.gen)continue;const f=isFrontier(c+o)?1:0;if(f&&!FR[j]){LL[laneOf(a.t[j],n)].push(j);FA.push(j)}FR[j]=f}};
+  let rt=0;for(const d of ds){const own=d.ln??0;
     // keep current attack while its target is still enemy
-    if(d.path.length&&d.tk!=null&&ctrlOf(d.tk)!==me)continue;
-    if(!d.path.length&&d.tk!=null&&ctrlOf(d.tk)!==me){d.pf=f.id;planBubble(d);d.tk=null}
+    if(d.path.length&&d.tk!=null&&ctrlOf(d.tk)!==me)continue;if(++rt>CFG.maxRetargetsPerTick)break;
+    if(!d.path.length&&d.tk!=null&&ctrlOf(d.tk)!==me){d.pf=f.id;CAPLOG=[];planBubble(d);const lg=CAPLOG;CAPLOG=null;patch(lg);d.tk=null}
     let L=own;
     if(!rem[own]){let bd=1e9;for(let l=0;l<n;l++)if(rem[l]&&Math.abs(l-own)<bd){bd=Math.abs(l-own);L=l}}
     else{const nb=[own-1,own+1].filter(l=>l>=0&&l<n&&rem[l]);let lo=-1,lp=2;for(const l of nb)if(prog(l)<lp){lp=prog(l);lo=l}
       if(lo>=0&&prog(own)>lp+CFG.planGap)L=lo}
     // nearest frontier cell of lane L (fallback: nearest frontier cell of the whole area)
     let bk=-1,bd=1e18;const dx=d.x*GW/MW,dy=d.y*GH/MH;
-    for(const pass of[0,1]){for(const i of left){if(!pass&&laneOf(a.t[i],n)!==L)continue;const k=a.cells[i];if(!isFrontier(k))continue;const x=k%GW,y=k/GW|0;let ex=Math.abs(x-dx);if(ex>GW/2)ex=GW-ex;const dd=ex*ex+(y-dy)**2;if(dd<bd){bd=dd;bk=k}}if(bk>=0)break}
+    // frontier-only lists; ties resolved by lowest area index = first in the old full scan order
+    laneLists();let bi=-1;for(let pass=0;pass<2;pass++){const lst=pass?FA:LL[L],len=lst.length;for(let q=0;q<len;q++){const ii=lst[q];if(!FR[ii])continue;const k=a.cells[ii];const x=k%GW,y=k/GW|0;let ex=Math.abs(x-dx);if(ex>GW/2)ex=GW-ex;const dd=ex*ex+(y-dy)**2;if(dd<bd||(dd===bd&&ii<bi)){bd=dd;bk=k;bi=ii}}if(bk>=0)break}
     if(bk<0){d.tk=null;continue}
     const tx=((bk%GW)+.5)*MW/GW,ty=((bk/GW|0)+.5)*MH/GH;d.tk=bk;d.tl=L;
     ROUTE_OWN=true;let okR=orderDiv(d,tx,ty,REG[bk]-1,true);ROUTE_OWN=false;if(!okR)okR=orderDiv(d,tx,ty,REG[bk]-1,true);if(!okR)d.tk=null;else{d.pf=f.id;d.hold=1}}}
@@ -1053,7 +1066,7 @@ function drawPlanDbg(K,ox){if(!PLAN_DBG)return;const me=G.player,cw=MW/GW*K,ch=M
 // standing on it or marching to it. Assignment is event-driven (control change, divisions change) + safety interval,
 // with hysteresis so divisions do not jitter. Surplus goes to second echelon/reserve; shortage -> divisions stretch
 // over 2 sectors, then the least important sectors stay open and the player is warned.
-const CFG={tickH:1,maxTicksPerFrame:480,maxBacklogTicks:480,tickBudgetMs:10,planEveryTicks:1,smoothMs:250,baseKmh:4,turnPenaltyH:0,retreatMul:.8,combatEveryTicks:1,zoneFlushMs:90,cutFlushMs:600,
+const CFG={planFullTicks:24,maxRetargetsPerTick:Infinity,minTicksPerFrame:1,smoothBudgetMs:3,zoneBudgetMs:4,cutBudgetMs:4,tickH:1,maxTicksPerFrame:480,maxBacklogTicks:480,tickBudgetMs:10,planEveryTicks:1,smoothMs:250,baseKmh:4,turnPenaltyH:0,retreatMul:.8,combatEveryTicks:1,zoneFlushMs:90,cutFlushMs:600,
   sectorLen:1.6,coverMs:6,coverSafetyMs:48,reassignMs:48,keepDist:1.2,reservePct:.15,maxSecPerDiv:2,arriveDist:.35,
   echelonBack:.9,reserveBack:1.6,warnMs:12000,deepBreak:false,spearMaxKm:160,planGap:.2};
 let ROUTE_OWN=false;const COVER=new Map();
@@ -1100,10 +1113,10 @@ function coverFront(f,force){if(f.t==null||f.exec)return;const me=G.player,ds=pl
   for(const s of open)st.push({p:s.p,pr:s.pr,d:0,state:'open'});
   COVER.set(f.id,{st,need:open.reduce((a,s)=>a+1,0),t:now});
   }
-function coverTick(){const now=gameH();for(const f of G.fronts){if(f.t==null||f.exec)continue;const ds=planDivs(f),sig=ds.length+'_'+ds.map(d=>d.id).join(',');
+function coverTick(){const now=gameH();for(const f of G.fronts){if(f.t==null||f.exec)continue;const ds=planDivs(f);let sig=ds.length;for(const d of ds)sig=(sig*31+d.id)|0;
   if(f.cvV!==ctlVer||f.cvS!==sig||now-(f.cvT||0)>CFG.coverSafetyMs){if(now-(f.cvT||0)<CFG.coverMs&&f.cvS===sig)continue;f.cvT=now;f.cvV=ctlVer;f.cvS=sig;coverFront(f);draw()}
-  else{const c=COVER.get(f.id);if(c)for(const s of c.st){if(!s.d)continue;const d=G.divs.find(q=>q.id===s.d);if(d)s.state=Math.hypot(d.x-s.p[0],d.y-s.p[1])<CFG.arriveDist?'ok':'move'}}}}
-function drawTickDbg(K,ox){if(!PLAN_DBG||!G)return;ctx.fillStyle='#fff';ctx.font='11px sans-serif';ctx.fillText(`тик ${G.hour||0} (${Math.floor((G.hour||0)/24)} д ${(G.hour||0)%24} ч) · тиков за кадр до ${CFG.maxTicksPerFrame}`,10,76);
+  else{const c=COVER.get(f.id);if(c)for(const s of c.st){if(!s.d)continue;const d=divById(s.d);if(d)s.state=Math.hypot(d.x-s.p[0],d.y-s.p[1])<CFG.arriveDist?'ok':'move'}}}}
+function drawTickDbg(K,ox){if(!PLAN_DBG||!G)return;{const o=PROF.out;let y=150;ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(6,y-12,210,14*(Object.keys(o).length+1));ctx.fillStyle='#9f9';ctx.font='11px sans-serif';for(const k in o){ctx.fillText(k+': '+(k==='fps'||k==='tps'?o[k].toFixed(0):o[k].toFixed(2)+' мс/кадр'),10,y);y+=14}}ctx.fillStyle='#fff';ctx.font='11px sans-serif';ctx.fillText(`тик ${G.hour||0} (${Math.floor((G.hour||0)/24)} д ${(G.hour||0)%24} ч) · тиков за кадр до ${CFG.maxTicksPerFrame}`,10,76);
   if(T.k<3)return;ctx.font='10px sans-serif';for(const d of G.divs){if(!d.path.length)continue;const ix=d.ox!=null?d.ox+(d.x-d.ox)*DIVF:d.x,iy=d.oy!=null?d.oy+(d.y-d.oy)*DIVF:d.y,x=ix*K+ox,y=iy*K+T.y;if(x<0||x>W||y<0||y>H)continue;
     const m=divMods(d),pr=Math.round(100*(d.pDone||0)/Math.max(.01,d.pTot||1));ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(x+9,y-16,120,26);ctx.fillStyle='#fff';
     ctx.fillText(`${pr}% · ${divSpd(d).toFixed(2)} км/ч · ${fmtEta(divEta(d))}`,x+11,y-6);ctx.fillText(`мест ${m.terr.toFixed(2)} план ${m.plan.toFixed(2)}`,x+11,y+5);
@@ -1113,7 +1126,7 @@ function drawCoverDbg(K,ox){if(!PLAN_DBG)return;for(const f of G.fronts){const c
     ctx.fillStyle=s.res?'#58a6ff':col;ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,s.ech||s.res?3.5:5,0,7);ctx.fill();ctx.stroke();
     if(s.state==='open'){ctx.strokeStyle='#ff2a2a';ctx.beginPath();ctx.moveTo(x-5,y-5);ctx.lineTo(x+5,y+5);ctx.moveTo(x+5,y-5);ctx.lineTo(x-5,y+5);ctx.stroke()}
     if(T.k>4){ctx.fillStyle='#fff';ctx.font='10px sans-serif';ctx.fillText(s.pr,x+6,y-4)}
-    if(s.d){const d=G.divs.find(q=>q.id===s.d);if(d&&s.state==='move'){ctx.strokeStyle='rgba(255,216,74,.7)';ctx.beginPath();ctx.moveTo(d.x*K+ox,d.y*K+T.y);ctx.lineTo(x,y);ctx.stroke()}}}
+    if(s.d){const d=divById(s.d);if(d&&s.state==='move'){ctx.strokeStyle='rgba(255,216,74,.7)';ctx.beginPath();ctx.moveTo(d.x*K+ox,d.y*K+T.y);ctx.lineTo(x,y);ctx.stroke()}}}
   const n=c.st.filter(s=>s.state==='gap'||s.state==='open').length;ctx.fillStyle='#fff';ctx.font='11px sans-serif';ctx.fillText(`фронт #${f.id}: брешей ${n}, не хватает ${c.need}`,10,104+f.id*13)}}
 
 function setDraw(m){DRAW=DRAW===m?null:m;DRAWP=null;let ov=document.getElementById('drawov');if(!ov){ov=document.createElement('div');ov.id='drawov';document.body.appendChild(ov);let pts=null;
@@ -1195,20 +1208,27 @@ const CGS=4,CGW=GW/CGS,CGH=GH/CGS;
 function passK(k,ce){const r=REG[k];if(ROUTE_OWN&&r&&ctrlOf(k)!==G.player)return false;return r&&ce(r-1)}
 function losOK(x0,y0,x1,y1,ce){const a=x0*GW/MW,b=y0*GH/MH,c=x1*GW/MW,e=y1*GH/MH,n=Math.ceil(Math.hypot(c-a,e-b)*2)+1;
   for(let i=0;i<=n;i++){const t=i/n;let x=Math.floor(a+(c-a)*t);x=((x%GW)+GW)%GW;const y=Math.min(GH-1,Math.max(0,Math.floor(b+(e-b)*t)));if(!passK(y*GW+x,ce))return false}return true}
-function gridRoute(sx,sy,tx,ty,ce){const cc=new Map(),C=r=>{let v=cc.get(r);if(v===undefined){v=canEnter(r);cc.set(r,v)}return v};ce=C;
+// A* buffers are allocated once and reset by generation stamp (no per-call 2+MB allocation/fill)
+let AS_G=null,AS_PR,AS_PI,AS_ST,AS_CL,AS_GEN=0,AS_HF=new Float64Array(1024),AS_HK=new Int32Array(1024),CE_C=null,CE_GEN=0,CE_ST=null;
+function gridRoute(sx,sy,tx,ty,ce){const NR=RK.length;if(!CE_C||CE_C.length!==NR){CE_C=new Uint8Array(NR);CE_ST=new Uint32Array(NR)}CE_GEN++;
+  ce=r=>{if(CE_ST[r]!==CE_GEN){CE_ST[r]=CE_GEN;CE_C[r]=canEnter(r)?1:0}return CE_C[r]===1};
   if(losOK(sx,sy,tx,ty,ce))return[[tx,ty]];
-  const pk=(i,j)=>{const x=((i%CGW)+CGW)%CGW;if(j<0||j>=CGH)return false;for(const[o,q]of[[2,2],[1,1],[3,3],[1,3],[3,1]]){if(passK((j*CGS+q)*GW+x*CGS+o,ce))return true}return false};
-  const toC=(x,y)=>[Math.floor(x*CGW/MW),Math.floor(y*CGH/MH)];let[si,sj]=toC(sx,sy),[ti,tj]=toC(tx,ty);
+  const OFF=[2,2,1,1,3,3,1,3,3,1],pk=(i,j)=>{const x=((i%CGW)+CGW)%CGW;if(j<0||j>=CGH)return false;for(let q=0;q<10;q+=2){if(passK((j*CGS+OFF[q+1])*GW+x*CGS+OFF[q],ce))return true}return false};
+  let si=Math.floor(sx*CGW/MW),sj=Math.floor(sy*CGH/MH),ti=Math.floor(tx*CGW/MW),tj=Math.floor(ty*CGH/MH);
   while(ti-si>CGW/2)ti-=CGW;while(ti-si<-CGW/2)ti+=CGW;
-  const N=CGW*CGH,key=(i,j)=>j*CGW+(((i%CGW)+CGW)%CGW),G2=new Float32Array(N).fill(1e30),PR=new Int32Array(N).fill(-1),PI=new Int32Array(N),CL=new Uint8Array(N);
-  const hp=[],hv=[];const push=(f,k)=>{hp.push(f);hv.push(k);let i=hp.length-1;while(i){const q=(i-1)>>1;if(hp[q]<=hp[i])break;[hp[q],hp[i]]=[hp[i],hp[q]];[hv[q],hv[i]]=[hv[i],hv[q]];i=q}};
-  const pop=()=>{const k=hv[0],lf=hp.pop(),lv=hv.pop();if(hp.length){hp[0]=lf;hv[0]=lv;let i=0;for(;;){const L=2*i+1,Rr=L+1;let m=i;if(L<hp.length&&hp[L]<hp[m])m=L;if(Rr<hp.length&&hp[Rr]<hp[m])m=Rr;if(m===i)break;[hp[m],hp[i]]=[hp[i],hp[m]];[hv[m],hv[i]]=[hv[i],hv[m]];i=m}}return k};
-  const s0=key(si,sj),t0=key(ti,tj);G2[s0]=0;PI[s0]=si;push(Math.hypot(ti-si,tj-sj),s0);let it=0,found=false;
-  while(hp.length&&it++<400000){const k=pop();if(CL[k])continue;CL[k]=1;if(k===t0){found=true;break}const ui=PI[k],uj=(k/CGW)|0,g=G2[k];
-    for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){if(!di&&!dj)continue;const vi=ui+di,vj=uj+dj;if(vj<0||vj>=CGH)continue;const v=key(vi,vj);if(CL[v])continue;if(v!==t0&&!pk(vi,vj))continue;
-      const ng=g+(di&&dj?1.4142:1);if(ng<G2[v]){G2[v]=ng;PR[v]=k;PI[v]=vi;push(ng+Math.hypot(ti-vi,tj-vj),v)}}}
+  const N=CGW*CGH;if(!AS_G){AS_G=new Float32Array(N);AS_PR=new Int32Array(N);AS_PI=new Int32Array(N);AS_ST=new Uint32Array(N);AS_CL=new Uint32Array(N)}
+  const gen=++AS_GEN,G2=AS_G,PR=AS_PR,PI=AS_PI,ST=AS_ST,CL=AS_CL,key=(i,j)=>j*CGW+(((i%CGW)+CGW)%CGW);
+  const gv=k=>ST[k]===gen?G2[k]:1e30;
+  let hn=0,HF=AS_HF,HK=AS_HK;
+  const push=(f,k)=>{if(hn===HF.length){const nf=new Float64Array(hn*2),nk=new Int32Array(hn*2);nf.set(HF);nk.set(HK);AS_HF=HF=nf;AS_HK=HK=nk}HF[hn]=f;HK[hn]=k;let i=hn++;
+    while(i){const q=(i-1)>>1;if(HF[q]<=HF[i])break;const tf=HF[q];HF[q]=HF[i];HF[i]=tf;const tk=HK[q];HK[q]=HK[i];HK[i]=tk;i=q}};
+  const pop=()=>{const k=HK[0];hn--;if(hn){HF[0]=HF[hn];HK[0]=HK[hn];let i=0;for(;;){const L=2*i+1,Rr=L+1;let m=i;if(L<hn&&HF[L]<HF[m])m=L;if(Rr<hn&&HF[Rr]<HF[m])m=Rr;if(m===i)break;
+      const tf=HF[m];HF[m]=HF[i];HF[i]=tf;const tk=HK[m];HK[m]=HK[i];HK[i]=tk;i=m}}return k};
+  const s0=key(si,sj),t0=key(ti,tj);ST[s0]=gen;G2[s0]=0;PR[s0]=-1;PI[s0]=si;push(Math.hypot(ti-si,tj-sj),s0);let it=0,found=false;
+  while(hn&&it++<400000){const k=pop();if(CL[k]===gen)continue;CL[k]=gen;if(k===t0){found=true;break}const ui=PI[k],uj=(k/CGW)|0,g=G2[k];
+    for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){if(!di&&!dj)continue;const vi=ui+di,vj=uj+dj;if(vj<0||vj>=CGH)continue;const v=key(vi,vj);if(CL[v]===gen)continue;if(v!==t0&&!pk(vi,vj))continue;
+      const ng=g+(di&&dj?1.4142:1);if(ng<gv(v)){ST[v]=gen;G2[v]=ng;PR[v]=k;PI[v]=vi;push(ng+Math.hypot(ti-vi,tj-vj),v)}}}
   if(!found)return null;const cells=[];for(let k=t0;k>=0&&k!==s0;k=PR[k])cells.push([(PI[k]+.5)*MW/CGW,(((k/CGW)|0)+.5)*MH/CGH]);cells.reverse();cells[cells.length-1]=[tx,ty];
-  // string pulling
   const out=[];let cx=sx,cy=sy,i=0;while(i<cells.length){let j=cells.length-1;while(j>i&&!losOK(cx,cy,cells[j][0],cells[j][1],ce))j--;out.push(cells[j]);cx=cells[j][0];cy=cells[j][1];i=j+1}return out}
 function orderDiv(d,tx,ty,tr,quiet){const had=d.path.length?d.path[d.path.length-1]:null;const ok=orderDiv0(d,tx,ty,tr,quiet);
   if(ok){const same=had&&Math.hypot(had[0]-tx,had[1]-ty)<.3;if(same){const done=d.pDone||0;d.pTot=pathKm(d)+done;d.pDone=done}else{d.pTot=pathKm(d);d.pDone=0;if(had&&CFG.turnPenaltyH>0)d.wait=CFG.turnPenaltyH}}return ok}
@@ -1280,21 +1300,24 @@ function randomEvent(){const me=G.player,M=G.nat[me],ev=[
   ()=>{for(const r of terr(me))G.gdp[r]*=.97;recalc();return`${I("trending-down")} Мировой кризис ударил по экономике.`},
   ()=>{M.tech+=.1;return`${I("lightbulb")} Учёные совершили открытие.`},
   ()=>{M.army*=.96;return`${I("tornado")} Стихийное бедствие.`}];addLog(ev[Math.floor(Math.random()*ev.length)]())}
-let hAcc=0,DIVF=0,tickN=0,HMV=false,smT=0;
+let OSQ=[],hAcc=0,DIVF=0,tickN=0,HMV=false,smT=0;
+const PROF={on:true,acc:{},cnt:{},out:{},t0:0,frames:0,ticks:0};function pf(k,dt){PROF.acc[k]=(PROF.acc[k]||0)+dt}
+function pfRoll(now){if(now-PROF.t0<1000)return;const el=(now-PROF.t0)/1000;PROF.out={fps:PROF.frames/el,tps:PROF.ticks/el};for(const k in PROF.acc)PROF.out[k]=PROF.acc[k]/Math.max(1,PROF.frames);PROF.acc={};PROF.frames=0;PROF.ticks=0;PROF.t0=now}
 function hourTick(){if(!G.hour)G.hour=G.day*24;for(const d of G.divs){d.ox=d.x;d.oy=d.y}
-  const mv=G.divs.length&&moveDivs(CFG.tickH);G.hour+=CFG.tickH;tickN++;
+  let _p=performance.now();const mv=G.divs.length&&moveDivs(CFG.tickH);G.hour+=CFG.tickH;tickN++;PROF.ticks++;let _q=performance.now();pf('движение',_q-_p);_p=_q;
   if(mv)HMV=true;
-  if(G.fronts&&G.fronts.length){if(G.hour%CFG.planEveryTicks===0)for(const f of G.fronts.slice())if(f.exec&&f.plan)planTick(f);else if(f.exec&&!f.plan)f.exec=false;coverTick()}
-  if(G.hour%24===0)dayTick();return mv}
+  if(G.fronts&&G.fronts.length){if(G.hour%CFG.planEveryTicks===0)for(const f of G.fronts.slice())if(f.exec&&f.plan)planTick(f);else if(f.exec&&!f.plan)f.exec=false;_q=performance.now();pf('план',_q-_p);_p=_q;coverTick();_q=performance.now();pf('бреши',_q-_p);_p=_q}
+  if(G.hour%24===0){dayTick();pf('экономика',performance.now()-_p)}return mv}
 let last=performance.now(),acc=0,lastHud=0,lastSimDraw=0;
 let lastClk='';function clockStr(){const f=Math.min(.9999,Math.max(0,acc)),m=Math.floor(f*1440);const h=Math.floor(m/60),mm=m%60;return String(h).padStart(2,'0')+':'+String(speed>=3?0:mm-mm%10).padStart(2,'0')}
-function loop(now){requestAnimationFrame(loop);
-if(G&&CHR.size&&now-zFlushT>CFG.zoneFlushMs){zFlushT=now;zoneFlush(false)}if(G&&CUTQ.size&&now-cutT>CFG.cutFlushMs){cutT=now;cutFlush()}
+function loop(now){requestAnimationFrame(loop);PROF.frames++;pfRoll(now);const _lf=performance.now();
+if(G&&CHR.size&&now-zFlushT>CFG.zoneFlushMs){zFlushT=now;const t=performance.now();zoneFlush(false,CFG.zoneBudgetMs);pf('карта',performance.now()-t)}if(G&&CUTQ.size&&now-cutT>CFG.cutFlushMs){cutT=now;const t=performance.now();cutFlush(CFG.cutBudgetMs);pf('линии',performance.now()-t)}
 if(G&&ANQ.length&&now-(window.__pk||0)>16){window.__pk=now;stepPockets();if(now-lastSimDraw>30){lastSimDraw=now;draw()}}
 const dt=Math.min(1,(now-last)/1000);last=now;
   if(G&&!modalOpen()&&speed>0){if(G.hour==null)G.hour=G.day*24;hAcc=Math.min(CFG.maxBacklogTicks,hAcc+dt*SPEEDS[speed]*24/CFG.tickH);let n=0,dmv=false,d0=G.day;
-    const tb0=performance.now();while(hAcc>=1&&n<CFG.maxTicksPerFrame&&(n<4||performance.now()-tb0<CFG.tickBudgetMs)){hAcc-=1;n++;if(hourTick())dmv=true}
-    if(HMV&&now-smT>CFG.smoothMs){smT=now;HMV=false;occSmooth(G.player)}
+    const tb0=performance.now();while(hAcc>=1&&n<CFG.maxTicksPerFrame&&(n<CFG.minTicksPerFrame||performance.now()-tb0<CFG.tickBudgetMs)){hAcc-=1;n++;if(hourTick())dmv=true}
+    if(HMV&&now-smT>CFG.smoothMs){smT=now;HMV=false;for(const b of DBL)OSQ.push(b);DBL=[]}
+    if(OSQ.length){const t0=performance.now();while(OSQ.length&&performance.now()-t0<CFG.smoothBudgetMs)occSmoothBox(G.player,OSQ.shift());pf('сглаживание',performance.now()-t0)}
     DIVF=Math.min(1,hAcc);acc=((G.hour%24)+hAcc*CFG.tickH)/24;const moving=G.divs&&G.divs.some(d=>d.path.length);
     if((dmv||moving)&&now-lastSimDraw>(divOnScreen()?0:250)){lastSimDraw=now;draw()}
     if(G.day!==d0){if(now-lastHud>100){lastHud=now;updHud()}if(sel>=0&&panel.style.display==='block')refreshPanelLight()}}
