@@ -150,6 +150,7 @@ class MainActivity : Activity() {
             val b = FrameLayout(this).apply {
                 addView(u.icon(ic, C.TXT, 18), FrameLayout.LayoutParams(u.dp(18), u.dp(18), Gravity.CENTER))
                 setPadding(u.dp(8), u.dp(6), u.dp(8), u.dp(6))
+                contentDescription = "speed$i"
                 setOnClickListener { Native.cmd("speed", i.toLong(), 0, ""); refreshUi() }
             }
             spdBtns.add(b); tbox.addView(b)
@@ -157,6 +158,7 @@ class MainActivity : Activity() {
         tbox.addView(FrameLayout(this).apply {
             addView(u.icon("menu", C.TXT, 18), FrameLayout.LayoutParams(u.dp(18), u.dp(18), Gravity.CENTER))
             setPadding(u.dp(8), u.dp(6), u.dp(8), u.dp(6))
+            contentDescription = "menu"
             setOnClickListener { menu() }
         })
         root.addView(tbox, u.lp(-2, -2, Gravity.END or Gravity.TOP, 0, 8, 8, 0))
