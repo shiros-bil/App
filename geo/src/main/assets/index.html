@@ -329,7 +329,7 @@ layout(location=0) in vec2 aP;layout(location=1) in float aR;
 uniform sampler2D uCol;out vec4 vC;out vec2 vM;flat out int vR;
 void main(){gl_Position=toClip(aP*uK+uOff);vR=int(aR+.5);vC=texelFetch(uCol,rid(vR),0);vM=aP;}`,
   `#version 300 es
-precision highp float;precision highp int;in vec4 vC;in vec2 vM;flat in int vR;uniform float uA;uniform int uZon;
+precision highp float;precision highp int;in vec4 vC;in vec2 vM;flat in int vR;uniform float uA;uniform float uK;uniform int uZon;
 uniform highp usampler2D uZid;uniform highp usampler2D uZin;uniform sampler2D uZf;out vec4 o;
 void main(){vec3 c=vC.rgb;
   if(uZon==1){ivec2 ci=ivec2(clamp(vM*vec2(${(GW/2000).toFixed(4)},${(GH/1000).toFixed(4)}),vec2(0.),vec2(${GW-1}.,${GH-1}.)));uvec4 inf=uvec4(0u);bool ok=false;
