@@ -345,6 +345,7 @@ class MainActivity : Activity() {
         val card = u.col().apply {
             background = u.bg(C.PANEL2, 18f); setPadding(u.dp(20), u.dp(20), u.dp(20), u.dp(20)); gravity = Gravity.CENTER_HORIZONTAL
             isClickable = true
+            content.minimumWidth = u.dp(300)
             addView(content)
         }
         m.addView(card, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER).apply { setMargins(u.dp(16), u.dp(16), u.dp(16), u.dp(16)) })
